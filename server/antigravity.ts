@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { MetadataValue, SessionBundle, SessionDescriptor } from "../src/parsers/types.js";
+import { BUNDLED_ANTIGRAVITY_DESCRIPTORS } from "./antigravityDescriptors.js";
 
 const ANTIGRAVITY_KEY = Buffer.from("safeCodeiumworldKeYsecretBalloon", "utf8");
 const EXTENSION_DESCRIPTOR_REGEX = /fileDesc\)\("([A-Za-z0-9+/=]+)"/g;
@@ -84,7 +85,15 @@ interface AntigravityData {
   trajectory: Record<string, unknown>;
 }
 
-let descriptorFileMapPromise: Promise<Map<string, Buffer>> | undefined;
+type DescriptorSource = "bundled" | "extension";
+
+interface DecodedTrajectoryResult {
+  descriptorSource: DescriptorSource;
+  trajectory: Record<string, unknown>;
+}
+
+let bundledDescriptorFiles: Map<string, Buffer> | undefined;
+let extensionDescriptorFileMapPromise: Promise<Map<string, Buffer> | null> | undefined;
 
 export function isAntigravityConversationPath(absolutePath: string): boolean {
   const normalized = absolutePath.replaceAll("\\", "/").toLowerCase();
@@ -119,9 +128,42 @@ export function buildAntigravityDescriptor(
   };
 }
 
-async function decodeAntigravityTrajectory(absolutePath: string): Promise<Record<string, unknown>> {
-  const decoder = await DirectPbDecoder.create();
-  return await decoder.decodeTrajectoryFile(absolutePath, path.basename(absolutePath, ".pb"));
+async function decodeAntigravityTrajectory(
+  absolutePath: string
+): Promise<DecodedTrajectoryResult> {
+  const cascadeId = path.basename(absolutePath, ".pb");
+  const bundledAttempt = await tryDecodeAntigravityTrajectory(
+    absolutePath,
+    cascadeId,
+    "bundled",
+    loadBundledDescriptorFiles()
+  );
+
+  if (bundledAttempt && isTrajectoryDecodeUsable(bundledAttempt.trajectory)) {
+    return bundledAttempt;
+  }
+
+  const extensionDescriptors = await loadExtensionDescriptorFiles();
+  if (extensionDescriptors) {
+    const extensionAttempt = await tryDecodeAntigravityTrajectory(
+      absolutePath,
+      cascadeId,
+      "extension",
+      extensionDescriptors
+    );
+    if (extensionAttempt && isTrajectoryDecodeUsable(extensionAttempt.trajectory)) {
+      return extensionAttempt;
+    }
+    if (extensionAttempt) {
+      return extensionAttempt;
+    }
+  }
+
+  if (bundledAttempt) {
+    return bundledAttempt;
+  }
+
+  throw new Error("Failed to decode Antigravity trajectory with bundled or extension descriptors.");
 }
 
 export async function loadAntigravityBundle(
@@ -130,7 +172,7 @@ export async function loadAntigravityBundle(
 ): Promise<SessionBundle> {
   const stats = await fs.stat(absolutePath);
   const descriptor = buildAntigravityDescriptor(absolutePath, origin, stats);
-  const trajectory = await decodeAntigravityTrajectory(absolutePath);
+  const { descriptorSource, trajectory } = await decodeAntigravityTrajectory(absolutePath);
   const cascadeId = String(trajectory.cascadeId ?? path.basename(absolutePath, ".pb"));
   const summary = synthesizeDirectSummary(cascadeId, trajectory);
   const brainDir = resolveBrainDirFromConversationPath(absolutePath, cascadeId);
@@ -154,6 +196,7 @@ export async function loadAntigravityBundle(
       trajectoryId: toMetadataValue(summary.trajectoryId),
       status: toMetadataValue(summary.status),
       stepCount: toMetadataValue(summary.stepCount),
+      descriptorSource,
       primaryWorkspace: toMetadataValue(primaryWorkspace),
       workspaces: stringifyMetadata(summary.workspaces)
     },
@@ -173,8 +216,7 @@ class DirectPbDecoder {
 
   private constructor(private readonly descriptorFiles: Map<string, Buffer>) {}
 
-  static async create(): Promise<DirectPbDecoder> {
-    const descriptorFiles = await loadDescriptorFiles();
+  static fromDescriptorFiles(descriptorFiles: Map<string, Buffer>): DirectPbDecoder {
     const decoder = new DirectPbDecoder(descriptorFiles);
     decoder.loadTrajectoryDescriptors();
     return decoder;
@@ -518,30 +560,46 @@ class DirectPbDecoder {
   }
 }
 
-async function loadDescriptorFiles(): Promise<Map<string, Buffer>> {
-  if (!descriptorFileMapPromise) {
-    descriptorFileMapPromise = (async () => {
-      const extensionPath = await discoverExtensionBundle();
-      const extensionSource = await fs.readFile(extensionPath, "utf8");
-      const descriptors = new Map<string, Buffer>();
+async function tryDecodeAntigravityTrajectory(
+  absolutePath: string,
+  cascadeId: string,
+  descriptorSource: DescriptorSource,
+  descriptorFiles: Map<string, Buffer>
+): Promise<DecodedTrajectoryResult | null> {
+  try {
+    const decoder = DirectPbDecoder.fromDescriptorFiles(descriptorFiles);
+    const trajectory = await decoder.decodeTrajectoryFile(absolutePath, cascadeId);
+    return {
+      descriptorSource,
+      trajectory
+    };
+  } catch {
+    return null;
+  }
+}
 
-      for (const match of extensionSource.matchAll(EXTENSION_DESCRIPTOR_REGEX)) {
-        const buffer = Buffer.from(match[1], "base64");
-        const fileName = extractDescriptorFileName(buffer);
-        if (fileName) {
-          descriptors.set(fileName, buffer);
-        }
+function loadBundledDescriptorFiles(): Map<string, Buffer> {
+  if (!bundledDescriptorFiles) {
+    bundledDescriptorFiles = descriptorMapFromBase64(BUNDLED_ANTIGRAVITY_DESCRIPTORS);
+  }
+
+  return bundledDescriptorFiles;
+}
+
+async function loadExtensionDescriptorFiles(): Promise<Map<string, Buffer> | null> {
+  if (!extensionDescriptorFileMapPromise) {
+    extensionDescriptorFileMapPromise = (async () => {
+      try {
+        const extensionPath = await discoverExtensionBundle();
+        const extensionSource = await fs.readFile(extensionPath, "utf8");
+        return descriptorMapFromExtensionSource(extensionSource);
+      } catch {
+        return null;
       }
-
-      if (descriptors.size === 0) {
-        throw new Error(`No protobuf descriptors found in ${extensionPath}`);
-      }
-
-      return descriptors;
     })();
   }
 
-  return await descriptorFileMapPromise;
+  return await extensionDescriptorFileMapPromise;
 }
 
 async function discoverExtensionBundle(): Promise<string> {
@@ -579,6 +637,32 @@ async function discoverExtensionBundle(): Promise<string> {
   }
 
   return latest.path;
+}
+
+function descriptorMapFromBase64(source: Record<string, string>): Map<string, Buffer> {
+  const descriptors = new Map<string, Buffer>();
+  for (const [fileName, base64] of Object.entries(source)) {
+    descriptors.set(fileName, Buffer.from(base64, "base64"));
+  }
+  return descriptors;
+}
+
+function descriptorMapFromExtensionSource(source: string): Map<string, Buffer> {
+  const descriptors = new Map<string, Buffer>();
+
+  for (const match of source.matchAll(EXTENSION_DESCRIPTOR_REGEX)) {
+    const buffer = Buffer.from(match[1], "base64");
+    const fileName = extractDescriptorFileName(buffer);
+    if (fileName) {
+      descriptors.set(fileName, buffer);
+    }
+  }
+
+  if (descriptors.size === 0) {
+    throw new Error("No protobuf descriptors found in Antigravity extension bundle.");
+  }
+
+  return descriptors;
 }
 
 function extractDescriptorFileName(buffer: Buffer): string | undefined {
@@ -629,6 +713,44 @@ function stepPayload(step: Record<string, unknown>): [string | undefined, unknow
     "payload",
     Object.fromEntries(payloadKeys.map((key) => [key, step[key]]))
   ];
+}
+
+function isTrajectoryDecodeUsable(trajectory: Record<string, unknown>): boolean {
+  const steps = arrayOfRecords(trajectory.steps);
+  if (steps.length === 0) {
+    return false;
+  }
+
+  return steps.some((step) => {
+    const stepType = String(step.type ?? "");
+    const [, payload] = stepPayload(step);
+    if (extractText(stepType, payload)) {
+      return true;
+    }
+    return hasDecodedPayload(payload);
+  });
+}
+
+function hasDecodedPayload(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.some((entry) => hasDecodedPayload(entry));
+  }
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const keys = Object.keys(value).filter((key) => !key.startsWith("_"));
+  if (keys.length === 0) {
+    return false;
+  }
+
+  return keys.some((key) => hasDecodedPayload(value[key]));
 }
 
 function extractText(stepType: string, payload: unknown): string | undefined {

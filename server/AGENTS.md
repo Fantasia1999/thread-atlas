@@ -7,7 +7,9 @@
 ## Key Responsibilities
 
 - `GET /api/local/scan`: scan known local roots and the `data/remote/` mirror, then return `SessionDescriptor[]`
-- `GET /api/local/session`: load one raw `SessionBundle` by key
+- `GET /api/local/session`: load one `SessionBundle` by key
+  - most sources return raw files directly
+  - Antigravity `.pb` returns a generated `#chat.jsonl` bundle produced from local decode
 - `POST /api/ssh/test`: verify SSH connectivity
 - `POST /api/ssh/scan`: list remote session candidates from known paths
 - `POST /api/ssh/sync`: download selected remote files into `data/remote/<user>@<host>/...`
@@ -16,9 +18,11 @@
 
 - Keep the server stateless beyond request-local work.
 - Do not move parsing responsibility into the backend; it should return descriptors and raw bundles, not normalized sessions.
+- Antigravity binary transport decode is allowed on the backend because the browser does not parse encrypted protobuf directly.
 - Keep all filesystem writes under `data/remote/`.
 - Local and remote scan behavior is heuristic and intentionally bounded rather than exhaustive.
 - OpenCode scan support is SQLite-backed through the Node dependency. If a database query fails, return no OpenCode results rather than crashing.
+- Antigravity descriptor decode prefers the bundled snapshot in `server/antigravityDescriptors.ts` and only falls back to extracting descriptors from a local `extension.js` when needed.
 
 ## Implementation Notes
 
@@ -26,14 +30,18 @@
   - `~/.codex/sessions`
   - `~/.claude/projects`
   - `~/.gemini/tmp`
+  - `~/.gemini/antigravity/conversations`
   - `~/.local/share/opencode/opencode.db`
   - mirrored files under `data/remote/`
-- Remote scan currently probes fixed known paths for Codex, Claude, Gemini, and `~/.local/share/opencode/opencode.db`.
+- Remote scan currently probes fixed known paths for Codex, Claude, Gemini, Antigravity, and `~/.local/share/opencode/opencode.db`.
 - Session keys have two active forms:
   - `file::...`
   - `opencode-sqlite::<dbPath>::<sessionId>`
 - Remote sync should download files first and let the normal local scanner pick them up afterward.
 - Preserve stable response shapes with `src/parsers/types.ts` as the source of truth.
+- `server/antigravityDescriptors.ts` is a checked-in snapshot of protobuf descriptors.
+  - Refresh it when upstream Antigravity descriptors change.
+  - Runtime fallback may still read the installed Antigravity `extension.js` if the bundled snapshot is stale.
 
 ## Safety
 

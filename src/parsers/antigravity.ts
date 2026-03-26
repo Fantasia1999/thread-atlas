@@ -151,6 +151,8 @@ export function parseAntigravitySession(bundle: SessionBundle): Session {
           : typeof bundle.metadata.workspaces === "string"
             ? bundle.metadata.workspaces
             : null,
+      descriptorSource:
+        typeof bundle.metadata.descriptorSource === "string" ? bundle.metadata.descriptorSource : null,
       primaryWorkspace: primaryWorkspace ?? null,
       loaderBackend:
         typeof bundle.metadata.loaderBackend === "string" ? bundle.metadata.loaderBackend : null

@@ -8,7 +8,7 @@ This repository is a lightweight browser app for browsing AI coding sessions fro
 - browser-side file imports
 - SSH sync into a local mirror under `data/remote/`
 
-The app currently supports `codex`, `claude`, `opencode`, and `gemini` session sources.
+The app currently supports `codex`, `claude`, `opencode`, `gemini`, and `antigravity` session sources.
 
 ## Architecture
 
@@ -23,6 +23,8 @@ More specific guidance lives in `server/AGENTS.md` and `src/AGENTS.md`.
 
 - `GET /api/local/scan` returns `SessionDescriptor[]` only. It must not inline file contents.
 - `GET /api/local/session?key=...` returns one `SessionBundle` with raw file contents.
+- Antigravity `.pb` is the one exception to "raw file contents":
+  the backend may unwrap encrypted protobuf into a generated `#chat.jsonl` bundle so the frontend can keep using the normal parser contract.
 - Frontend parsers own normalization from `SessionBundle` to `Session`.
 - Imported files stay browser-side in `SessionStore`; they are not uploaded to the backend.
 - Remote sync writes only under `data/remote/<user>@<host>/...`.
@@ -34,6 +36,10 @@ If you change descriptor or bundle shapes, update `src/parsers/types.ts` first a
 - Codex: scanned from `~/.codex/sessions`, usually `rollout-*.jsonl`
 - Claude Code: scanned from `~/.claude/projects`, usually `.jsonl`
 - Gemini CLI: scanned from `~/.gemini/tmp`, usually `.json`
+- Antigravity:
+  - local scan reads `~/.gemini/antigravity/conversations/*.pb`
+  - backend decodes `.pb` into generated `#chat.jsonl`
+  - descriptor loading prefers the bundled snapshot in the repo and falls back to the locally installed Antigravity `extension.js` when the snapshot is stale
 - OpenCode:
   - local scan reads `~/.local/share/opencode/opencode.db`
   - remote scan and sync also operate on `opencode.db`
@@ -46,6 +52,7 @@ Imported browser files can still be source-detected from content and path hints 
 - Treat parser compatibility as best-effort and additive. Unknown or partially parsed inputs should fall back to a readable session instead of hard-failing.
 - Keep backend behavior operationally boring: request-scoped work, no database, no long-lived cache.
 - Preserve the current separation between scanning and parsing. The backend discovers files and returns raw bundles; parsers own semantic interpretation.
+- Antigravity binary decode is an allowed exception: the backend may decrypt / unpack `.pb` into chat-shaped JSONL, but it should not emit final normalized `Session` objects.
 - Maintain graceful degradation for optional capabilities:
   - missing local directories should just produce no results
 - Never let SSH-related code execute remote commands built from unsanitized user shell input.
@@ -67,6 +74,10 @@ Imported browser files can still be source-detected from content and path hints 
 
 - Source detection lives in `src/parsers/detect.ts`. If you add a new source or new heuristics, keep them tolerant and order-sensitive.
 - Scanner heuristics live in `server/scanner.ts`. They are intentionally shallow and capped rather than exhaustive.
+- Antigravity protobuf decode lives in `server/antigravity.ts`.
+  - Keep the bundled descriptor snapshot in `server/antigravityDescriptors.ts`.
+  - Prefer bundled descriptors first.
+  - If bundled descriptors cannot decode current `.pb` shape well enough, fall back to extracting descriptors from the local Antigravity `extension.js`.
 - SSH discovery and sync live in `server/ssh.ts`. Preserve the rule that sync downloads files first and lets local scan treat them like any other local source.
 - Dev mode depends on Vite proxying `/api` to `http://127.0.0.1:3030`; production build relies on the Express server serving `dist/`.
 

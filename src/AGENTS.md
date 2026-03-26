@@ -17,6 +17,8 @@
   - raw bundles from `/api/local/session`
 - Browser-imported files stay in `SessionStore`; they are parsed locally and are not sent to the backend.
 - Source detection is heuristic and tolerant. If a parser fails, the UI should still render a readable fallback session.
+- Antigravity is the one source whose backend bundle is generated rather than raw:
+  the server decrypts `.pb` and returns a `#chat.jsonl` file, then the frontend parser normalizes that JSONL into `Session`.
 - The main shell currently includes:
   - local rescan
   - file import
@@ -36,6 +38,9 @@
 - Preserve dense log-viewer ergonomics over chat-bubble styling.
 - Keep parser behavior additive. Prefer partial readability plus metadata over strict schema rejection.
 - When changing shared shapes, update `src/parsers/types.ts` first and then adapt store and UI call sites.
+- Antigravity parser logic lives in `src/parsers/antigravity.ts`.
+  - Treat the generated `chat JSONL` as the parser input.
+  - Keep source detection tolerant in `src/parsers/detect.ts`.
 - Preserve the distinction between:
   - `SessionDescriptor` for lists and discovery
   - `SessionBundle` for raw file payloads
