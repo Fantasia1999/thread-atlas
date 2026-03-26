@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Request, type Response } from "express";
 import path from "node:path";
 
 import { loadLocalSessionBundle, scanLocalSessions } from "./scanner.js";
@@ -15,78 +15,53 @@ const port = 3030;
 
 app.use(express.json({ limit: "5mb" }));
 
-app.post("/api/ssh/test", async (request, response) => {
-  try {
+app.post(
+  "/api/ssh/test",
+  handleJsonRoute(400, async (request) => {
     const credentials = readCredentials(request.body);
     await testSshConnection(credentials);
-    response.json({ ok: true });
-  } catch (error) {
-    response.status(400).json({
-      ok: false,
-      error: toErrorMessage(error)
-    });
-  }
-});
+    return { ok: true };
+  })
+);
 
-app.post("/api/ssh/scan", async (request, response) => {
-  try {
+app.post(
+  "/api/ssh/scan",
+  handleJsonRoute(400, async (request) => {
     const credentials = readCredentials(request.body);
     const files = await scanRemoteSessions(credentials);
-    response.json({ ok: true, files });
-  } catch (error) {
-    response.status(400).json({
-      ok: false,
-      error: toErrorMessage(error)
-    });
-  }
-});
+    return { ok: true, files };
+  })
+);
 
-app.post("/api/ssh/sync", async (request, response) => {
-  try {
+app.post(
+  "/api/ssh/sync",
+  handleJsonRoute(400, async (request) => {
     const credentials = readCredentials(request.body);
     const entries = readRemoteEntries(request.body.files);
     const result = await syncRemoteFiles(credentials, entries);
-    response.json({
+    return {
       ok: true,
       downloaded: result.downloaded
-    });
-  } catch (error) {
-    response.status(400).json({
-      ok: false,
-      error: toErrorMessage(error)
-    });
-  }
-});
+    };
+  })
+);
 
-app.get("/api/local/scan", async (_request, response) => {
-  try {
+app.get(
+  "/api/local/scan",
+  handleJsonRoute(500, async () => {
     const files = await scanLocalSessions();
-    response.json({ ok: true, files });
-  } catch (error) {
-    response.status(500).json({
-      ok: false,
-      error: toErrorMessage(error)
-    });
-  }
-});
+    return { ok: true, files };
+  })
+);
 
-app.get("/api/local/session", async (request, response) => {
-  try {
-    const key = String(request.query.key ?? "");
-    if (!key) {
-      response.status(400).json({ ok: false, error: "Missing key query parameter." });
-      return;
-    }
-
+app.get(
+  "/api/local/session",
+  handleJsonRoute(404, async (request) => {
+    const key = readRequiredQueryString(request, "key");
     const bundle = await loadLocalSessionBundle(key);
-    response.json({ ok: true, bundle });
-  } catch (error) {
-    response.status(404).json({
-      ok: false,
-      error: toErrorMessage(error)
-    });
-  }
-});
+    return { ok: true, bundle };
+  })
+);
 
 const clientRoot = path.resolve(process.cwd(), "dist");
 app.use(express.static(clientRoot));
@@ -95,14 +70,44 @@ app.listen(port, () => {
   console.log(`ThreadAtlas backend listening on http://127.0.0.1:${port}`);
 });
 
-function readCredentials(value: unknown): SshCredentials {
-  if (!value || typeof value !== "object") {
-    throw new Error("Missing SSH credentials.");
+class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
+function handleJsonRoute(
+  errorStatus: number,
+  handler: (request: Request) => Promise<Record<string, unknown>>
+) {
+  return async (request: Request, response: Response): Promise<void> => {
+    try {
+      response.json(await handler(request));
+    } catch (error) {
+      response.status(error instanceof HttpError ? error.status : errorStatus).json({
+        ok: false,
+        error: toErrorMessage(error)
+      });
+    }
+  };
+}
+
+function readRequiredQueryString(request: Request, key: string): string {
+  const value = String(request.query[key] ?? "").trim();
+  if (!value) {
+    throw new HttpError(400, `Missing ${key} query parameter.`);
   }
 
-  const candidate = value as Record<string, unknown>;
-  const host = String(candidate.host ?? "").trim();
-  const username = String(candidate.username ?? "").trim();
+  return value;
+}
+
+function readCredentials(value: unknown): SshCredentials {
+  const candidate = asRecord(value, "Missing SSH credentials.");
+  const host = readRequiredString(candidate, "host", "Host and username are required.");
+  const username = readRequiredString(candidate, "username", "Host and username are required.");
 
   if (!host || !username) {
     throw new Error("Host and username are required.");
@@ -110,11 +115,11 @@ function readCredentials(value: unknown): SshCredentials {
 
   return {
     host,
-    port: candidate.port ? Number(candidate.port) : 22,
+    port: readPort(candidate.port),
     username,
-    password: String(candidate.password ?? "").trim() || undefined,
+    password: readOptionalString(candidate.password),
     privateKey: String(candidate.privateKey ?? ""),
-    passphrase: String(candidate.passphrase ?? "").trim() || undefined
+    passphrase: readOptionalString(candidate.passphrase)
   };
 }
 
@@ -124,12 +129,51 @@ function readRemoteEntries(value: unknown): RemoteSessionEntry[] {
   }
 
   return value.map((item) => {
-    const record = item as Record<string, unknown>;
+    const record = asRecord(item, "Invalid remote file selection.");
     return {
-      path: String(record.path ?? ""),
+      path: readRequiredString(record, "path", "Invalid remote file selection."),
       source: String(record.source ?? "unknown") as RemoteSessionEntry["source"]
     };
   });
+}
+
+function asRecord(value: unknown, errorMessage: string): Record<string, unknown> {
+  if (!value || typeof value !== "object") {
+    throw new Error(errorMessage);
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function readRequiredString(
+  record: Record<string, unknown>,
+  key: string,
+  errorMessage: string
+): string {
+  const value = String(record[key] ?? "").trim();
+  if (!value) {
+    throw new Error(errorMessage);
+  }
+
+  return value;
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  const normalized = String(value ?? "").trim();
+  return normalized || undefined;
+}
+
+function readPort(value: unknown): number {
+  if (value == null || value === "") {
+    return 22;
+  }
+
+  const port = Number(value);
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error("Port must be a positive integer.");
+  }
+
+  return port;
 }
 
 function toErrorMessage(error: unknown): string {

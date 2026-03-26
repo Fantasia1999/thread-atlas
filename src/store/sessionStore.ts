@@ -49,16 +49,17 @@ export class SessionStore {
   }
 
   getVisibleDescriptors(): SessionDescriptor[] {
+    const query = this.state.search.trim().toLowerCase();
+
     return this.state.descriptors.filter((descriptor) => {
       if (this.state.sourceFilter !== "all" && descriptor.source !== this.state.sourceFilter) {
         return false;
       }
 
-      if (!this.state.search.trim()) {
+      if (!query) {
         return true;
       }
 
-      const query = this.state.search.trim().toLowerCase();
       return (
         descriptor.title.toLowerCase().includes(query) ||
         descriptor.primaryPath.toLowerCase().includes(query)
@@ -92,15 +93,8 @@ export class SessionStore {
         throw new Error(payload.error ?? "Local scan failed.");
       }
 
-      const importedDescriptors = [...this.importedBundles.values()].map(toDescriptor);
-      const merged = [...importedDescriptors, ...payload.files].sort(
-        (left, right) => right.mtimeMs - left.mtimeMs
-      );
-
-      const selectedKey =
-        this.state.selectedKey && merged.some((descriptor) => descriptor.key === this.state.selectedKey)
-          ? this.state.selectedKey
-          : merged[0]?.key;
+      const merged = mergeDescriptors(this.importedBundles, payload.files);
+      const selectedKey = resolveSelectedKey(merged, this.state.selectedKey);
 
       this.updateState({
         descriptors: merged,
@@ -164,15 +158,10 @@ export class SessionStore {
     }
 
     this.importedBundles = nextImported;
-
-    const nextDescriptors = [...nextImported.values()].map(toDescriptor);
     const existingLocalDescriptors = this.state.descriptors.filter(
       (descriptor) => !descriptor.key.startsWith("import::")
     );
-
-    const descriptors = [...nextDescriptors, ...existingLocalDescriptors].sort(
-      (left, right) => right.mtimeMs - left.mtimeMs
-    );
+    const descriptors = mergeDescriptors(nextImported, existingLocalDescriptors);
 
     this.updateState({
       descriptors,
@@ -223,4 +212,41 @@ export class SessionStore {
 function toDescriptor(bundle: SessionBundle): SessionDescriptor {
   const { files: _files, ...descriptor } = bundle;
   return descriptor;
+}
+
+function mergeDescriptors(
+  importedBundles: ReadonlyMap<string, SessionBundle>,
+  localDescriptors: SessionDescriptor[]
+): SessionDescriptor[] {
+  const merged = new Map<string, SessionDescriptor>();
+
+  for (const bundle of importedBundles.values()) {
+    merged.set(bundle.key, toDescriptor(bundle));
+  }
+
+  for (const descriptor of localDescriptors) {
+    merged.set(descriptor.key, descriptor);
+  }
+
+  return [...merged.values()].sort(compareDescriptors);
+}
+
+function resolveSelectedKey(
+  descriptors: SessionDescriptor[],
+  currentSelectedKey?: string
+): string | undefined {
+  if (currentSelectedKey && descriptors.some((descriptor) => descriptor.key === currentSelectedKey)) {
+    return currentSelectedKey;
+  }
+
+  return descriptors[0]?.key;
+}
+
+function compareDescriptors(left: SessionDescriptor, right: SessionDescriptor): number {
+  const timeDelta = right.mtimeMs - left.mtimeMs;
+  if (timeDelta !== 0) {
+    return timeDelta;
+  }
+
+  return left.title.localeCompare(right.title);
 }

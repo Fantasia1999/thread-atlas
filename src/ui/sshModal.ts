@@ -1,4 +1,5 @@
 import type { SessionSource } from "../parsers/types.js";
+import { escapeHtml, formatLocalDateTime } from "./utils.js";
 
 interface RemoteSessionEntry {
   path: string;
@@ -177,7 +178,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
         <div>
           <div class="remote-row-top">
             <span class="source-badge ${file.source}">${file.source}</span>
-            <span>${file.mtimeMs ? new Date(file.mtimeMs).toLocaleString() : ""}</span>
+            <span>${file.mtimeMs ? formatLocalDateTime(file.mtimeMs) : ""}</span>
           </div>
           <div class="remote-path">${escapeHtml(file.path)}</div>
         </div>
@@ -245,11 +246,4 @@ async function postJson(url: string, body: unknown): Promise<Record<string, unkn
 
 function asErrorMessage(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() ? value : fallback;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
 }

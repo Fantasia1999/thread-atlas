@@ -1,4 +1,5 @@
 import type { SessionDescriptor, SessionSource } from "../parsers/types.js";
+import { escapeHtml, formatLocalDateTime } from "./utils.js";
 
 interface SidebarOptions {
   descriptors: SessionDescriptor[];
@@ -69,9 +70,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
         options.onSelect(descriptor.key);
       });
 
-      const dateLabel = descriptor.mtimeMs
-        ? new Date(descriptor.mtimeMs).toLocaleString()
-        : "Unknown time";
+      const dateLabel = formatLocalDateTime(descriptor.mtimeMs, "Unknown time");
 
       button.innerHTML = `
         <div class="session-row-top">
@@ -95,11 +94,4 @@ function emptyState(message: string): HTMLElement {
   element.className = "empty-state";
   element.textContent = message;
   return element;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
 }

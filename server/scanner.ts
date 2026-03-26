@@ -11,6 +11,27 @@ import type {
 
 const REMOTE_SYNC_ROOT = path.resolve(process.cwd(), "data", "remote");
 const MAX_FILES_PER_SOURCE = 120;
+const MAX_OPENCODE_SESSIONS = 80;
+
+const LOCAL_FILE_SCAN_TARGETS = [
+  {
+    segments: [".codex", "sessions"],
+    source: "codex"
+  },
+  {
+    segments: [".claude", "projects"],
+    source: "claude"
+  },
+  {
+    segments: [".gemini", "tmp"],
+    source: "gemini"
+  }
+] as const satisfies ReadonlyArray<{
+  segments: readonly string[];
+  source: Exclude<SessionSource, "opencode" | "unknown">;
+}>;
+
+type DescriptorOrigin = "local" | "remote";
 
 interface OpenCodeSessionRow {
   id: string;
@@ -39,32 +60,26 @@ interface OpenCodePartRow {
 
 export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
   const home = os.homedir();
-  const descriptors: SessionDescriptor[] = [];
+  const localOpenCodePath = path.join(home, ".local", "share", "opencode", "opencode.db");
 
-  descriptors.push(
-    ...(await scanFileTree(path.join(home, ".codex", "sessions"), "codex")),
-    ...(await scanFileTree(path.join(home, ".claude", "projects"), "claude")),
-    ...(await scanFileTree(path.join(home, ".gemini", "tmp"), "gemini")),
-    ...(await scanOpenCodeDatabase(
-      path.join(home, ".local", "share", "opencode", "opencode.db"),
-      "local"
-    )),
-    ...(await scanFileTree(REMOTE_SYNC_ROOT, undefined, "remote")),
-    ...(await scanOpenCodeDatabasesInRemoteMirror())
-  );
+  const [localFileGroups, localOpenCodeDescriptors, remoteFileDescriptors, remoteOpenCodeDescriptors] =
+    await Promise.all([
+      Promise.all(
+        LOCAL_FILE_SCAN_TARGETS.map((target) =>
+          scanFileTree(path.join(home, ...target.segments), target.source)
+        )
+      ),
+      scanOpenCodeDatabase(localOpenCodePath, "local"),
+      scanFileTree(REMOTE_SYNC_ROOT, undefined, "remote"),
+      scanOpenCodeDatabasesInRemoteMirror()
+    ]);
 
-  const deduped = new Map<string, SessionDescriptor>();
-  for (const descriptor of descriptors) {
-    deduped.set(descriptor.key, descriptor);
-  }
-
-  return [...deduped.values()].sort((left, right) => {
-    const timeDelta = right.mtimeMs - left.mtimeMs;
-    if (timeDelta !== 0) {
-      return timeDelta;
-    }
-    return left.title.localeCompare(right.title);
-  });
+  return dedupeAndSortDescriptors([
+    ...localFileGroups.flat(),
+    ...localOpenCodeDescriptors,
+    ...remoteFileDescriptors,
+    ...remoteOpenCodeDescriptors
+  ]);
 }
 
 export async function loadLocalSessionBundle(key: string): Promise<SessionBundle> {
@@ -78,78 +93,50 @@ export async function loadLocalSessionBundle(key: string): Promise<SessionBundle
   }
 
   const absolutePath = key.slice("file::".length);
-  const content = await fs.readFile(absolutePath, "utf8");
-  const stats = await fs.stat(absolutePath);
+  const [content, stats] = await Promise.all([
+    fs.readFile(absolutePath, "utf8"),
+    fs.stat(absolutePath)
+  ]);
   const source = inferSourceFromPath(absolutePath);
-  const origin = absolutePath.startsWith(REMOTE_SYNC_ROOT) ? "remote" : "local";
+  const origin = inferOrigin(absolutePath);
 
   return {
-    key,
-    source,
-    title: path.basename(absolutePath),
-    primaryPath: absolutePath,
-    relatedPaths: [],
-    transport: origin === "remote" ? "ssh-sync" : "local-scan",
-    origin,
-    fileCount: 1,
-    size: stats.size,
-    mtimeMs: stats.mtimeMs,
+    ...buildFileDescriptor(absolutePath, source, origin, stats),
     files: [
       {
         path: absolutePath,
         content
       }
-    ],
-    metadata: {}
+    ]
   };
 }
 
 async function scanFileTree(
   root: string,
   source?: SessionSource,
-  origin: "local" | "remote" = "local"
+  origin: DescriptorOrigin = "local"
 ): Promise<SessionDescriptor[]> {
   if (!(await exists(root))) {
     return [];
   }
 
   const files = await collectFiles(root, 0);
-  const descriptors: SessionDescriptor[] = [];
+  const candidates = files
+    .map((absolutePath) => ({
+      absolutePath,
+      inferredSource: source ?? inferSourceFromPath(absolutePath)
+    }))
+    .filter(
+      ({ inferredSource }) => inferredSource !== "unknown" && shouldIncludeScannedFile(inferredSource)
+    )
+    .slice(0, MAX_FILES_PER_SOURCE);
 
-  for (const absolutePath of files.slice(0, MAX_FILES_PER_SOURCE)) {
-    const inferredSource = source ?? inferSourceFromPath(absolutePath);
-    if (inferredSource === "unknown") {
-      continue;
-    }
-
-    if (shouldSkipScannedFile(absolutePath, inferredSource)) {
-      continue;
-    }
-
-    if (
-      inferredSource === "opencode" &&
-      path.basename(absolutePath) === "opencode.db"
-    ) {
-      continue;
-    }
-
-    const stats = await fs.stat(absolutePath);
-    descriptors.push({
-      key: `file::${absolutePath}`,
-      source: inferredSource,
-      title: path.basename(absolutePath),
-      primaryPath: absolutePath,
-      relatedPaths: [],
-      transport: origin === "remote" ? "ssh-sync" : "local-scan",
-      origin,
-      fileCount: 1,
-      size: stats.size,
-      mtimeMs: stats.mtimeMs,
-      metadata: {}
-    });
-  }
-
-  return descriptors;
+  return await Promise.all(
+    candidates.map(async ({ absolutePath, inferredSource }) => {
+      const stats = await fs.stat(absolutePath);
+      return buildFileDescriptor(absolutePath, inferredSource, origin, stats);
+    })
+  );
 }
 
 async function scanOpenCodeDatabasesInRemoteMirror(): Promise<SessionDescriptor[]> {
@@ -159,16 +146,16 @@ async function scanOpenCodeDatabasesInRemoteMirror(): Promise<SessionDescriptor[
 
   const files = await collectFiles(REMOTE_SYNC_ROOT, 0);
   const databasePaths = files.filter((entry) => path.basename(entry) === "opencode.db");
-  const descriptors = await Promise.all(
+  const descriptorGroups = await Promise.all(
     databasePaths.map((dbPath) => scanOpenCodeDatabase(dbPath, "remote"))
   );
 
-  return descriptors.flat();
+  return descriptorGroups.flat();
 }
 
 async function scanOpenCodeDatabase(
   dbPath: string,
-  origin: "local" | "remote"
+  origin: DescriptorOrigin
 ): Promise<SessionDescriptor[]> {
   if (!(await exists(dbPath))) {
     return [];
@@ -177,25 +164,13 @@ async function scanOpenCodeDatabase(
   try {
     const sessions = await querySqlite<OpenCodeSessionRow>(
       dbPath,
-      "select id, title, directory, time_created, time_updated from session order by time_updated desc limit 80;"
+      `select id, title, directory, time_created, time_updated
+       from session
+       order by time_updated desc
+       limit ${MAX_OPENCODE_SESSIONS};`
     );
 
-    return sessions.map((session) => ({
-      key: `opencode-sqlite::${dbPath}::${session.id}`,
-      source: "opencode",
-      title: session.title || session.id,
-      primaryPath: dbPath,
-      relatedPaths: [],
-      transport: origin === "remote" ? "ssh-sync" : "local-scan",
-      origin,
-      fileCount: 3,
-      size: 0,
-      mtimeMs: session.time_updated,
-      metadata: {
-        directory: session.directory,
-        sessionId: session.id
-      }
-    }));
+    return sessions.map((session) => buildOpenCodeDescriptor(session, dbPath, origin));
   } catch {
     return [];
   }
@@ -231,24 +206,11 @@ async function loadOpenCodeBundle(
     throw new Error("OpenCode session not found.");
   }
 
-  const origin = dbPath.startsWith(REMOTE_SYNC_ROOT) ? "remote" : "local";
   const stats = await fs.stat(dbPath);
+  const descriptor = buildOpenCodeDescriptor(session, dbPath, inferOrigin(dbPath), stats.size);
 
   return {
-    key: `opencode-sqlite::${dbPath}::${sessionId}`,
-    source: "opencode",
-    title: session.title || session.id,
-    primaryPath: dbPath,
-    relatedPaths: [],
-    transport: origin === "remote" ? "ssh-sync" : "local-scan",
-    origin,
-    fileCount: 3,
-    size: stats.size,
-    mtimeMs: session.time_updated,
-    metadata: {
-      directory: session.directory,
-      sessionId: session.id
-    },
+    ...descriptor,
     files: [
       {
         path: `${dbPath}#session.json`,
@@ -279,11 +241,7 @@ async function collectFiles(root: string, depth: number): Promise<string[]> {
         return await collectFiles(absolutePath, depth + 1);
       }
 
-      if (!entry.isFile()) {
-        return [];
-      }
-
-      if (!isSessionLikeFile(absolutePath)) {
+      if (!entry.isFile() || !isSessionLikeFile(absolutePath)) {
         return [];
       }
 
@@ -296,24 +254,11 @@ async function collectFiles(root: string, depth: number): Promise<string[]> {
 
 function isSessionLikeFile(absolutePath: string): boolean {
   const name = path.basename(absolutePath).toLowerCase();
-
-  if (name === "opencode.db") {
-    return true;
-  }
-
-  if (name.endsWith(".jsonl") || name.endsWith(".json")) {
-    return true;
-  }
-
-  return false;
+  return name === "opencode.db" || name.endsWith(".jsonl") || name.endsWith(".json");
 }
 
-function shouldSkipScannedFile(absolutePath: string, source: SessionSource): boolean {
-  if (source !== "opencode") {
-    return false;
-  }
-
-  return path.basename(absolutePath).toLowerCase() !== "opencode.db";
+function shouldIncludeScannedFile(source: SessionSource): boolean {
+  return source !== "opencode";
 }
 
 function inferSourceFromPath(absolutePath: string): SessionSource {
@@ -331,6 +276,76 @@ function inferSourceFromPath(absolutePath: string): SessionSource {
     return "gemini";
   }
   return "unknown";
+}
+
+function inferOrigin(absolutePath: string): DescriptorOrigin {
+  return absolutePath.startsWith(REMOTE_SYNC_ROOT) ? "remote" : "local";
+}
+
+function buildFileDescriptor(
+  absolutePath: string,
+  source: SessionSource,
+  origin: DescriptorOrigin,
+  stats: {
+    size: number;
+    mtimeMs: number;
+  }
+): SessionDescriptor {
+  return {
+    key: `file::${absolutePath}`,
+    source,
+    title: path.basename(absolutePath),
+    primaryPath: absolutePath,
+    relatedPaths: [],
+    transport: origin === "remote" ? "ssh-sync" : "local-scan",
+    origin,
+    fileCount: 1,
+    size: stats.size,
+    mtimeMs: stats.mtimeMs,
+    metadata: {}
+  };
+}
+
+function buildOpenCodeDescriptor(
+  session: OpenCodeSessionRow,
+  dbPath: string,
+  origin: DescriptorOrigin,
+  size = 0
+): SessionDescriptor {
+  return {
+    key: `opencode-sqlite::${dbPath}::${session.id}`,
+    source: "opencode",
+    title: session.title || session.id,
+    primaryPath: dbPath,
+    relatedPaths: [],
+    transport: origin === "remote" ? "ssh-sync" : "local-scan",
+    origin,
+    fileCount: 3,
+    size,
+    mtimeMs: session.time_updated,
+    metadata: {
+      directory: session.directory,
+      sessionId: session.id
+    }
+  };
+}
+
+function dedupeAndSortDescriptors(descriptors: SessionDescriptor[]): SessionDescriptor[] {
+  const deduped = new Map<string, SessionDescriptor>();
+  for (const descriptor of descriptors) {
+    deduped.set(descriptor.key, descriptor);
+  }
+
+  return [...deduped.values()].sort(compareDescriptors);
+}
+
+function compareDescriptors(left: SessionDescriptor, right: SessionDescriptor): number {
+  const timeDelta = right.mtimeMs - left.mtimeMs;
+  if (timeDelta !== 0) {
+    return timeDelta;
+  }
+
+  return left.title.localeCompare(right.title);
 }
 
 async function exists(targetPath: string): Promise<boolean> {

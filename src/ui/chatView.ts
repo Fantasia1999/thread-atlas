@@ -1,19 +1,13 @@
 import type { Message, Session, SessionDescriptor } from "../parsers/types.js";
 import { renderMarkdown } from "./markdown.js";
+import {
+  escapeHtml,
+  formatDateTime,
+  formatDateTimeTitle,
+  formatDisplayTime
+} from "./utils.js";
 
 export type MessageViewFilter = "default" | "not-tool" | "user" | "answer";
-
-const TIME_ONLY_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false
-});
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "medium"
-});
 
 interface ChatViewOptions {
   descriptor?: SessionDescriptor;
@@ -24,6 +18,13 @@ interface ChatViewOptions {
   onExport: (session: Session) => void;
 }
 
+const FILTER_OPTIONS: Array<{ key: MessageViewFilter; label: string }> = [
+  { key: "default", label: "default" },
+  { key: "not-tool", label: "not tool" },
+  { key: "user", label: "user" },
+  { key: "answer", label: "answer" }
+];
+
 export function renderChatView(options: ChatViewOptions): HTMLElement {
   const container = document.createElement("section");
   container.className = "main-panel";
@@ -33,6 +34,40 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
     return container;
   }
 
+  const descriptor = options.descriptor;
+  const session = options.session;
+
+  container.append(renderSessionHeader(descriptor, session, options.onExport));
+
+  if (options.loading && !session) {
+    container.append(createEmpty("Loading session..."));
+    return container;
+  }
+
+  if (!session) {
+    container.append(createEmpty("Session metadata loaded. Select again if parsing failed."));
+    return container;
+  }
+
+  const filteredMessages = filterMessages(session.messages, options.messageFilter);
+
+  container.append(renderInfoStrip(session, filteredMessages.length));
+  container.append(
+    renderToolbar({
+      filter: options.messageFilter,
+      onChange: options.onFilterChange
+    })
+  );
+  container.append(renderChatLayout(filteredMessages, options.messageFilter === "default"));
+
+  return container;
+}
+
+function renderSessionHeader(
+  descriptor: SessionDescriptor,
+  session: Session | undefined,
+  onExport: (session: Session) => void
+): HTMLElement {
   const header = document.createElement("div");
   header.className = "chat-header";
 
@@ -40,77 +75,66 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
   heading.className = "chat-heading";
   heading.innerHTML = `
     <div class="eyebrow">Session Detail</div>
-    <h1>${escapeHtml(options.session?.title ?? options.descriptor.title)}</h1>
+    <h1>${escapeHtml(session?.title ?? descriptor.title)}</h1>
     <div class="chat-meta">
-      <span>${options.descriptor.source}</span>
-      <span>${options.descriptor.origin}</span>
-      <span>${options.descriptor.transport}</span>
-      <span>${escapeHtml(options.descriptor.primaryPath)}</span>
+      <span>${descriptor.source}</span>
+      <span>${descriptor.origin}</span>
+      <span>${descriptor.transport}</span>
+      <span>${escapeHtml(descriptor.primaryPath)}</span>
     </div>
   `;
 
   const actions = document.createElement("div");
   actions.className = "chat-actions";
 
-  if (options.session) {
+  if (session) {
     const exportButton = document.createElement("button");
     exportButton.className = "button secondary";
     exportButton.type = "button";
     exportButton.textContent = "Export JSON";
     exportButton.addEventListener("click", () => {
-      options.onExport(options.session as Session);
+      onExport(session);
     });
     actions.append(exportButton);
   }
 
   header.append(heading, actions);
-  container.append(header);
+  return header;
+}
 
-  if (options.loading && !options.session) {
-    container.append(createEmpty("Loading session..."));
-    return container;
-  }
-
-  if (!options.session) {
-    container.append(createEmpty("Session metadata loaded. Select again if parsing failed."));
-    return container;
-  }
-
+function renderInfoStrip(session: Session, filteredCount: number): HTMLElement {
   const infoStrip = document.createElement("div");
   infoStrip.className = "info-strip";
-  const filteredMessages = filterMessages(options.session.messages, options.messageFilter);
-  const showToolBlocks = options.messageFilter === "default";
-  const startedAt = formatDateTime(options.session.startedAt, "time unavailable");
+
+  const startedAt = formatDateTime(session.startedAt, "time unavailable");
   infoStrip.innerHTML = `
-    <span>${filteredMessages.length}/${options.session.messageCount} messages</span>
-    <span>${escapeHtml(options.session.cwd ?? "cwd unavailable")}</span>
+    <span>${filteredCount}/${session.messageCount} messages</span>
+    <span>${escapeHtml(session.cwd ?? "cwd unavailable")}</span>
     <span>${escapeHtml(startedAt)}</span>
   `;
-  container.append(infoStrip);
 
-  container.append(
-    renderToolbar({
-      filter: options.messageFilter,
-      onChange: options.onFilterChange
-    })
-  );
+  return infoStrip;
+}
 
+function renderChatLayout(messages: Message[], showToolBlocks: boolean): HTMLElement {
   const layout = document.createElement("div");
   layout.className = "chat-layout";
 
-  const messages = document.createElement("div");
-  messages.className = "chat-messages";
+  const messageList = document.createElement("div");
+  messageList.className = "chat-messages";
+
   const timeline = document.createElement("aside");
   timeline.className = "timeline-panel";
+
   const timelineHeader = document.createElement("div");
   timelineHeader.className = "timeline-header";
   timelineHeader.innerHTML = `
     <div class="eyebrow">Timeline</div>
     <div class="timeline-summary">Click to jump through the session.</div>
   `;
+
   const timelineList = document.createElement("div");
   timelineList.className = "timeline-list";
-
   const timelineButtons: HTMLButtonElement[] = [];
 
   const setActiveTimelineItem = (anchorId?: string | null) => {
@@ -119,26 +143,14 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
     }
   };
 
-  for (const [index, message] of filteredMessages.entries()) {
+  for (const [index, message] of messages.entries()) {
     const anchorId = buildAnchorId(message, index);
     const messageElement = renderMessage(message, {
       anchorId,
       showToolBlocks
     });
-    messages.append(messageElement);
+    const timelineButton = renderTimelineButton(message, index, anchorId);
 
-    const timelineButton = document.createElement("button");
-    timelineButton.className = "timeline-item";
-    timelineButton.type = "button";
-    timelineButton.dataset.target = anchorId;
-    const timelineTime = formatDisplayTime(message.createdAt, "unknown time");
-    const timelineTimeTitle = formatDateTimeTitle(message.createdAt);
-    timelineButton.innerHTML = `
-      <span class="timeline-index">${String(index + 1).padStart(2, "0")}</span>
-      <span class="timeline-role-emoji" title="${escapeHtml(timelineLabel(message.role))}">${timelineEmoji(message.role)}</span>
-      <strong class="timeline-preview">${escapeHtml(buildTimelinePreview(message))}</strong>
-      <span class="timeline-time" title="${escapeHtml(timelineTimeTitle)}">${escapeHtml(timelineTime)}</span>
-    `;
     timelineButton.addEventListener("click", () => {
       messageElement.scrollIntoView({
         behavior: "smooth",
@@ -146,19 +158,19 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
       });
       setActiveTimelineItem(anchorId);
     });
+
     timelineButtons.push(timelineButton);
+    messageList.append(messageElement);
     timelineList.append(timelineButton);
   }
-
-  timeline.append(timelineHeader, timelineList);
-  layout.append(messages, timeline);
 
   if (timelineButtons[0]) {
     timelineButtons[0].classList.add("active");
   }
 
-  container.append(layout);
-  return container;
+  timeline.append(timelineHeader, timelineList);
+  layout.append(messageList, timeline);
+  return layout;
 }
 
 function renderToolbar(options: {
@@ -175,14 +187,7 @@ function renderToolbar(options: {
   const chipRow = document.createElement("div");
   chipRow.className = "filter-chip-row";
 
-  const filters: Array<{ key: MessageViewFilter; label: string }> = [
-    { key: "default", label: "default" },
-    { key: "not-tool", label: "not tool" },
-    { key: "user", label: "user" },
-    { key: "answer", label: "answer" }
-  ];
-
-  for (const filter of filters) {
+  for (const filter of FILTER_OPTIONS) {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = `filter-chip${filter.key === options.filter ? " active" : ""}`;
@@ -195,6 +200,28 @@ function renderToolbar(options: {
 
   toolbar.append(title, chipRow);
   return toolbar;
+}
+
+function renderTimelineButton(
+  message: Message,
+  index: number,
+  anchorId: string
+): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.className = "timeline-item";
+  button.type = "button";
+  button.dataset.target = anchorId;
+
+  const timelineTime = formatDisplayTime(message.createdAt, "unknown time");
+  const timelineTimeTitle = formatDateTimeTitle(message.createdAt);
+  button.innerHTML = `
+    <span class="timeline-index">${String(index + 1).padStart(2, "0")}</span>
+    <span class="timeline-role-emoji" title="${escapeHtml(timelineLabel(message.role))}">${timelineEmoji(message.role)}</span>
+    <strong class="timeline-preview">${escapeHtml(buildTimelinePreview(message))}</strong>
+    <span class="timeline-time" title="${escapeHtml(timelineTimeTitle)}">${escapeHtml(timelineTime)}</span>
+  `;
+
+  return button;
 }
 
 function renderMessage(
@@ -305,6 +332,7 @@ function timelineLabel(role: Message["role"]): string {
   if (role === "assistant") {
     return "answer";
   }
+
   return role;
 }
 
@@ -323,40 +351,4 @@ function timelineEmoji(role: Message["role"]): string {
     default:
       return "•";
   }
-}
-
-function formatDisplayTime(value?: string, fallback = ""): string {
-  const timestamp = parseTimestamp(value);
-  if (timestamp === null) {
-    return value ?? fallback;
-  }
-  return TIME_ONLY_FORMATTER.format(timestamp);
-}
-
-function formatDateTimeTitle(value?: string): string {
-  const timestamp = parseTimestamp(value);
-  if (timestamp === null) {
-    return value ?? "";
-  }
-  return DATE_TIME_FORMATTER.format(timestamp);
-}
-
-function formatDateTime(value?: string, fallback = ""): string {
-  const formatted = formatDateTimeTitle(value);
-  return formatted || fallback;
-}
-
-function parseTimestamp(value?: string): number | null {
-  if (!value) {
-    return null;
-  }
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? null : timestamp;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
 }

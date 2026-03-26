@@ -1,0 +1,56 @@
+const TIME_ONLY_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false
+});
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "medium"
+});
+
+export function formatDisplayTime(value?: string, fallback = ""): string {
+  const timestamp = parseTimestamp(value);
+  if (timestamp === null) {
+    return value ?? fallback;
+  }
+  return TIME_ONLY_FORMATTER.format(timestamp);
+}
+
+export function formatDateTimeTitle(value?: string): string {
+  const timestamp = parseTimestamp(value);
+  if (timestamp === null) {
+    return value ?? "";
+  }
+  return DATE_TIME_FORMATTER.format(timestamp);
+}
+
+export function formatDateTime(value?: string, fallback = ""): string {
+  const formatted = formatDateTimeTitle(value);
+  return formatted || fallback;
+}
+
+export function formatLocalDateTime(value?: number, fallback = ""): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return DATE_TIME_FORMATTER.format(value);
+}
+
+export function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function parseTimestamp(value?: string): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
