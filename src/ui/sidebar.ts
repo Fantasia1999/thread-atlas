@@ -46,6 +46,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     <option value="claude">Claude</option>
     <option value="opencode">OpenCode</option>
     <option value="gemini">Gemini</option>
+    <option value="antigravity">Antigravity</option>
   `;
   filter.value = options.sourceFilter;
   filter.addEventListener("change", () => {

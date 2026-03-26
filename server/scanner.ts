@@ -3,6 +3,11 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import {
+  buildAntigravityDescriptor,
+  isAntigravityConversationPath,
+  loadAntigravityBundle
+} from "./antigravity.js";
 import type {
   SessionBundle,
   SessionDescriptor,
@@ -25,6 +30,10 @@ const LOCAL_FILE_SCAN_TARGETS = [
   {
     segments: [".gemini", "tmp"],
     source: "gemini"
+  },
+  {
+    segments: [".gemini", "antigravity", "conversations"],
+    source: "antigravity"
   }
 ] as const satisfies ReadonlyArray<{
   segments: readonly string[];
@@ -93,12 +102,15 @@ export async function loadLocalSessionBundle(key: string): Promise<SessionBundle
   }
 
   const absolutePath = key.slice("file::".length);
+  const source = inferSourceFromPath(absolutePath);
+  const origin = inferOrigin(absolutePath);
+  if (source === "antigravity") {
+    return await loadAntigravityBundle(absolutePath, origin);
+  }
   const [content, stats] = await Promise.all([
     fs.readFile(absolutePath, "utf8"),
     fs.stat(absolutePath)
   ]);
-  const source = inferSourceFromPath(absolutePath);
-  const origin = inferOrigin(absolutePath);
 
   return {
     ...buildFileDescriptor(absolutePath, source, origin, stats),
@@ -254,7 +266,12 @@ async function collectFiles(root: string, depth: number): Promise<string[]> {
 
 function isSessionLikeFile(absolutePath: string): boolean {
   const name = path.basename(absolutePath).toLowerCase();
-  return name === "opencode.db" || name.endsWith(".jsonl") || name.endsWith(".json");
+  return (
+    name === "opencode.db" ||
+    name.endsWith(".jsonl") ||
+    name.endsWith(".json") ||
+    name.endsWith(".pb")
+  );
 }
 
 function shouldIncludeScannedFile(source: SessionSource): boolean {
@@ -263,6 +280,9 @@ function shouldIncludeScannedFile(source: SessionSource): boolean {
 
 function inferSourceFromPath(absolutePath: string): SessionSource {
   const normalized = absolutePath.toLowerCase();
+  if (isAntigravityConversationPath(absolutePath)) {
+    return "antigravity";
+  }
   if (normalized.includes("/.codex/") || normalized.includes("/rollout-")) {
     return "codex";
   }
@@ -291,6 +311,10 @@ function buildFileDescriptor(
     mtimeMs: number;
   }
 ): SessionDescriptor {
+  if (source === "antigravity") {
+    return buildAntigravityDescriptor(absolutePath, origin, stats);
+  }
+
   return {
     key: `file::${absolutePath}`,
     source,

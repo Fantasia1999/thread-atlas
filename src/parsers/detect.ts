@@ -1,4 +1,5 @@
 import type { Session, SessionBundle, SessionSource } from "./types.js";
+import { parseAntigravitySession } from "./antigravity.js";
 import { parseClaudeSession } from "./claude.js";
 import { parseCodexSession } from "./codex.js";
 import { parseGeminiSession } from "./gemini.js";
@@ -36,6 +37,15 @@ export function detectSessionSource(bundle: SessionBundle): SessionSource {
   }
 
   if (
+    bundle.files.some((file) => file.path.endsWith("#chat.jsonl")) ||
+    combinedPath.includes("/antigravity/") ||
+    (firstContent.includes("\"record_type\":\"session_meta\"") &&
+      firstContent.includes("\"cascade_id\""))
+  ) {
+    return "antigravity";
+  }
+
+  if (
     combinedPath.includes(".gemini") ||
     firstContent.includes("\"functionCall\"") ||
     firstContent.includes("\"functionResponse\"")
@@ -67,6 +77,8 @@ export function parseSessionBundle(bundle: SessionBundle): Session {
         return parseOpenCodeSession(bundle);
       case "gemini":
         return parseGeminiSession(bundle);
+      case "antigravity":
+        return parseAntigravitySession(bundle);
       default:
         return buildFallbackSession(bundle, "unknown", "Unsupported session source.");
     }

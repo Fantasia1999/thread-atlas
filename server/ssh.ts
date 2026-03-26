@@ -162,6 +162,11 @@ async function collectRemotePaths(
       source: "gemini",
       script:
         `find "$HOME/.gemini/tmp" -type f -name '*.json' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
+    },
+    {
+      source: "antigravity",
+      script:
+        `find "$HOME/.gemini/antigravity/conversations" -type f -name '*.pb' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
     }
   ];
 

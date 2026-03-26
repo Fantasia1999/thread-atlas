@@ -1,4 +1,10 @@
-export type SessionSource = "codex" | "claude" | "opencode" | "gemini" | "unknown";
+export type SessionSource =
+  | "codex"
+  | "claude"
+  | "opencode"
+  | "gemini"
+  | "antigravity"
+  | "unknown";
 export type SessionRole = "user" | "assistant" | "system" | "developer" | "tool";
 export type SessionOrigin = "local" | "remote" | "imported";
 export type SessionTransport = "local-scan" | "ssh-sync" | "browser-file";
