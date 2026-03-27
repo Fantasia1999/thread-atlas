@@ -112,7 +112,6 @@ export class ThreadAtlasApp {
           this.store.setSourceFilter(value);
         },
         onSelect: async (key) => {
-          this.messageFilter = "default";
           await this.store.selectSession(key);
         }
       })
