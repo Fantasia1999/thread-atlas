@@ -1,7 +1,7 @@
-import Database from "better-sqlite3";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import {
   buildAntigravityDescriptor,
@@ -151,6 +151,8 @@ async function scanFileTree(
   );
 }
 
+type SqliteParameter = string | number | bigint | Uint8Array | null;
+
 async function scanOpenCodeDatabasesInRemoteMirror(): Promise<SessionDescriptor[]> {
   if (!(await exists(REMOTE_SYNC_ROOT))) {
     return [];
@@ -195,21 +197,18 @@ async function loadOpenCodeBundle(
   const [sessions, messages, parts] = await Promise.all([
     querySqlite<OpenCodeSessionRow>(
       dbPath,
-      `select id, title, directory, time_created, time_updated from session where id = ${escapeSqliteValue(
-        sessionId
-      )};`
+      "select id, title, directory, time_created, time_updated from session where id = ?;",
+      [sessionId]
     ),
     querySqlite<OpenCodeMessageRow>(
       dbPath,
-      `select id, session_id, time_created, time_updated, data from message where session_id = ${escapeSqliteValue(
-        sessionId
-      )} order by time_created asc;`
+      "select id, session_id, time_created, time_updated, data from message where session_id = ? order by time_created asc;",
+      [sessionId]
     ),
     querySqlite<OpenCodePartRow>(
       dbPath,
-      `select id, message_id, session_id, time_created, time_updated, data from part where session_id = ${escapeSqliteValue(
-        sessionId
-      )} order by time_created asc;`
+      "select id, message_id, session_id, time_created, time_updated, data from part where session_id = ? order by time_created asc;",
+      [sessionId]
     )
   ]);
 
@@ -391,19 +390,18 @@ async function exists(targetPath: string): Promise<boolean> {
   }
 }
 
-async function querySqlite<T>(dbPath: string, query: string): Promise<T[]> {
-  const database = new Database(dbPath, {
-    readonly: true,
-    fileMustExist: true
+async function querySqlite<T>(
+  dbPath: string,
+  query: string,
+  parameters: readonly SqliteParameter[] = []
+): Promise<T[]> {
+  const database = new DatabaseSync(dbPath, {
+    readOnly: true
   });
 
   try {
-    return database.prepare(query).all() as T[];
+    return database.prepare(query).all(...parameters) as T[];
   } finally {
     database.close();
   }
-}
-
-function escapeSqliteValue(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
 }
