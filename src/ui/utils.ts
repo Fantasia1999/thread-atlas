@@ -39,6 +39,32 @@ export function formatLocalDateTime(value?: number, fallback = ""): string {
   return DATE_TIME_FORMATTER.format(value);
 }
 
+export async function copyText(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = value;
+  textArea.setAttribute("readonly", "true");
+  textArea.style.position = "fixed";
+  textArea.style.top = "0";
+  textArea.style.left = "0";
+  textArea.style.opacity = "0";
+
+  document.body.append(textArea);
+  textArea.select();
+  textArea.setSelectionRange(0, value.length);
+
+  const copied = document.execCommand("copy");
+  textArea.remove();
+
+  if (!copied) {
+    throw new Error("Clipboard copy failed.");
+  }
+}
+
 export function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")

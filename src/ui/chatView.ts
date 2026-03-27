@@ -1,6 +1,7 @@
 import type { Message, Session, SessionDescriptor } from "../parsers/types.js";
 import { renderMarkdown } from "./markdown.js";
 import {
+  copyText,
   escapeHtml,
   formatDateTime,
   formatDateTimeTitle,
@@ -88,6 +89,11 @@ function renderSessionHeader(
   actions.className = "chat-actions";
 
   if (session) {
+    const resumeCommand = buildCodexResumeCommand(session);
+    if (resumeCommand) {
+      actions.append(createCopyResumeButton(resumeCommand));
+    }
+
     const exportButton = document.createElement("button");
     exportButton.className = "button secondary";
     exportButton.type = "button";
@@ -100,6 +106,86 @@ function renderSessionHeader(
 
   header.append(heading, actions);
   return header;
+}
+
+function buildCodexResumeCommand(session: Session): string | null {
+  if (session.source !== "codex") {
+    return null;
+  }
+
+  const sessionId = session.metadata.sessionId;
+  if (typeof sessionId !== "string" || !sessionId.trim()) {
+    return null;
+  }
+
+  return `codex resume ${sessionId}`;
+}
+
+function createCopyResumeButton(command: string): HTMLButtonElement {
+  const button = document.createElement("button");
+  let resetTimer = 0;
+
+  button.className = "button secondary copy-command-button icon-button";
+  button.type = "button";
+  button.innerHTML = clipboardIcon();
+  button.title = command;
+  button.setAttribute("aria-label", "Copy Codex resume command");
+
+  button.addEventListener("click", async () => {
+    window.clearTimeout(resetTimer);
+    button.disabled = true;
+    button.dataset.state = "";
+    button.innerHTML = spinnerIcon();
+
+    try {
+      await copyText(command);
+      button.dataset.state = "success";
+      button.innerHTML = successIcon();
+    } catch {
+      button.dataset.state = "error";
+      button.innerHTML = errorIcon();
+    }
+
+    resetTimer = window.setTimeout(() => {
+      button.disabled = false;
+      button.dataset.state = "";
+      button.innerHTML = clipboardIcon();
+    }, 1600);
+  });
+
+  return button;
+}
+
+function clipboardIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M10 1.75a1.75 1.75 0 0 1 1.58 1H13A1.75 1.75 0 0 1 14.75 4.5v8A1.75 1.75 0 0 1 13 14.25H5A1.75 1.75 0 0 1 3.25 12.5v-8A1.75 1.75 0 0 1 5 2.75h1.42A1.75 1.75 0 0 1 8 1.75Zm0 1.5H8a.25.25 0 0 0-.25.25v.5h2.5v-.5A.25.25 0 0 0 10 3.25ZM5 4.25a.25.25 0 0 0-.25.25v8A.25.25 0 0 0 5 12.75h8a.25.25 0 0 0 .25-.25v-8A.25.25 0 0 0 13 4.25h-1.25v.5A.75.75 0 0 1 11 5.5H7a.75.75 0 0 1-.75-.75v-.5Z"/>
+    </svg>
+  `;
+}
+
+function spinnerIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 2.25a5.75 5.75 0 1 0 5.17 3.23.75.75 0 1 1 1.35-.66A7.25 7.25 0 1 1 8 0v2.25a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 7.25 0H8a.75.75 0 0 1 0 1.5h-.25v.75A.25.25 0 0 0 8 2.25Z"/>
+    </svg>
+  `;
+}
+
+function successIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-6 6a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 0 1 1.06-1.06l1.97 1.97 5.47-5.47a.75.75 0 0 1 1.06 0Z"/>
+    </svg>
+  `;
+}
+
+function errorIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4.22 4.22a.75.75 0 0 1 1.06 0L8 6.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L9.06 8l2.72 2.72a.75.75 0 1 1-1.06 1.06L8 9.06l-2.72 2.72a.75.75 0 0 1-1.06-1.06L6.94 8 4.22 5.28a.75.75 0 0 1 0-1.06Z"/>
+    </svg>
+  `;
 }
 
 function renderInfoStrip(session: Session, filteredCount: number): HTMLElement {

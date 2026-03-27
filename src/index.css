@@ -351,6 +351,31 @@ input[type="checkbox"] {
   background: var(--bg-panel-muted);
 }
 
+.button.copy-command-button {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+  font-family: var(--font-mono);
+}
+
+.button.copy-command-button svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.button.copy-command-button[data-state="success"] {
+  border-color: rgba(26, 127, 55, 0.28);
+  background: rgba(26, 127, 55, 0.12);
+  color: var(--success);
+}
+
+.button.copy-command-button[data-state="error"] {
+  border-color: rgba(207, 34, 46, 0.28);
+  background: rgba(207, 34, 46, 0.12);
+  color: var(--danger);
+}
+
 .button.ghost {
   background: transparent;
   box-shadow: none;

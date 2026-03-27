@@ -153,6 +153,7 @@ export function parseCodexSession(bundle: SessionBundle): Session {
     messages: dedupedMessages,
     metadata: {
       cwd: cwd ?? null,
+      sessionId: id ?? null,
       cli_version:
         typeof sessionMeta?.cli_version === "string" ? sessionMeta.cli_version : null,
       model_provider:
