@@ -278,8 +278,8 @@ function shouldIncludeScannedFile(source: SessionSource): boolean {
   return source !== "opencode";
 }
 
-function inferSourceFromPath(absolutePath: string): SessionSource {
-  const normalized = absolutePath.toLowerCase();
+export function inferSourceFromPath(absolutePath: string): SessionSource {
+  const normalized = normalizePathForMatch(absolutePath);
   if (isAntigravityConversationPath(absolutePath)) {
     return "antigravity";
   }
@@ -299,7 +299,17 @@ function inferSourceFromPath(absolutePath: string): SessionSource {
 }
 
 function inferOrigin(absolutePath: string): DescriptorOrigin {
-  return absolutePath.startsWith(REMOTE_SYNC_ROOT) ? "remote" : "local";
+  return isWithinPathRoot(absolutePath, REMOTE_SYNC_ROOT) ? "remote" : "local";
+}
+
+export function isWithinPathRoot(absolutePath: string, rootPath: string): boolean {
+  const normalizedPath = normalizePathForMatch(absolutePath);
+  const normalizedRoot = normalizePathForMatch(rootPath);
+  return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}/`);
+}
+
+export function normalizePathForMatch(value: string): string {
+  return value.replaceAll("\\", "/").toLowerCase();
 }
 
 function buildFileDescriptor(

@@ -11,7 +11,9 @@ export function detectSessionSource(bundle: SessionBundle): SessionSource {
     return bundle.source;
   }
 
-  const combinedPath = `${bundle.primaryPath} ${bundle.files.map((file) => file.path).join(" ")}`.toLowerCase();
+  const combinedPath = normalizePathForMatch(
+    `${bundle.primaryPath} ${bundle.files.map((file) => file.path).join(" ")}`
+  );
   const firstContent = bundle.files[0]?.content ?? "";
   const trimmed = firstContent.trim();
 
@@ -86,4 +88,8 @@ export function parseSessionBundle(bundle: SessionBundle): Session {
     const message = error instanceof Error ? error.message : "Unknown parse failure.";
     return buildFallbackSession(bundle, source, message);
   }
+}
+
+function normalizePathForMatch(value: string): string {
+  return value.replaceAll("\\", "/").toLowerCase();
 }

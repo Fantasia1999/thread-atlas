@@ -1,5 +1,6 @@
 import type { Message, Session, SessionBundle, ToolCall } from "./types.js";
 import {
+  basenameTitle,
   buildFallbackSession,
   buildSession,
   collectText,
@@ -55,7 +56,7 @@ export function parseClaudeSession(bundle: SessionBundle): Session {
   });
 
   return buildSession(bundle, "claude", {
-    title: cwd ? `${cwd.split("/").filter(Boolean).at(-1) ?? "project"} · Claude` : bundle.title,
+    title: cwd ? `${basenameTitle(cwd) || "project"} · Claude` : bundle.title,
     cwd,
     messages,
     metadata: {

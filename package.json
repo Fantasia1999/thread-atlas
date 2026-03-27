@@ -8,6 +8,7 @@
     "dev:server": "tsx watch server/index.ts",
     "dev:web": "vite",
     "build": "vite build && tsc -p tsconfig.server.json",
+    "test": "node --import tsx --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "preview": "vite preview"
   },
