@@ -56,6 +56,7 @@ Imported browser files can still be source-detected from content and path hints 
 - Keep backend behavior operationally boring: request-scoped work, no database, no long-lived cache.
 - Preserve the current separation between scanning and parsing. The backend discovers files and returns raw bundles; parsers own semantic interpretation.
 - Antigravity binary decode is an allowed exception: the backend may decrypt / unpack `.pb` into chat-shaped JSONL, but it should not emit final normalized `Session` objects.
+- Do not commit real local-sensitive identifiers in code, tests, fixtures, screenshots, or docs. This includes absolute home paths, real usernames, hostnames, workspace roots, SSH targets, and machine-specific directories. Product-default scan roots such as `~/.codex/sessions` are fine, and illustrative example paths are fine when they are clearly generic placeholders.
 - Maintain graceful degradation for optional capabilities:
   - missing local directories should just produce no results
 - Never let SSH-related code execute remote commands built from unsanitized user shell input.
