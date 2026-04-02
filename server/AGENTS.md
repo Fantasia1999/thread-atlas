@@ -34,12 +34,13 @@
   - `~/.copilot/session-state`
   - `~/.local/share/opencode/opencode.db`
   - mirrored files under `data/remote/`
-- Remote scan currently probes fixed known paths for Codex, Claude, Gemini, Antigravity, and `~/.local/share/opencode/opencode.db`.
+- Remote scan currently probes fixed known paths for Codex, Claude, Gemini, Antigravity, Copilot session directories, and `~/.local/share/opencode/opencode.db`.
 - Session keys have two active forms:
   - `file::...`
   - `copilot-dir::...`
   - `opencode-sqlite::<dbPath>::<sessionId>`
 - Remote sync should download files first and let the normal local scanner pick them up afterward.
+  - Copilot is still mirrored as files even though SSH scan presents a session-directory selection.
 - Preserve stable response shapes with `src/parsers/types.ts` as the source of truth.
 - `server/antigravityDescriptors.ts` is a checked-in snapshot of protobuf descriptors.
   - Refresh it when upstream Antigravity descriptors change.

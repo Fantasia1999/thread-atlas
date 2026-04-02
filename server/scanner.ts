@@ -8,6 +8,10 @@ import {
   isAntigravityConversationPath,
   loadAntigravityBundle
 } from "./antigravity.js";
+import {
+  COPILOT_BUNDLE_FILES,
+  COPILOT_EVENTS_FILE
+} from "./copilot.js";
 import type {
   SessionBundle,
   SessionDescriptor,
@@ -18,13 +22,6 @@ const REMOTE_SYNC_ROOT = path.resolve(process.cwd(), "data", "remote");
 const MAX_FILES_PER_SOURCE = 120;
 const MAX_OPENCODE_SESSIONS = 80;
 const COPILOT_DIR_KEY_PREFIX = "copilot-dir::";
-const COPILOT_EVENTS_FILE = "events.jsonl";
-const COPILOT_OPTIONAL_BUNDLE_FILES = [
-  "workspace.yaml",
-  "vscode.metadata.json",
-  "plan.md",
-  path.join("checkpoints", "index.md")
-] as const;
 
 const LOCAL_FILE_SCAN_TARGETS = [
   {
@@ -85,6 +82,7 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
     localOpenCodeDescriptors,
     localCopilotDescriptors,
     remoteFileDescriptors,
+    remoteCopilotDescriptors,
     remoteOpenCodeDescriptors
   ] =
     await Promise.all([
@@ -96,6 +94,7 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
       scanOpenCodeDatabase(localOpenCodePath, "local"),
       scanCopilotSessionDirectories(localCopilotRoot, "local"),
       scanFileTree(REMOTE_SYNC_ROOT, undefined, "remote"),
+      scanCopilotSessionDirectoriesInRemoteMirror(),
       scanOpenCodeDatabasesInRemoteMirror()
     ]);
 
@@ -104,6 +103,7 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
     ...localOpenCodeDescriptors,
     ...localCopilotDescriptors,
     ...remoteFileDescriptors,
+    ...remoteCopilotDescriptors,
     ...remoteOpenCodeDescriptors
   ]);
 }
@@ -187,6 +187,31 @@ async function scanOpenCodeDatabasesInRemoteMirror(): Promise<SessionDescriptor[
   );
 
   return descriptorGroups.flat();
+}
+
+async function scanCopilotSessionDirectoriesInRemoteMirror(): Promise<SessionDescriptor[]> {
+  if (!(await exists(REMOTE_SYNC_ROOT))) {
+    return [];
+  }
+
+  const files = await collectFiles(REMOTE_SYNC_ROOT, 0);
+  const sessionDirs = [
+    ...new Set(
+      files
+        .filter(
+          (absolutePath) =>
+            path.basename(absolutePath) === COPILOT_EVENTS_FILE &&
+            inferSourceFromPath(absolutePath) === "copilot"
+        )
+        .map((absolutePath) => path.dirname(absolutePath))
+    )
+  ];
+
+  const descriptors = await Promise.all(
+    sessionDirs.map((sessionDir) => buildCopilotDescriptor(sessionDir, "remote"))
+  );
+
+  return descriptors.filter((descriptor): descriptor is SessionDescriptor => descriptor !== null);
 }
 
 async function scanCopilotSessionDirectories(
@@ -288,9 +313,8 @@ async function loadCopilotBundle(sessionDir: string): Promise<SessionBundle> {
     throw new Error("Copilot session not found.");
   }
 
-  const candidateFiles = [COPILOT_EVENTS_FILE, ...COPILOT_OPTIONAL_BUNDLE_FILES];
   const files = await Promise.all(
-    candidateFiles.map(async (relativePath) => {
+    COPILOT_BUNDLE_FILES.map(async (relativePath) => {
       const absolutePath = path.join(sessionDir, relativePath);
       if (!(await exists(absolutePath))) {
         return null;
@@ -344,7 +368,7 @@ function isSessionLikeFile(absolutePath: string): boolean {
 }
 
 function shouldIncludeScannedFile(source: SessionSource): boolean {
-  return source !== "opencode";
+  return source !== "opencode" && source !== "copilot";
 }
 
 export function inferSourceFromPath(absolutePath: string): SessionSource {
@@ -421,7 +445,7 @@ async function buildCopilotDescriptor(
     return null;
   }
 
-  const relevantPaths = [eventsPath, ...COPILOT_OPTIONAL_BUNDLE_FILES.map((entry) => path.join(sessionDir, entry))];
+  const relevantPaths = COPILOT_BUNDLE_FILES.map((entry) => path.join(sessionDir, entry));
   const existingPaths = await Promise.all(
     relevantPaths.map(async (absolutePath) => {
       if (!(await exists(absolutePath))) {

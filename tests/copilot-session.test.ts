@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 
-import { loadLocalSessionBundle } from "../server/scanner.ts";
+import { loadLocalSessionBundle, scanLocalSessions } from "../server/scanner.ts";
 import { parseCopilotSession } from "../src/parsers/copilot.ts";
 import { detectSessionSource } from "../src/parsers/detect.ts";
 import type { SessionBundle } from "../src/parsers/types.ts";
@@ -80,6 +80,72 @@ test("loadLocalSessionBundle loads Copilot session directories", async (t) => {
   assert.deepEqual(
     bundle.files.map((file) => path.basename(file.path)).sort(),
     ["events.jsonl", "workspace.yaml", "vscode.metadata.json", "plan.md", "index.md"].sort()
+  );
+});
+
+test("Copilot sessions are discovered and loaded from the remote mirror", async (t) => {
+  const fixtureRoot = path.join(
+    process.cwd(),
+    "data",
+    "remote",
+    `copilot-test-${process.pid}-${Date.now()}`
+  );
+  const sessionDir = path.join(
+    fixtureRoot,
+    "alice@host",
+    "home",
+    "alice",
+    ".copilot",
+    "session-state",
+    "session-remote-1"
+  );
+
+  await mkdir(path.join(sessionDir, "checkpoints"), { recursive: true });
+  await writeFile(
+    path.join(sessionDir, "events.jsonl"),
+    JSON.stringify({
+      type: "session.start",
+      data: {
+        sessionId: "session-remote-1",
+        producer: "copilot-agent"
+      }
+    })
+  );
+  await writeFile(
+    path.join(sessionDir, "workspace.yaml"),
+    [
+      "id: session-remote-1",
+      "cwd: /repo/thread-atlas",
+      "summary: Remote Copilot Session",
+      "updated_at: 2026-04-02T09:00:19.604Z"
+    ].join("\n")
+  );
+  await writeFile(path.join(sessionDir, "vscode.metadata.json"), "{\"producer\":\"copilot-agent\"}");
+
+  t.after(async () => {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  });
+
+  const descriptors = await scanLocalSessions();
+  const descriptor = descriptors.find((entry) => entry.key === `copilot-dir::${sessionDir}`);
+
+  assert.ok(descriptor);
+  assert.equal(descriptor.source, "copilot");
+  assert.equal(descriptor.origin, "remote");
+  assert.equal(descriptor.transport, "ssh-sync");
+  assert.equal(descriptor.title, "Remote Copilot Session");
+  assert.equal(descriptor.fileCount, 3);
+  assert.equal(
+    descriptors.some((entry) => entry.key === `file::${path.join(sessionDir, "events.jsonl")}`),
+    false
+  );
+
+  const bundle = await loadLocalSessionBundle(descriptor.key);
+  assert.equal(bundle.key, descriptor.key);
+  assert.equal(bundle.files.length, 3);
+  assert.deepEqual(
+    bundle.files.map((file) => path.basename(file.path)).sort(),
+    ["events.jsonl", "workspace.yaml", "vscode.metadata.json"].sort()
   );
 });
 

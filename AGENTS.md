@@ -43,6 +43,7 @@ If you change descriptor or bundle shapes, update `src/parsers/types.ts` first a
 - Copilot:
   - local scan reads `~/.copilot/session-state/<session-id>/events.jsonl`
   - backend loads the session directory as one bundle and may include sibling metadata files such as `workspace.yaml`
+  - remote scan and sync also discover Copilot session directories under the same root and mirror known files locally before normal scanning
 - OpenCode:
   - local scan reads `~/.local/share/opencode/opencode.db`
   - remote scan and sync also operate on `opencode.db`

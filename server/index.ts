@@ -125,14 +125,15 @@ function readCredentials(value: unknown): SshCredentials {
 
 function readRemoteEntries(value: unknown): RemoteSessionEntry[] {
   if (!Array.isArray(value) || value.length === 0) {
-    throw new Error("Select at least one remote file to sync.");
+    throw new Error("Select at least one remote session item to sync.");
   }
 
   return value.map((item) => {
-    const record = asRecord(item, "Invalid remote file selection.");
+    const record = asRecord(item, "Invalid remote session selection.");
     return {
-      path: readRequiredString(record, "path", "Invalid remote file selection."),
-      source: String(record.source ?? "unknown") as RemoteSessionEntry["source"]
+      path: readRequiredString(record, "path", "Invalid remote session selection."),
+      source: String(record.source ?? "unknown") as RemoteSessionEntry["source"],
+      kind: record.kind === "directory" ? "directory" : "file"
     };
   });
 }

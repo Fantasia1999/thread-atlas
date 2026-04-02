@@ -4,6 +4,7 @@ import { escapeHtml, formatLocalDateTime } from "./utils.js";
 interface RemoteSessionEntry {
   path: string;
   source: SessionSource;
+  kind: "file" | "directory";
   size?: number;
   mtimeMs?: number;
 }
@@ -25,7 +26,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   header.innerHTML = `
     <div>
       <p class="eyebrow">SSH Sync</p>
-      <h2>Scan remote session files</h2>
+      <h2>Scan remote sessions</h2>
     </div>
   `;
 
@@ -99,7 +100,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   });
 
   scanButton.addEventListener("click", async () => {
-    status.textContent = "Scanning remote session paths...";
+    status.textContent = "Scanning remote sessions...";
     try {
       const payload = await postJson("/api/ssh/scan", readCredentials(form));
       if (!payload.ok || !Array.isArray(payload.files)) {
@@ -114,7 +115,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
       syncButton.disabled = files.length === 0;
       renderResults();
-      status.textContent = `Found ${files.length} remote files.`;
+      status.textContent = `Found ${files.length} remote session item${files.length === 1 ? "" : "s"}.`;
     } catch (error) {
       results.className = "remote-results empty-state";
       results.textContent = "Remote scan failed.";
@@ -126,11 +127,11 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   syncButton.addEventListener("click", async () => {
     const selectedFiles = files.filter((file) => selected.has(file.path));
     if (selectedFiles.length === 0) {
-      status.textContent = "Select at least one file to sync.";
+      status.textContent = "Select at least one remote session item to sync.";
       return;
     }
 
-    status.textContent = "Downloading selected files...";
+    status.textContent = "Downloading selected remote sessions...";
     try {
       const payload = await postJson("/api/ssh/sync", {
         ...readCredentials(form),
@@ -141,7 +142,8 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
         throw new Error(asErrorMessage(payload.error, "Remote sync failed."));
       }
 
-      status.textContent = `Downloaded ${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"}.`;
+      const downloadedCount = Array.isArray(payload.downloaded) ? payload.downloaded.length : 0;
+      status.textContent = `Downloaded ${downloadedCount} file${downloadedCount === 1 ? "" : "s"} from ${selectedFiles.length} remote selection${selectedFiles.length === 1 ? "" : "s"}.`;
       await options.onSynced();
       options.onClose();
     } catch (error) {
@@ -166,7 +168,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
     if (files.length === 0) {
       results.className = "remote-results empty-state";
-      results.textContent = "No files found in known remote session paths.";
+      results.textContent = "No sessions found in known remote scan roots.";
       return;
     }
 
@@ -178,6 +180,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
         <div>
           <div class="remote-row-top">
             <span class="source-badge ${file.source}">${file.source}</span>
+            <span>${file.kind === "directory" ? "directory" : "file"}</span>
             <span>${file.mtimeMs ? formatLocalDateTime(file.mtimeMs) : ""}</span>
           </div>
           <div class="remote-path">${escapeHtml(file.path)}</div>

@@ -3,9 +3,12 @@ import path from "node:path";
 import { Client, type ConnectConfig, type SFTPWrapper } from "ssh2";
 
 import type { SessionSource } from "../src/parsers/types.js";
+import { COPILOT_BUNDLE_FILES, COPILOT_EVENTS_FILE } from "./copilot.js";
 
 const REMOTE_SYNC_ROOT = path.resolve(process.cwd(), "data", "remote");
 const MAX_REMOTE_RESULTS = 80;
+
+export type RemoteSessionEntryKind = "file" | "directory";
 
 export interface SshCredentials {
   host: string;
@@ -19,6 +22,7 @@ export interface SshCredentials {
 export interface RemoteSessionEntry {
   path: string;
   source: SessionSource;
+  kind: RemoteSessionEntryKind;
   size?: number;
   mtimeMs?: number;
 }
@@ -49,19 +53,21 @@ export async function scanRemoteSessions(
 
     const sftp = await openSftp(client);
     const entries = await Promise.all(
-      paths.map(async ({ remotePath, source }) => {
+      paths.map(async ({ remotePath, source, kind }) => {
         try {
-          const stat = await statRemoteFile(sftp, remotePath);
+          const stat = await statRemotePath(sftp, remotePath);
           return {
             path: remotePath,
             source,
+            kind,
             size: stat.size,
             mtimeMs: stat.mtime * 1000
           } satisfies RemoteSessionEntry;
         } catch {
           return {
             path: remotePath,
-            source
+            source,
+            kind
           } satisfies RemoteSessionEntry;
         }
       })
@@ -97,9 +103,23 @@ export async function syncRemoteFiles(
     const downloaded: SyncResult["downloaded"] = [];
 
     for (const entry of entries) {
-      const localPath = buildLocalPath(destinationRoot, entry.path);
-      await fs.mkdir(path.dirname(localPath), { recursive: true });
-      await fastGet(sftp, entry.path, localPath);
+      if (entry.kind === "directory") {
+        if (entry.source !== "copilot") {
+          throw new Error(`Unsupported remote directory source: ${entry.source}`);
+        }
+
+        const syncedFiles = await syncCopilotDirectory(sftp, destinationRoot, entry.path);
+        downloaded.push(
+          ...syncedFiles.map(({ remotePath, localPath }) => ({
+            remotePath,
+            localPath,
+            source: entry.source
+          }))
+        );
+        continue;
+      }
+
+      const localPath = await syncRemoteFile(sftp, destinationRoot, entry.path);
       downloaded.push({
         remotePath: entry.path,
         localPath,
@@ -141,36 +161,51 @@ async function connect(credentials: SshCredentials): Promise<Client> {
 
 async function collectRemotePaths(
   client: Client
-): Promise<Array<{ remotePath: string; source: SessionSource }>> {
-  const scripts: Array<{ source: SessionSource; script: string }> = [
+): Promise<Array<{ remotePath: string; source: SessionSource; kind: RemoteSessionEntryKind }>> {
+  const scripts: Array<{ source: SessionSource; kind: RemoteSessionEntryKind; script: string }> = [
     {
       source: "codex",
+      kind: "file",
       script:
         `find "$HOME/.codex/sessions" -type f -name 'rollout-*.jsonl' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
     },
     {
       source: "claude",
+      kind: "file",
       script:
         `find "$HOME/.claude/projects" -type f -name '*.jsonl' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
     },
     {
       source: "opencode",
+      kind: "file",
       script:
         `if [ -f "$HOME/.local/share/opencode/opencode.db" ]; then printf '%s\n' "$HOME/.local/share/opencode/opencode.db"; fi`
     },
     {
       source: "gemini",
+      kind: "file",
       script:
         `find "$HOME/.gemini/tmp" -type f -name '*.json' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
     },
     {
       source: "antigravity",
+      kind: "file",
       script:
         `find "$HOME/.gemini/antigravity/conversations" -type f -name '*.pb' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
+    },
+    {
+      source: "copilot",
+      kind: "directory",
+      script:
+        `find "$HOME/.copilot/session-state" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
     }
   ];
 
-  const records: Array<{ remotePath: string; source: SessionSource }> = [];
+  const records: Array<{
+    remotePath: string;
+    source: SessionSource;
+    kind: RemoteSessionEntryKind;
+  }> = [];
 
   for (const item of scripts) {
     const stdout = await execRemote(client, item.script);
@@ -179,11 +214,14 @@ async function collectRemotePaths(
       if (!remotePath) {
         continue;
       }
-      records.push({ remotePath, source: item.source });
+      records.push({ remotePath, source: item.source, kind: item.kind });
     }
   }
 
-  const deduped = new Map<string, { remotePath: string; source: SessionSource }>();
+  const deduped = new Map<
+    string,
+    { remotePath: string; source: SessionSource; kind: RemoteSessionEntryKind }
+  >();
   for (const record of records) {
     deduped.set(record.remotePath, record);
   }
@@ -231,7 +269,7 @@ async function openSftp(client: Client): Promise<SFTPWrapper> {
   });
 }
 
-async function statRemoteFile(sftp: SFTPWrapper, remotePath: string) {
+async function statRemotePath(sftp: SFTPWrapper, remotePath: string) {
   return await new Promise<import("ssh2").Stats>((resolve, reject) => {
     sftp.stat(remotePath, (error, stats) => {
       if (error) {
@@ -259,6 +297,43 @@ async function fastGet(
   });
 }
 
+async function syncCopilotDirectory(
+  sftp: SFTPWrapper,
+  destinationRoot: string,
+  remoteDirectoryPath: string
+): Promise<Array<{ remotePath: string; localPath: string }>> {
+  const downloaded: Array<{ remotePath: string; localPath: string }> = [];
+
+  for (const relativePath of COPILOT_BUNDLE_FILES) {
+    const remotePath = path.posix.join(remoteDirectoryPath, relativePath);
+    try {
+      const localPath = await syncRemoteFile(sftp, destinationRoot, remotePath);
+      downloaded.push({ remotePath, localPath });
+    } catch (error) {
+      if (relativePath === COPILOT_EVENTS_FILE) {
+        throw new Error(`Remote Copilot session is missing required file: ${remotePath}`);
+      }
+
+      if (!isSftpMissingError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  return downloaded;
+}
+
+async function syncRemoteFile(
+  sftp: SFTPWrapper,
+  destinationRoot: string,
+  remotePath: string
+): Promise<string> {
+  const localPath = buildLocalPath(destinationRoot, remotePath);
+  await fs.mkdir(path.dirname(localPath), { recursive: true });
+  await fastGet(sftp, remotePath, localPath);
+  return localPath;
+}
+
 function buildLocalPath(root: string, remotePath: string): string {
   const segments = remotePath
     .replace(/^\/+/, "")
@@ -271,4 +346,17 @@ function buildLocalPath(root: string, remotePath: string): string {
 
 function sanitizeSegment(input: string): string {
   return input.replace(/[^a-zA-Z0-9._@-]+/g, "_");
+}
+
+function isSftpMissingError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("no such file") ||
+    message.includes("not found") ||
+    message.includes("failure")
+  );
 }
