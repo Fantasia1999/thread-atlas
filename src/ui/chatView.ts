@@ -37,8 +37,20 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
 
   const descriptor = options.descriptor;
   const session = options.session;
+  const filteredMessages = session
+    ? filterMessagesForView(session.messages, options.messageFilter)
+    : [];
 
-  container.append(renderSessionHeader(descriptor, session, options.onExport));
+  container.append(
+    renderSessionHeader({
+      descriptor,
+      session,
+      filteredCount: filteredMessages.length,
+      filter: options.messageFilter,
+      onFilterChange: options.onFilterChange,
+      onExport: options.onExport
+    })
+  );
 
   if (options.loading && !session) {
     container.append(createEmpty("Loading session..."));
@@ -50,45 +62,46 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
     return container;
   }
 
-  const filteredMessages = filterMessagesForView(session.messages, options.messageFilter);
-
-  container.append(renderInfoStrip(session, filteredMessages.length));
-  container.append(
-    renderToolbar({
-      filter: options.messageFilter,
-      onChange: options.onFilterChange
-    })
-  );
   container.append(renderChatLayout(filteredMessages, options.messageFilter === "default"));
 
   return container;
 }
 
-function renderSessionHeader(
-  descriptor: SessionDescriptor,
-  session: Session | undefined,
-  onExport: (session: Session) => void
-): HTMLElement {
+function renderSessionHeader(options: {
+  descriptor: SessionDescriptor;
+  session: Session | undefined;
+  filteredCount: number;
+  filter: MessageViewFilter;
+  onFilterChange: (filter: MessageViewFilter) => void;
+  onExport: (session: Session) => void;
+}): HTMLElement {
   const header = document.createElement("div");
   header.className = "chat-header";
+
+  const descriptor = options.descriptor;
+  const session = options.session;
+
+  const main = document.createElement("div");
+  main.className = "chat-header-main";
+  const aside = document.createElement("div");
+  aside.className = "chat-header-aside";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "chat-title-row";
 
   const heading = document.createElement("div");
   heading.className = "chat-heading";
   heading.innerHTML = `
     <div class="eyebrow">Session Detail</div>
     <h1>${escapeHtml(session?.title ?? descriptor.title)}</h1>
-    <div class="chat-meta">
-      <span>${descriptor.source}</span>
-      <span>${descriptor.origin}</span>
-      <span>${descriptor.transport}</span>
-      <span>${escapeHtml(descriptor.primaryPath)}</span>
-    </div>
   `;
 
-  const actions = document.createElement("div");
-  actions.className = "chat-actions";
+  titleRow.append(heading);
 
   if (session) {
+    const actions = document.createElement("div");
+    actions.className = "chat-actions";
+
     const resumeCommand = buildCodexResumeCommand(session);
     if (resumeCommand) {
       actions.append(createCopyResumeButton(resumeCommand));
@@ -99,12 +112,61 @@ function renderSessionHeader(
     exportButton.type = "button";
     exportButton.textContent = "Export JSON";
     exportButton.addEventListener("click", () => {
-      onExport(session);
+      options.onExport(session);
     });
     actions.append(exportButton);
+
+    titleRow.append(actions);
   }
 
-  header.append(heading, actions);
+  const path = document.createElement("div");
+  path.className = "chat-path";
+  path.title = descriptor.primaryPath;
+  path.textContent = descriptor.primaryPath;
+
+  const meta = document.createElement("div");
+  meta.className = "chat-meta";
+
+  const metaItems = [
+    descriptor.source,
+    descriptor.origin,
+    descriptor.transport,
+    ...(session
+      ? [
+          `${options.filteredCount}/${session.messageCount} messages`,
+          session.cwd ?? "cwd unavailable",
+          formatDateTime(session.startedAt, "time unavailable")
+        ]
+      : [])
+  ];
+
+  meta.innerHTML = metaItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("");
+
+  main.append(titleRow, path, meta);
+
+  if (session) {
+    const filterRow = document.createElement("div");
+    filterRow.className = "chat-filter-row";
+
+    const chipRow = document.createElement("div");
+    chipRow.className = "filter-chip-row";
+
+    for (const filter of FILTER_OPTIONS) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = `filter-chip${filter.key === options.filter ? " active" : ""}`;
+      chip.textContent = filter.label;
+      chip.addEventListener("click", () => {
+        options.onFilterChange(filter.key);
+      });
+      chipRow.append(chip);
+    }
+
+    filterRow.append(chipRow);
+    aside.append(filterRow);
+  }
+
+  header.append(main, aside);
   return header;
 }
 
@@ -188,20 +250,6 @@ function errorIcon(): string {
   `;
 }
 
-function renderInfoStrip(session: Session, filteredCount: number): HTMLElement {
-  const infoStrip = document.createElement("div");
-  infoStrip.className = "info-strip";
-
-  const startedAt = formatDateTime(session.startedAt, "time unavailable");
-  infoStrip.innerHTML = `
-    <span>${filteredCount}/${session.messageCount} messages</span>
-    <span>${escapeHtml(session.cwd ?? "cwd unavailable")}</span>
-    <span>${escapeHtml(startedAt)}</span>
-  `;
-
-  return infoStrip;
-}
-
 function renderChatLayout(messages: Message[], showToolBlocks: boolean): HTMLElement {
   const layout = document.createElement("div");
   layout.className = "chat-layout";
@@ -257,35 +305,6 @@ function renderChatLayout(messages: Message[], showToolBlocks: boolean): HTMLEle
   timeline.append(timelineHeader, timelineList);
   layout.append(messageList, timeline);
   return layout;
-}
-
-function renderToolbar(options: {
-  filter: MessageViewFilter;
-  onChange: (filter: MessageViewFilter) => void;
-}): HTMLElement {
-  const toolbar = document.createElement("div");
-  toolbar.className = "chat-toolbar";
-
-  const title = document.createElement("div");
-  title.className = "toolbar-title";
-  title.textContent = "Message filter";
-
-  const chipRow = document.createElement("div");
-  chipRow.className = "filter-chip-row";
-
-  for (const filter of FILTER_OPTIONS) {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = `filter-chip${filter.key === options.filter ? " active" : ""}`;
-    chip.textContent = filter.label;
-    chip.addEventListener("click", () => {
-      options.onChange(filter.key);
-    });
-    chipRow.append(chip);
-  }
-
-  toolbar.append(title, chipRow);
-  return toolbar;
 }
 
 function renderTimelineButton(

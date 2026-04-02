@@ -29,12 +29,13 @@ export class ThreadAtlasApp {
 
     const topbar = document.createElement("header");
     topbar.className = "topbar";
-    topbar.innerHTML = `
-      <div class="brand-block">
-        <p class="eyebrow">AI Session Browser</p>
-        <h1>ThreadAtlas</h1>
-        <span class="brand-repo-chip">github-style</span>
-      </div>
+
+    const brand = document.createElement("div");
+    brand.className = "brand-block";
+    brand.innerHTML = `
+      <p class="eyebrow">AI Session Browser</p>
+      <h1>ThreadAtlas</h1>
+      <span class="brand-repo-chip">github-style</span>
     `;
 
     const actions = document.createElement("div");
@@ -60,9 +61,9 @@ export class ThreadAtlasApp {
 
     const rightRail = document.createElement("div");
     rightRail.className = "topbar-side";
-    rightRail.append(actions, this.statusNode);
+    rightRail.append(actions);
 
-    topbar.append(rightRail);
+    topbar.append(brand, this.statusNode, rightRail);
 
     const content = document.createElement("div");
     content.className = "content-grid";
@@ -92,6 +93,7 @@ export class ThreadAtlasApp {
 
   private render(state: StoreState): void {
     this.statusNode.textContent = state.status;
+    this.statusNode.title = state.status;
 
     const visibleDescriptors = this.store.getVisibleDescriptors();
     const selectedDescriptor = this.store.getSelectedDescriptor();
