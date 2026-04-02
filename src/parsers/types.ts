@@ -4,6 +4,7 @@ export type SessionSource =
   | "opencode"
   | "gemini"
   | "antigravity"
+  | "copilot"
   | "unknown";
 export type SessionRole = "user" | "assistant" | "system" | "developer" | "tool";
 export type SessionOrigin = "local" | "remote" | "imported";

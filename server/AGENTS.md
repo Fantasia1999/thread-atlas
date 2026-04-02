@@ -31,11 +31,13 @@
   - `~/.claude/projects`
   - `~/.gemini/tmp`
   - `~/.gemini/antigravity/conversations`
+  - `~/.copilot/session-state`
   - `~/.local/share/opencode/opencode.db`
   - mirrored files under `data/remote/`
 - Remote scan currently probes fixed known paths for Codex, Claude, Gemini, Antigravity, and `~/.local/share/opencode/opencode.db`.
 - Session keys have two active forms:
   - `file::...`
+  - `copilot-dir::...`
   - `opencode-sqlite::<dbPath>::<sessionId>`
 - Remote sync should download files first and let the normal local scanner pick them up afterward.
 - Preserve stable response shapes with `src/parsers/types.ts` as the source of truth.

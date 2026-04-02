@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { parseClaudeSession } from "../src/parsers/claude.ts";
+import { parseCopilotSession } from "../src/parsers/copilot.ts";
 import { parseCodexSession } from "../src/parsers/codex.ts";
 import { detectSessionSource } from "../src/parsers/detect.ts";
 import type { SessionBundle } from "../src/parsers/types.ts";
@@ -34,6 +35,10 @@ test("inferSourceFromPath recognizes Windows session roots", () => {
   assert.equal(
     inferSourceFromPath("C:\\Users\\alice\\.local\\share\\opencode\\opencode.db"),
     "opencode"
+  );
+  assert.equal(
+    inferSourceFromPath("C:\\Users\\alice\\.copilot\\session-state\\demo\\events.jsonl"),
+    "copilot"
   );
   assert.equal(
     inferSourceFromPath("C:\\Users\\alice\\.gemini\\antigravity\\conversations\\abc.pb"),
@@ -150,4 +155,53 @@ test("parseClaudeSession uses Windows cwd basename in the title", () => {
 
   const session = parseClaudeSession(bundle);
   assert.equal(session.title, "thread-atlas · Claude");
+});
+
+test("parseCopilotSession uses Windows cwd basename in the title", () => {
+  const bundle: SessionBundle = {
+    key: "copilot-dir::C:\\Users\\alice\\.copilot\\session-state\\session-1",
+    source: "copilot",
+    title: "session-1",
+    primaryPath: "C:\\Users\\alice\\.copilot\\session-state\\session-1",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 2,
+    size: 1,
+    mtimeMs: 1,
+    metadata: {},
+    files: [
+      {
+        path: "C:\\Users\\alice\\.copilot\\session-state\\session-1\\events.jsonl",
+        content: [
+          JSON.stringify({
+            type: "session.start",
+            timestamp: "2026-04-02T08:58:24.122Z",
+            data: {
+              sessionId: "session-1",
+              producer: "copilot-agent",
+              startTime: "2026-04-02T08:58:24.116Z",
+              context: {
+                cwd: "C:\\repo\\thread-atlas"
+              }
+            }
+          }),
+          JSON.stringify({
+            type: "user.message",
+            timestamp: "2026-04-02T08:59:00.000Z",
+            data: {
+              content: "hello"
+            }
+          })
+        ].join("\n")
+      },
+      {
+        path: "C:\\Users\\alice\\.copilot\\session-state\\session-1\\workspace.yaml",
+        content: ["id: session-1", "cwd: C:\\repo\\thread-atlas"].join("\n")
+      }
+    ]
+  };
+
+  const session = parseCopilotSession(bundle);
+  assert.equal(session.title, "thread-atlas · Copilot");
 });

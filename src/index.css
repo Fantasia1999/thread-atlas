@@ -33,6 +33,7 @@
   --brand-gemini: #9a6700;
   --brand-codex: #0969da;
   --brand-antigravity: #1b7f83;
+  --brand-copilot: #8250df;
 
   --md-surface: #f6f8fa;
   --md-surface-strong: #eef2f6;
@@ -117,6 +118,7 @@ html[data-theme="dark"] {
   --brand-gemini: #d29922;
   --brand-codex: #58a6ff;
   --brand-antigravity: #56d4dd;
+  --brand-copilot: #c297ff;
 
   --md-surface: #161b22;
   --md-surface-strong: #21262d;
@@ -591,6 +593,11 @@ input[type="checkbox"] {
 .source-badge.antigravity {
   color: var(--brand-antigravity);
   background: rgba(27, 127, 131, 0.12);
+}
+
+.source-badge.copilot {
+  color: var(--brand-copilot);
+  background: rgba(130, 80, 223, 0.12);
 }
 
 .log-role-badge.user {

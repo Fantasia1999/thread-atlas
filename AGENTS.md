@@ -8,7 +8,7 @@ This repository is a lightweight browser app for browsing AI coding sessions fro
 - browser-side file imports
 - SSH sync into a local mirror under `data/remote/`
 
-The app currently supports `codex`, `claude`, `opencode`, `gemini`, and `antigravity` session sources.
+The app currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, and `copilot` session sources.
 
 ## Architecture
 
@@ -40,6 +40,9 @@ If you change descriptor or bundle shapes, update `src/parsers/types.ts` first a
   - local scan reads `~/.gemini/antigravity/conversations/*.pb`
   - backend decodes `.pb` into generated `#chat.jsonl`
   - descriptor loading prefers the bundled snapshot in the repo and falls back to the locally installed Antigravity `extension.js` when the snapshot is stale
+- Copilot:
+  - local scan reads `~/.copilot/session-state/<session-id>/events.jsonl`
+  - backend loads the session directory as one bundle and may include sibling metadata files such as `workspace.yaml`
 - OpenCode:
   - local scan reads `~/.local/share/opencode/opencode.db`
   - remote scan and sync also operate on `opencode.db`

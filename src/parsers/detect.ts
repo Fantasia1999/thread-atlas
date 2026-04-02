@@ -1,6 +1,7 @@
 import type { Session, SessionBundle, SessionSource } from "./types.js";
 import { parseAntigravitySession } from "./antigravity.js";
 import { parseClaudeSession } from "./claude.js";
+import { parseCopilotSession } from "./copilot.js";
 import { parseCodexSession } from "./codex.js";
 import { parseGeminiSession } from "./gemini.js";
 import { parseOpenCodeSession } from "./opencode.js";
@@ -23,6 +24,18 @@ export function detectSessionSource(bundle: SessionBundle): SessionSource {
     firstContent.includes("\"type\":\"session_meta\"")
   ) {
     return "codex";
+  }
+
+  if (
+    combinedPath.includes(".copilot") ||
+    combinedPath.includes("/session-state/") ||
+    bundle.files.some((file) => file.path.endsWith("events.jsonl")) ||
+    (firstContent.includes("\"type\":\"session.start\"") &&
+      (firstContent.includes("\"producer\":\"copilot-agent\"") ||
+        firstContent.includes("\"type\":\"assistant.turn_start\"") ||
+        firstContent.includes("\"type\":\"tool.execution_start\"")))
+  ) {
+    return "copilot";
   }
 
   if (combinedPath.includes(".claude") || firstContent.includes("\"tool_use\"")) {
@@ -73,6 +86,8 @@ export function parseSessionBundle(bundle: SessionBundle): Session {
     switch (source) {
       case "codex":
         return parseCodexSession(bundle);
+      case "copilot":
+        return parseCopilotSession(bundle);
       case "claude":
         return parseClaudeSession(bundle);
       case "opencode":

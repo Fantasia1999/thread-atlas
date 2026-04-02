@@ -50,7 +50,7 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
     return container;
   }
 
-  const filteredMessages = filterMessages(session.messages, options.messageFilter);
+  const filteredMessages = filterMessagesForView(session.messages, options.messageFilter);
 
   container.append(renderInfoStrip(session, filteredMessages.length));
   container.append(
@@ -388,10 +388,10 @@ function createEmpty(message: string): HTMLElement {
   return element;
 }
 
-function filterMessages(messages: Message[], filter: MessageViewFilter): Message[] {
+export function filterMessagesForView(messages: Message[], filter: MessageViewFilter): Message[] {
   switch (filter) {
     case "not-tool":
-      return messages.filter((message) => message.role !== "tool");
+      return messages.filter((message) => !isToolOnlyMessage(message));
     case "user":
       return messages.filter((message) => message.role === "user");
     case "answer":
@@ -401,6 +401,10 @@ function filterMessages(messages: Message[], filter: MessageViewFilter): Message
     default:
       return messages;
   }
+}
+
+export function isToolOnlyMessage(message: Message): boolean {
+  return message.role === "tool" || (!message.text.trim() && (message.toolCalls?.length ?? 0) > 0);
 }
 
 function buildAnchorId(message: Message, index: number): string {

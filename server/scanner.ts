@@ -17,6 +17,14 @@ import type {
 const REMOTE_SYNC_ROOT = path.resolve(process.cwd(), "data", "remote");
 const MAX_FILES_PER_SOURCE = 120;
 const MAX_OPENCODE_SESSIONS = 80;
+const COPILOT_DIR_KEY_PREFIX = "copilot-dir::";
+const COPILOT_EVENTS_FILE = "events.jsonl";
+const COPILOT_OPTIONAL_BUNDLE_FILES = [
+  "workspace.yaml",
+  "vscode.metadata.json",
+  "plan.md",
+  path.join("checkpoints", "index.md")
+] as const;
 
 const LOCAL_FILE_SCAN_TARGETS = [
   {
@@ -70,8 +78,15 @@ interface OpenCodePartRow {
 export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
   const home = os.homedir();
   const localOpenCodePath = path.join(home, ".local", "share", "opencode", "opencode.db");
+  const localCopilotRoot = path.join(home, ".copilot", "session-state");
 
-  const [localFileGroups, localOpenCodeDescriptors, remoteFileDescriptors, remoteOpenCodeDescriptors] =
+  const [
+    localFileGroups,
+    localOpenCodeDescriptors,
+    localCopilotDescriptors,
+    remoteFileDescriptors,
+    remoteOpenCodeDescriptors
+  ] =
     await Promise.all([
       Promise.all(
         LOCAL_FILE_SCAN_TARGETS.map((target) =>
@@ -79,6 +94,7 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
         )
       ),
       scanOpenCodeDatabase(localOpenCodePath, "local"),
+      scanCopilotSessionDirectories(localCopilotRoot, "local"),
       scanFileTree(REMOTE_SYNC_ROOT, undefined, "remote"),
       scanOpenCodeDatabasesInRemoteMirror()
     ]);
@@ -86,12 +102,18 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
   return dedupeAndSortDescriptors([
     ...localFileGroups.flat(),
     ...localOpenCodeDescriptors,
+    ...localCopilotDescriptors,
     ...remoteFileDescriptors,
     ...remoteOpenCodeDescriptors
   ]);
 }
 
 export async function loadLocalSessionBundle(key: string): Promise<SessionBundle> {
+  if (key.startsWith(COPILOT_DIR_KEY_PREFIX)) {
+    const sessionDir = key.slice(COPILOT_DIR_KEY_PREFIX.length);
+    return await loadCopilotBundle(sessionDir);
+  }
+
   if (key.startsWith("opencode-sqlite::")) {
     const [, dbPath, sessionId] = key.split("::");
     return await loadOpenCodeBundle(dbPath, sessionId);
@@ -167,6 +189,27 @@ async function scanOpenCodeDatabasesInRemoteMirror(): Promise<SessionDescriptor[
   return descriptorGroups.flat();
 }
 
+async function scanCopilotSessionDirectories(
+  root: string,
+  origin: DescriptorOrigin
+): Promise<SessionDescriptor[]> {
+  if (!(await exists(root))) {
+    return [];
+  }
+
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  const sessionDirs = entries
+    .filter((entry) => entry.isDirectory())
+    .slice(0, MAX_FILES_PER_SOURCE)
+    .map((entry) => path.join(root, entry.name));
+
+  const descriptors = await Promise.all(
+    sessionDirs.map((sessionDir) => buildCopilotDescriptor(sessionDir, origin))
+  );
+
+  return descriptors.filter((descriptor): descriptor is SessionDescriptor => descriptor !== null);
+}
+
 async function scanOpenCodeDatabase(
   dbPath: string,
   origin: DescriptorOrigin
@@ -239,6 +282,33 @@ async function loadOpenCodeBundle(
   };
 }
 
+async function loadCopilotBundle(sessionDir: string): Promise<SessionBundle> {
+  const descriptor = await buildCopilotDescriptor(sessionDir, inferOrigin(sessionDir));
+  if (!descriptor) {
+    throw new Error("Copilot session not found.");
+  }
+
+  const candidateFiles = [COPILOT_EVENTS_FILE, ...COPILOT_OPTIONAL_BUNDLE_FILES];
+  const files = await Promise.all(
+    candidateFiles.map(async (relativePath) => {
+      const absolutePath = path.join(sessionDir, relativePath);
+      if (!(await exists(absolutePath))) {
+        return null;
+      }
+
+      return {
+        path: absolutePath,
+        content: await fs.readFile(absolutePath, "utf8")
+      };
+    })
+  );
+
+  return {
+    ...descriptor,
+    files: files.filter((file): file is NonNullable<(typeof files)[number]> => file !== null)
+  };
+}
+
 async function collectFiles(root: string, depth: number): Promise<string[]> {
   if (depth > 8) {
     return [];
@@ -291,6 +361,9 @@ export function inferSourceFromPath(absolutePath: string): SessionSource {
   if (normalized.includes("/opencode")) {
     return "opencode";
   }
+  if (normalized.includes("/.copilot/")) {
+    return "copilot";
+  }
   if (normalized.includes("/.gemini/")) {
     return "gemini";
   }
@@ -339,6 +412,55 @@ function buildFileDescriptor(
   };
 }
 
+async function buildCopilotDescriptor(
+  sessionDir: string,
+  origin: DescriptorOrigin
+): Promise<SessionDescriptor | null> {
+  const eventsPath = path.join(sessionDir, COPILOT_EVENTS_FILE);
+  if (!(await exists(eventsPath))) {
+    return null;
+  }
+
+  const relevantPaths = [eventsPath, ...COPILOT_OPTIONAL_BUNDLE_FILES.map((entry) => path.join(sessionDir, entry))];
+  const existingPaths = await Promise.all(
+    relevantPaths.map(async (absolutePath) => {
+      if (!(await exists(absolutePath))) {
+        return null;
+      }
+
+      const stats = await fs.stat(absolutePath);
+      return { absolutePath, stats };
+    })
+  );
+
+  const availableFiles = existingPaths.filter(
+    (entry): entry is NonNullable<(typeof existingPaths)[number]> => entry !== null
+  );
+  const workspace = await readCopilotWorkspaceFile(path.join(sessionDir, "workspace.yaml"));
+  const title = inferCopilotTitle(workspace, sessionDir);
+  const mtimeMs = inferCopilotMtimeMs(workspace.updated_at, availableFiles);
+  const size = availableFiles.reduce((total, file) => total + file.stats.size, 0);
+  const sessionId = workspace.id || path.basename(sessionDir);
+
+  return {
+    key: `${COPILOT_DIR_KEY_PREFIX}${sessionDir}`,
+    source: "copilot",
+    title,
+    primaryPath: sessionDir,
+    relatedPaths: availableFiles.map((file) => file.absolutePath),
+    transport: origin === "remote" ? "ssh-sync" : "local-scan",
+    origin,
+    fileCount: availableFiles.length,
+    size,
+    mtimeMs,
+    metadata: {
+      cwd: workspace.cwd ?? null,
+      sessionId,
+      summary: workspace.summary ?? null
+    }
+  };
+}
+
 function buildOpenCodeDescriptor(
   session: OpenCodeSessionRow,
   dbPath: string,
@@ -361,6 +483,73 @@ function buildOpenCodeDescriptor(
       sessionId: session.id
     }
   };
+}
+
+function parseSimpleYamlRecord(text: string): Record<string, string> {
+  const values: Record<string, string> = {};
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = line.slice(0, separatorIndex).trim();
+    let value = line.slice(separatorIndex + 1).trim();
+
+    if (
+      (value.startsWith("\"") && value.endsWith("\"")) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    values[key] = value;
+  }
+
+  return values;
+}
+
+async function readCopilotWorkspaceFile(sessionPath: string): Promise<Record<string, string>> {
+  if (!(await exists(sessionPath))) {
+    return {};
+  }
+
+  return parseSimpleYamlRecord(await fs.readFile(sessionPath, "utf8"));
+}
+
+function inferCopilotTitle(workspace: Record<string, string>, sessionDir: string): string {
+  if (workspace.summary?.trim()) {
+    return workspace.summary.trim();
+  }
+
+  if (workspace.cwd?.trim()) {
+    return `${basenameFromAnyPath(workspace.cwd) || "workspace"} · Copilot`;
+  }
+
+  return path.basename(sessionDir);
+}
+
+function inferCopilotMtimeMs(
+  updatedAt: string | undefined,
+  files: Array<{ absolutePath: string; stats: { size: number; mtimeMs: number } }>
+): number {
+  const parsedUpdatedAt = updatedAt ? Date.parse(updatedAt) : Number.NaN;
+  if (!Number.isNaN(parsedUpdatedAt)) {
+    return parsedUpdatedAt;
+  }
+
+  return Math.max(...files.map((file) => file.stats.mtimeMs));
+}
+
+function basenameFromAnyPath(input: string): string {
+  const segments = input.split(/[\\/]/).filter(Boolean);
+  return segments[segments.length - 1] ?? input;
 }
 
 function dedupeAndSortDescriptors(descriptors: SessionDescriptor[]): SessionDescriptor[] {
