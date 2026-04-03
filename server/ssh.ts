@@ -329,8 +329,14 @@ async function syncRemoteFile(
   remotePath: string
 ): Promise<string> {
   const localPath = buildLocalPath(destinationRoot, remotePath);
+  const remoteStats = await statRemotePath(sftp, remotePath);
   await fs.mkdir(path.dirname(localPath), { recursive: true });
   await fastGet(sftp, remotePath, localPath);
+  await fs.utimes(
+    localPath,
+    new Date((remoteStats.atime || remoteStats.mtime) * 1000),
+    new Date(remoteStats.mtime * 1000)
+  );
   return localPath;
 }
 

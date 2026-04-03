@@ -13,6 +13,7 @@ declare module "ssh2" {
 
   export interface Stats {
     size: number;
+    atime: number;
     mtime: number;
   }
 
