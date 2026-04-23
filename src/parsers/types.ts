@@ -34,6 +34,14 @@ export interface SessionBundle extends SessionDescriptor {
   files: SessionFile[];
 }
 
+export interface BackgroundTask {
+  taskId?: string;
+  toolUseId?: string;
+  status: string;
+  summary?: string;
+  outputFile?: string;
+}
+
 export interface ToolCall {
   id: string;
   toolName: string;
@@ -43,6 +51,7 @@ export interface ToolCall {
   output?: string;
   startedAt?: string;
   finishedAt?: string;
+  backgroundTask?: BackgroundTask;
 }
 
 export interface Message {

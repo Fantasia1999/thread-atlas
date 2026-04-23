@@ -134,6 +134,112 @@ test("parseClaudeSession stitches tool_use and tool_result across adjacent rows"
   );
 });
 
+test("parseClaudeSession stitches queue-operation updates onto background tool calls", () => {
+  const bundle: SessionBundle = {
+    key: "file::claude-queue-operation.jsonl",
+    source: "claude",
+    title: "claude-queue-operation.jsonl",
+    primaryPath: "/tmp/claude-queue-operation.jsonl",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 1,
+    size: 1,
+    mtimeMs: 1,
+    metadata: {},
+    files: [
+      {
+        path: "/tmp/claude-queue-operation.jsonl",
+        content: [
+          JSON.stringify({
+            type: "assistant",
+            timestamp: "2026-04-21T06:20:58.183Z",
+            message: {
+              role: "assistant",
+              content: [
+                {
+                  type: "text",
+                  text: "编译成功！验证分布式模式并运行项目。"
+                },
+                {
+                  type: "tool_use",
+                  id: "tool-e3b84198417b4dd48c4b447f0c4e6949",
+                  name: "Bash",
+                  input: {
+                    command: "cargo check -p gaussinfra-framework --features distributed 2>&1 | tail -10",
+                    description: "验证分布式模式编译"
+                  }
+                }
+              ]
+            }
+          }),
+          JSON.stringify({
+            type: "user",
+            timestamp: "2026-04-21T06:22:58.385Z",
+            message: {
+              role: "user",
+              content: [
+                {
+                  tool_use_id: "tool-e3b84198417b4dd48c4b447f0c4e6949",
+                  type: "tool_result",
+                  content:
+                    "Command running in background with ID: b1hl27n04. Output is being written to: /tmp/claude-1000/tasks/b1hl27n04.output"
+                }
+              ]
+            },
+            toolUseResult: {
+              backgroundTaskId: "b1hl27n04",
+              assistantAutoBackgrounded: false
+            }
+          }),
+          JSON.stringify({
+            type: "queue-operation",
+            operation: "enqueue",
+            timestamp: "2026-04-21T06:23:01.075Z",
+            sessionId: "350dc8cf-0431-4cb1-90d6-117bd1aaeec5",
+            content: [
+              "<task-notification>",
+              "<task-id>b1hl27n04</task-id>",
+              "<tool-use-id>tool-e3b84198417b4dd48c4b447f0c4e6949</tool-use-id>",
+              "<output-file>/tmp/claude-1000/tasks/b1hl27n04.output</output-file>",
+              "<status>completed</status>",
+              "<summary>Background command \"验证分布式模式编译\" completed (exit code 0)</summary>",
+              "</task-notification>"
+            ].join("\n")
+          }),
+          JSON.stringify({
+            type: "queue-operation",
+            operation: "remove",
+            timestamp: "2026-04-21T06:23:01.824Z",
+            sessionId: "350dc8cf-0431-4cb1-90d6-117bd1aaeec5"
+          })
+        ].join("\n")
+      }
+    ]
+  };
+
+  const session = parseClaudeSession(bundle);
+  const [message] = session.messages;
+  const [toolCall] = message?.toolCalls ?? [];
+
+  assert.equal(session.messages.length, 1);
+  assert.equal(message?.role, "assistant");
+  assert.equal(message?.text, "编译成功！验证分布式模式并运行项目。");
+  assert.equal(toolCall?.toolName, "Bash");
+  assert.equal(toolCall?.status, "completed");
+  assert.equal(
+    toolCall?.output,
+    "Command running in background with ID: b1hl27n04. Output is being written to: /tmp/claude-1000/tasks/b1hl27n04.output"
+  );
+  assert.deepEqual(toolCall?.backgroundTask, {
+    taskId: "b1hl27n04",
+    toolUseId: "tool-e3b84198417b4dd48c4b447f0c4e6949",
+    status: "completed",
+    summary: "Background command \"验证分布式模式编译\" completed (exit code 0)",
+    outputFile: "/tmp/claude-1000/tasks/b1hl27n04.output"
+  });
+});
+
 test("parseGeminiSession preserves functionResponse content as a fenced code block", () => {
   const bundle: SessionBundle = {
     key: "file::gemini-session.json",

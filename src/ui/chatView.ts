@@ -1,4 +1,4 @@
-import type { Message, Session, SessionDescriptor } from "../parsers/types.js";
+import type { Message, Session, SessionDescriptor, ToolCall } from "../parsers/types.js";
 import { renderMarkdown } from "./markdown.js";
 import {
   copyText,
@@ -384,6 +384,10 @@ function renderMessage(
       output.append(label, pre);
     }
 
+    if (toolCall.backgroundTask) {
+      output.append(renderBackgroundTask(toolCall));
+    }
+
     if (toolCall.output?.trim()) {
       const label = document.createElement("div");
       label.className = "tool-call-label";
@@ -398,6 +402,55 @@ function renderMessage(
   }
 
   return entry;
+}
+
+function renderBackgroundTask(toolCall: ToolCall): HTMLElement {
+  const container = document.createElement("div");
+  container.className = "tool-call-task";
+
+  const header = document.createElement("div");
+  header.className = "tool-call-task-header";
+
+  const label = document.createElement("span");
+  label.className = "tool-call-task-label";
+  label.textContent = "background task";
+
+  const status = document.createElement("span");
+  status.className = "tool-call-task-status";
+  status.textContent = toolCall.backgroundTask?.status ?? "unknown";
+
+  header.append(label, status);
+  container.append(header);
+
+  if (toolCall.backgroundTask?.summary?.trim()) {
+    const summary = document.createElement("div");
+    summary.className = "tool-call-task-summary";
+    summary.textContent = toolCall.backgroundTask.summary;
+    container.append(summary);
+  }
+
+  if (toolCall.backgroundTask?.taskId || toolCall.backgroundTask?.outputFile) {
+    const meta = document.createElement("div");
+    meta.className = "tool-call-task-meta";
+
+    if (toolCall.backgroundTask.taskId) {
+      const taskId = document.createElement("div");
+      taskId.className = "tool-call-task-meta-item";
+      taskId.innerHTML = `task: <code>${escapeHtml(toolCall.backgroundTask.taskId)}</code>`;
+      meta.append(taskId);
+    }
+
+    if (toolCall.backgroundTask.outputFile) {
+      const outputFile = document.createElement("div");
+      outputFile.className = "tool-call-task-meta-item";
+      outputFile.innerHTML = `output file: <code>${escapeHtml(toolCall.backgroundTask.outputFile)}</code>`;
+      meta.append(outputFile);
+    }
+
+    container.append(meta);
+  }
+
+  return container;
 }
 
 function createEmpty(message: string): HTMLElement {
