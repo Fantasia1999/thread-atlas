@@ -3,6 +3,7 @@ import {
   buildFallbackSession,
   buildSession,
   collectText,
+  formatCodeFence,
   normalizeRole,
   safeJsonParse,
   stringifyValue,
@@ -63,7 +64,7 @@ function normalizeGeminiMessage(
   index: number
 ): Message | null {
   const role = normalizeRole(entry.role ?? entry.author ?? entry.sender ?? entry.type);
-  const text = collectText(entry.content ?? entry.parts ?? entry.text ?? entry.message);
+  const text = extractGeminiText(entry);
   const toolCalls = extractGeminiToolCalls(entry);
 
   if (!text.trim() && toolCalls.length === 0) {
@@ -78,6 +79,50 @@ function normalizeGeminiMessage(
     rawType: String(entry.type ?? "message"),
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined
   };
+}
+
+function extractGeminiText(entry: Record<string, unknown>): string {
+  const segments: string[] = [];
+  appendUniqueSegment(segments, collectText(entry.text ?? entry.message));
+
+  const parts = Array.isArray(entry.parts) ? entry.parts : [];
+
+  for (const part of parts) {
+    if (!part || typeof part !== "object") {
+      continue;
+    }
+
+    const record = part as Record<string, unknown>;
+    if (record.functionCall) {
+      continue;
+    }
+
+    if (record.functionResponse && typeof record.functionResponse === "object") {
+      const result = record.functionResponse as Record<string, unknown>;
+      appendUniqueSegment(
+        segments,
+        formatCodeFence(result.response ?? result.output ?? result.result ?? result.content ?? result)
+      );
+      continue;
+    }
+
+    appendUniqueSegment(segments, collectText(record));
+  }
+
+  if (segments.length > 0) {
+    return segments.join("\n\n");
+  }
+
+  return collectText(entry.content);
+}
+
+function appendUniqueSegment(segments: string[], value: string): void {
+  const text = value.replace(/\r\n/g, "\n").trim();
+  if (!text || segments.includes(text)) {
+    return;
+  }
+
+  segments.push(text);
 }
 
 function extractGeminiToolCalls(entry: Record<string, unknown>): ToolCall[] {

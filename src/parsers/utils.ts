@@ -222,7 +222,22 @@ export function stringifyValue(value: unknown): string {
   if (text) {
     return text;
   }
-  return JSON.stringify(value, null, 2);
+  return JSON.stringify(value, null, 2) ?? "";
+}
+
+export function formatCodeFence(value: unknown): string {
+  const text = stringifyValue(value).replace(/\r\n/g, "\n").trimEnd();
+  if (!text.trim()) {
+    return "";
+  }
+
+  const longestBacktickRun = Array.from(text.matchAll(/`+/g)).reduce(
+    (max, match) => Math.max(max, match[0].length),
+    0
+  );
+  const fence = "`".repeat(Math.max(3, longestBacktickRun + 1));
+
+  return `${fence}\n${text}\n${fence}`;
 }
 
 export function extractCommonMetadata(value: Record<string, unknown>): Record<string, MetadataValue> {
