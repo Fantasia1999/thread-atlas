@@ -39,6 +39,31 @@ class FakeText {
   constructor(readonly textContent: string) {}
 }
 
+function findElementsByTag(node: FakeNode, tagName: string): FakeElement[] {
+  const matches: FakeElement[] = [];
+  if (node.nodeType === 1 && node.tagName === tagName) {
+    matches.push(node);
+  }
+
+  for (const child of node.childNodes) {
+    matches.push(...findElementsByTag(child, tagName));
+  }
+
+  return matches;
+}
+
+function collectText(node: FakeNode): string {
+  if (node.nodeType === 3) {
+    return node.textContent;
+  }
+
+  if (node.nodeType === 11) {
+    return node.childNodes.map(collectText).join("");
+  }
+
+  return [node.textContent, ...node.childNodes.map(collectText)].join("");
+}
+
 globalThis.document = {
   createDocumentFragment: () => new FakeDocumentFragment(),
   createElement: (tagName: string) => new FakeElement(tagName),
@@ -81,4 +106,24 @@ test("renderMarkdown treats indented fenced code as a block", () => {
   assert.match(code?.className ?? "", /\blanguage-bash\b/);
   assert.match(code?.innerHTML ?? "", /remove_chroma_key\.py/);
   assert.doesNotMatch(code?.innerHTML ?? "", /^ {3}/);
+});
+
+test("renderMarkdown does not emphasize underscore placeholders inside paths", () => {
+  const fragment = renderMarkdown(
+    [
+      "Generated images are saved to /example/.codex/generated_images/session-id as",
+      "/example/.codex/generated_images/session-id/_image_id_.png by default."
+    ].join(" ")
+  ) as unknown as FakeDocumentFragment;
+
+  assert.equal(findElementsByTag(fragment, "em").length, 0);
+  assert.match(collectText(fragment), /\/_image_id_\.png by default/);
+});
+
+test("renderMarkdown still emphasizes standalone underscore text", () => {
+  const fragment = renderMarkdown("This is _important_ text.") as unknown as FakeDocumentFragment;
+  const emphasis = findElementsByTag(fragment, "em");
+
+  assert.equal(emphasis.length, 1);
+  assert.equal(emphasis[0].textContent, "important");
 });

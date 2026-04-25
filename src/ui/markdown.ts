@@ -289,7 +289,7 @@ function normalizeCodeLanguage(value: string): string | undefined {
 function renderInline(text: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const tokenPattern =
-    /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*]+)\*|_([^_]+)_)/g;
+    /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|(?<![\\/.\w])__([^_]+)__(?![\w\\/]|[.][A-Za-z0-9])|\*([^*]+)\*|(?<![\\/.\w])_([^_\s](?:[^_]*[^_\s])?)_(?![\w\\/]|[.][A-Za-z0-9]))/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
 
