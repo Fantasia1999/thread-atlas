@@ -59,6 +59,13 @@ const LANGUAGE_ALIASES = new Map<string, string>([
   ["markdown", "markdown"]
 ]);
 
+interface CodeFence {
+  indent: number;
+  marker: string;
+  markerChar: "`" | "~";
+  language: string;
+}
+
 export function renderMarkdown(text: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const lines = text.replace(/\r\n/g, "\n").split("\n");
@@ -72,15 +79,14 @@ export function renderMarkdown(text: string): DocumentFragment {
       continue;
     }
 
-    if (line.startsWith("```")) {
-      const fence = line;
-      const language = fence.slice(3).trim();
-      const normalizedLanguage = normalizeCodeLanguage(language);
+    const openingFence = parseCodeFence(line);
+    if (openingFence) {
+      const normalizedLanguage = normalizeCodeLanguage(openingFence.language);
       const codeLines: string[] = [];
       index += 1;
 
-      while (index < lines.length && !lines[index].startsWith("```")) {
-        codeLines.push(lines[index]);
+      while (index < lines.length && !isClosingCodeFence(lines[index], openingFence)) {
+        codeLines.push(removeFenceIndent(lines[index], openingFence.indent));
         index += 1;
       }
 
@@ -95,10 +101,10 @@ export function renderMarkdown(text: string): DocumentFragment {
         figure.dataset.language = normalizedLanguage;
       }
 
-      if (language) {
+      if (openingFence.language) {
         const caption = document.createElement("figcaption");
         caption.className = "md-code-frame-header";
-        caption.textContent = language;
+        caption.textContent = openingFence.language;
         figure.append(caption);
       }
 
@@ -179,7 +185,7 @@ export function renderMarkdown(text: string): DocumentFragment {
     while (
       index < lines.length &&
       lines[index].trim() &&
-      !lines[index].startsWith("```") &&
+      !parseCodeFence(lines[index]) &&
       !/^(#{1,6})\s+/.test(lines[index]) &&
       !/^>\s?/.test(lines[index]) &&
       !/^[-*+]\s+/.test(lines[index]) &&
@@ -204,6 +210,54 @@ export function renderMarkdown(text: string): DocumentFragment {
   }
 
   return fragment;
+}
+
+function parseCodeFence(line: string): CodeFence | null {
+  const match = /^( {0,3})(`{3,}|~{3,})(.*)$/.exec(line);
+  if (!match) {
+    return null;
+  }
+
+  const marker = match[2];
+  const markerChar = marker[0] as "`" | "~";
+  const language = match[3].trim();
+
+  if (markerChar === "`" && language.includes("`")) {
+    return null;
+  }
+
+  return {
+    indent: match[1].length,
+    marker,
+    markerChar,
+    language
+  };
+}
+
+function isClosingCodeFence(line: string, openingFence: CodeFence): boolean {
+  const match = /^( {0,3})(`{3,}|~{3,})\s*$/.exec(line);
+  if (!match) {
+    return false;
+  }
+
+  const marker = match[2];
+  return (
+    marker[0] === openingFence.markerChar &&
+    marker.length >= openingFence.marker.length
+  );
+}
+
+function removeFenceIndent(line: string, indent: number): string {
+  if (!indent) {
+    return line;
+  }
+
+  let removable = 0;
+  while (removable < indent && line[removable] === " ") {
+    removable += 1;
+  }
+
+  return line.slice(removable);
 }
 
 function highlightCode(text: string, language?: string): string {
