@@ -12,6 +12,7 @@ import {
   COPILOT_BUNDLE_FILES,
   COPILOT_EVENTS_FILE
 } from "./copilot.js";
+import { extractCodexThreadName } from "../src/parsers/codex.js";
 import type {
   SessionBundle,
   SessionDescriptor,
@@ -135,7 +136,7 @@ export async function loadLocalSessionBundle(key: string): Promise<SessionBundle
   ]);
 
   return {
-    ...buildFileDescriptor(absolutePath, source, origin, stats),
+    ...buildFileDescriptor(absolutePath, source, origin, stats, content),
     files: [
       {
         path: absolutePath,
@@ -168,7 +169,9 @@ async function scanFileTree(
   return await Promise.all(
     candidates.map(async ({ absolutePath, inferredSource }) => {
       const stats = await fs.stat(absolutePath);
-      return buildFileDescriptor(absolutePath, inferredSource, origin, stats);
+      const content =
+        inferredSource === "codex" ? await readTextFileIfPossible(absolutePath) : undefined;
+      return buildFileDescriptor(absolutePath, inferredSource, origin, stats, content);
     })
   );
 }
@@ -415,16 +418,19 @@ function buildFileDescriptor(
   stats: {
     size: number;
     mtimeMs: number;
-  }
+  },
+  content?: string
 ): SessionDescriptor {
   if (source === "antigravity") {
     return buildAntigravityDescriptor(absolutePath, origin, stats);
   }
+  const codexThreadName =
+    source === "codex" && content ? extractCodexThreadName(content) : undefined;
 
   return {
     key: `file::${absolutePath}`,
     source,
-    title: path.basename(absolutePath),
+    title: codexThreadName ?? path.basename(absolutePath),
     primaryPath: absolutePath,
     relatedPaths: [],
     transport: origin === "remote" ? "ssh-sync" : "local-scan",
@@ -434,6 +440,14 @@ function buildFileDescriptor(
     mtimeMs: stats.mtimeMs,
     metadata: {}
   };
+}
+
+async function readTextFileIfPossible(absolutePath: string): Promise<string | undefined> {
+  try {
+    return await fs.readFile(absolutePath, "utf8");
+  } catch {
+    return undefined;
+  }
 }
 
 async function buildCopilotDescriptor(

@@ -28,6 +28,7 @@ export function parseCodexSession(bundle: SessionBundle): Session {
   const messages: Message[] = [];
   const toolMessageIndex = new Map<string, number>();
   let sessionMeta: Record<string, unknown> | undefined;
+  let threadName: string | undefined;
 
   for (const row of rows) {
     const timestamp = toIsoTimestamp(row.timestamp);
@@ -41,6 +42,14 @@ export function parseCodexSession(bundle: SessionBundle): Session {
 
     if (rowType === "event_msg") {
       const eventType = String(payload.type ?? "");
+      if (eventType === "thread_name_updated") {
+        const nextThreadName = normalizeThreadName(payload.thread_name);
+        if (nextThreadName) {
+          threadName = nextThreadName;
+        }
+        continue;
+      }
+
       if (eventType === "user_message" || eventType === "agent_message") {
         const text = collectText(payload.message);
         if (!text.trim()) {
@@ -138,9 +147,10 @@ export function parseCodexSession(bundle: SessionBundle): Session {
 
   const id = typeof sessionMeta?.id === "string" ? sessionMeta.id : undefined;
   const title =
-    cwd != null
+    threadName ??
+    (cwd != null
       ? `${basenameTitle(cwd) || "workspace"} · Codex`
-      : `${bundle.title || "Codex session"}`;
+      : `${bundle.title || "Codex session"}`);
   const dedupedMessages = dedupeCodexMessages(messages);
 
   return buildSession(bundle, "codex", {
@@ -153,6 +163,7 @@ export function parseCodexSession(bundle: SessionBundle): Session {
     messages: dedupedMessages,
     metadata: {
       cwd: cwd ?? null,
+      threadName: threadName ?? null,
       sessionId: id ?? null,
       cli_version:
         typeof sessionMeta?.cli_version === "string" ? sessionMeta.cli_version : null,
@@ -160,6 +171,38 @@ export function parseCodexSession(bundle: SessionBundle): Session {
         typeof sessionMeta?.model_provider === "string" ? sessionMeta.model_provider : null
     }
   });
+}
+
+export function extractCodexThreadName(content: string): string | undefined {
+  const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
+  let threadName: string | undefined;
+
+  for (const row of rows) {
+    if (row.type !== "event_msg") {
+      continue;
+    }
+
+    const payload = row.payload as Record<string, unknown> | undefined;
+    if (payload?.type !== "thread_name_updated") {
+      continue;
+    }
+
+    const nextThreadName = normalizeThreadName(payload.thread_name);
+    if (nextThreadName) {
+      threadName = nextThreadName;
+    }
+  }
+
+  return threadName;
+}
+
+function normalizeThreadName(input: unknown): string | undefined {
+  if (typeof input !== "string") {
+    return undefined;
+  }
+
+  const value = input.trim();
+  return value || undefined;
 }
 
 function dedupeCodexMessages(messages: Message[]): Message[] {
