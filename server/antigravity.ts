@@ -99,9 +99,75 @@ export function isAntigravityConversationPath(absolutePath: string): boolean {
   const normalized = absolutePath.replaceAll("\\", "/").toLowerCase();
   return (
     (normalized.includes("/.gemini/antigravity/conversations/") ||
-      normalized.includes("/.gemini/antigravity-cli/")) &&
+      normalized.includes("/.gemini/antigravity-cli/conversations/") ||
+      normalized.includes("/.gemini/antigravity-cli/implicit/")) &&
     normalized.endsWith(".pb")
   );
+}
+
+export function isAntigravityTranscriptPath(absolutePath: string): boolean {
+  const normalized = absolutePath.replaceAll("\\", "/").toLowerCase();
+  return (
+    (normalized.includes("/.gemini/antigravity/brain/") ||
+      normalized.includes("/.gemini/antigravity-cli/brain/")) &&
+    normalized.endsWith("/.system_generated/logs/transcript_full.jsonl")
+  );
+}
+
+export function antigravitySessionIdFromPath(absolutePath: string): string | undefined {
+  const normalized = absolutePath.replaceAll("\\", "/");
+  const brainMatch = normalized.match(/\/brain\/([^/]+)\/\.system_generated\/logs\/transcript_full\.jsonl$/i);
+  if (brainMatch?.[1]) {
+    return brainMatch[1];
+  }
+
+  if (isAntigravityConversationPath(absolutePath)) {
+    return path.basename(absolutePath, ".pb");
+  }
+
+  return undefined;
+}
+
+export async function resolvePreferredAntigravitySessionPath(
+  absolutePath: string
+): Promise<string | undefined> {
+  if (isAntigravityTranscriptPath(absolutePath)) {
+    if (await isParseableJsonLinesFile(absolutePath)) {
+      return absolutePath;
+    }
+
+    const fallback = resolveConversationPathFromTranscriptPath(absolutePath);
+    return fallback && (await fileExists(fallback)) ? fallback : undefined;
+  }
+
+  if (!isAntigravityConversationPath(absolutePath)) {
+    return undefined;
+  }
+
+  const cascadeId = path.basename(absolutePath, ".pb");
+  const transcriptPath = resolveTranscriptPathFromConversationPath(absolutePath, cascadeId);
+  if (transcriptPath && (await isParseableJsonLinesFile(transcriptPath))) {
+    return transcriptPath;
+  }
+
+  return absolutePath;
+}
+
+export async function isScannableAntigravitySessionPath(absolutePath: string): Promise<boolean> {
+  if (isAntigravityTranscriptPath(absolutePath)) {
+    return await isParseableJsonLinesFile(absolutePath);
+  }
+
+  if (!isAntigravityConversationPath(absolutePath)) {
+    return false;
+  }
+
+  try {
+    const { trajectory } = await decodeAntigravityTrajectory(absolutePath);
+    return isTrajectoryDecodeUsable(trajectory);
+  } catch {
+    return false;
+  }
 }
 
 export function buildAntigravityDescriptor(
@@ -112,12 +178,15 @@ export function buildAntigravityDescriptor(
     mtimeMs: number;
   }
 ): SessionDescriptor {
-  const cascadeId = path.basename(absolutePath, ".pb");
+  const cascadeId = antigravitySessionIdFromPath(absolutePath) ?? path.basename(absolutePath);
+  const loaderBackend = isAntigravityTranscriptPath(absolutePath) ? "transcript" : "direct";
 
   return {
     key: `file::${absolutePath}`,
     source: "antigravity",
-    title: path.basename(absolutePath),
+    title: isAntigravityTranscriptPath(absolutePath)
+      ? buildAntigravityTitle(cascadeId)
+      : path.basename(absolutePath),
     primaryPath: absolutePath,
     relatedPaths: [],
     transport: origin === "remote" ? "ssh-sync" : "local-scan",
@@ -127,7 +196,7 @@ export function buildAntigravityDescriptor(
     mtimeMs: stats.mtimeMs,
     metadata: {
       cascadeId,
-      loaderBackend: "direct"
+      loaderBackend
     }
   };
 }
@@ -174,6 +243,15 @@ export async function loadAntigravityBundle(
   absolutePath: string,
   origin: "local" | "remote"
 ): Promise<SessionBundle> {
+  const preferredPath = await resolvePreferredAntigravitySessionPath(absolutePath);
+  if (preferredPath && preferredPath !== absolutePath) {
+    return await loadAntigravityBundle(preferredPath, origin);
+  }
+
+  if (isAntigravityTranscriptPath(absolutePath)) {
+    return await loadAntigravityTranscriptBundle(absolutePath, origin);
+  }
+
   const stats = await fs.stat(absolutePath);
   const descriptor = buildAntigravityDescriptor(absolutePath, origin, stats);
   const { descriptorSource, trajectory } = await decodeAntigravityTrajectory(absolutePath);
@@ -203,6 +281,35 @@ export async function loadAntigravityBundle(
       descriptorSource,
       primaryWorkspace: toMetadataValue(primaryWorkspace),
       workspaces: stringifyMetadata(summary.workspaces)
+    },
+    files: [
+      {
+        path: `${absolutePath}#chat.jsonl`,
+        content: records.map((record) => JSON.stringify(record)).join("\n")
+      }
+    ]
+  };
+}
+
+async function loadAntigravityTranscriptBundle(
+  absolutePath: string,
+  origin: "local" | "remote"
+): Promise<SessionBundle> {
+  const [stats, content] = await Promise.all([
+    fs.stat(absolutePath),
+    fs.readFile(absolutePath, "utf8")
+  ]);
+  const descriptor = buildAntigravityDescriptor(absolutePath, origin, stats);
+  const cascadeId = antigravitySessionIdFromPath(absolutePath) ?? path.basename(absolutePath);
+  const rows = parseJsonLines(content);
+  const records = buildChatRecordsFromTranscriptRows(cascadeId, rows, absolutePath);
+
+  return {
+    ...descriptor,
+    metadata: {
+      ...descriptor.metadata,
+      stepCount: rows.length,
+      loaderBackend: "transcript"
     },
     files: [
       {
@@ -1153,6 +1260,160 @@ async function buildChatRecords(options: {
   return records;
 }
 
+function buildChatRecordsFromTranscriptRows(
+  cascadeId: string,
+  rows: Array<Record<string, unknown>>,
+  sourceJson: string
+): Record<string, unknown>[] {
+  const timestamps = rows
+    .map((row) => asOptionalString(row.created_at))
+    .filter((value): value is string => Boolean(value));
+  const records: Record<string, unknown>[] = [
+    {
+      record_type: "session_meta",
+      profile: "chat",
+      cascade_id: cascadeId,
+      created_time: timestamps[0],
+      last_modified_time: timestamps.at(-1),
+      step_count: rows.length,
+      source_json: sourceJson
+    }
+  ];
+  const pendingToolCallIds = new Map<string, string[]>();
+
+  for (const [index, row] of rows.entries()) {
+    const stepType = String(row.type ?? "");
+    const createdAt = row.created_at;
+    const content = asOptionalString(row.content);
+
+    if (stepType === "USER_INPUT") {
+      if (content) {
+        records.push({
+          record_type: "message",
+          profile: "chat",
+          role: "user",
+          cascade_id: cascadeId,
+          source_json: sourceJson,
+          step_index: row.step_index ?? index,
+          created_at: createdAt,
+          content
+        });
+      }
+      continue;
+    }
+
+    if (stepType === "PLANNER_RESPONSE") {
+      if (content) {
+        records.push({
+          record_type: "message",
+          profile: "chat",
+          role: "assistant",
+          cascade_id: cascadeId,
+          source_json: sourceJson,
+          step_index: row.step_index ?? index,
+          created_at: createdAt,
+          content,
+          thinking: row.thinking
+        });
+      }
+
+      if (Array.isArray(row.tool_calls)) {
+        for (const [toolCallIndex, toolCall] of row.tool_calls.entries()) {
+          const toolCallRecord = isRecord(toolCall) ? toolCall : {};
+          const toolName = asOptionalString(toolCallRecord.name) ?? "tool";
+          const toolCallId = `${row.step_index ?? index}:${toolCallIndex}`;
+          const pendingIds = pendingToolCallIds.get(toolName) ?? [];
+          pendingIds.push(toolCallId);
+          pendingToolCallIds.set(toolName, pendingIds);
+
+          records.push({
+            record_type: "tool_call",
+            profile: "chat",
+            role: "assistant",
+            cascade_id: cascadeId,
+            source_json: sourceJson,
+            step_index: row.step_index ?? index,
+            tool_call_index: toolCallIndex,
+            created_at: createdAt,
+            tool_name: toolName,
+            tool_call: {
+              id: toolCallId,
+              name: toolName,
+              arguments: toolCallRecord.args
+            }
+          });
+        }
+      }
+      continue;
+    }
+
+    if (stepType === "CONVERSATION_HISTORY" && !content) {
+      continue;
+    }
+
+    if (stepType === "SYSTEM_MESSAGE" || stepType === "CONVERSATION_HISTORY") {
+      if (content) {
+        records.push({
+          record_type: "message",
+          profile: "chat",
+          role: "system",
+          cascade_id: cascadeId,
+          source_json: sourceJson,
+          step_index: row.step_index ?? index,
+          created_at: createdAt,
+          content,
+          message_type: stepType.toLowerCase()
+        });
+      }
+      continue;
+    }
+
+    if (content || stepType) {
+      const toolName = transcriptToolName(stepType);
+      const pendingIds = pendingToolCallIds.get(toolName) ?? [];
+      const toolCallId = pendingIds.shift() ?? `${row.step_index ?? index}:result`;
+      if (pendingIds.length > 0) {
+        pendingToolCallIds.set(toolName, pendingIds);
+      } else {
+        pendingToolCallIds.delete(toolName);
+      }
+
+      records.push({
+        record_type: "tool_result",
+        profile: "chat",
+        role: "tool",
+        cascade_id: cascadeId,
+        source_json: sourceJson,
+        step_index: row.step_index ?? index,
+        created_at: createdAt,
+        completed_at: createdAt,
+        tool_name: toolName,
+        tool_call: {
+          id: toolCallId,
+          name: toolName
+        },
+        payload_key: stepType.toLowerCase(),
+        payload: row,
+        content: content ?? stringifyJsonValue(row)
+      });
+    }
+  }
+
+  return records;
+}
+
+function transcriptToolName(stepType: string): string {
+  const mapping: Record<string, string> = {
+    LIST_DIRECTORY: "list_dir",
+    VIEW_FILE: "view_file",
+    RUN_COMMAND: "run_command",
+    GREP_SEARCH: "grep_search",
+    CODE_ACTION: "code_action",
+    GENERIC: "generic"
+  };
+  return mapping[stepType] ?? stepType.toLowerCase();
+}
+
 function toolNameForStep(step: Record<string, unknown>): string | undefined {
   const metadata = isRecord(step.metadata) ? step.metadata : undefined;
   const toolCall = isRecord(metadata?.toolCall) ? metadata.toolCall : undefined;
@@ -1249,6 +1510,68 @@ function resolveBrainDirFromConversationPath(
   }
 
   return path.join(normalized.slice(0, index), "brain", cascadeId);
+}
+
+function resolveTranscriptPathFromConversationPath(
+  absolutePath: string,
+  cascadeId: string
+): string | undefined {
+  const brainDir = resolveBrainDirFromConversationPath(absolutePath, cascadeId);
+  return brainDir
+    ? path.join(brainDir, ".system_generated", "logs", "transcript_full.jsonl")
+    : undefined;
+}
+
+function resolveConversationPathFromTranscriptPath(absolutePath: string): string | undefined {
+  const normalized = absolutePath.replaceAll("\\", "/");
+  const match = normalized.match(
+    /^(.*)\/brain\/([^/]+)\/\.system_generated\/logs\/transcript_full\.jsonl$/i
+  );
+  if (!match?.[1] || !match[2]) {
+    return undefined;
+  }
+
+  return path.join(match[1], "conversations", `${match[2]}.pb`);
+}
+
+async function isParseableJsonLinesFile(absolutePath: string): Promise<boolean> {
+  try {
+    const rows = parseJsonLines(await fs.readFile(absolutePath, "utf8"));
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function fileExists(absolutePath: string): Promise<boolean> {
+  try {
+    await fs.access(absolutePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseJsonLines(content: string): Array<Record<string, unknown>> {
+  return content
+    .split(/\r?\n/)
+    .filter((line) => line.trim())
+    .map((line) => {
+      const parsed = JSON.parse(line) as unknown;
+      if (!isRecord(parsed)) {
+        throw new Error("Expected Antigravity transcript JSONL rows to be objects.");
+      }
+      return parsed;
+    });
+}
+
+function stringifyJsonValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  const text = JSON.stringify(value, null, 2);
+  return text || "";
 }
 
 function buildAntigravityTitle(cascadeId: string, primaryWorkspace?: string): string {

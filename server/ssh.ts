@@ -191,13 +191,13 @@ async function collectRemotePaths(
       source: "antigravity",
       kind: "file",
       script:
-        `find "$HOME/.gemini/antigravity/conversations" -type f -name '*.pb' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
+        `{ find "$HOME/.gemini/antigravity/brain" -type f -path '*/.system_generated/logs/transcript_full.jsonl' 2>/dev/null; find "$HOME/.gemini/antigravity/conversations" -type f -name '*.pb' 2>/dev/null; } | head -n ${MAX_REMOTE_RESULTS}`
     },
     {
       source: "antigravity",
       kind: "file",
       script:
-        `find "$HOME/.gemini/antigravity-cli" -type f -name '*.pb' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
+        `{ find "$HOME/.gemini/antigravity-cli/brain" -type f -path '*/.system_generated/logs/transcript_full.jsonl' 2>/dev/null; find "$HOME/.gemini/antigravity-cli/conversations" -type f -name '*.pb' 2>/dev/null; find "$HOME/.gemini/antigravity-cli/implicit" -type f -name '*.pb' 2>/dev/null; } | head -n ${MAX_REMOTE_RESULTS}`
     },
     {
       source: "copilot",
@@ -232,7 +232,66 @@ async function collectRemotePaths(
     deduped.set(record.remotePath, record);
   }
 
-  return [...deduped.values()];
+  return dedupeAntigravityRemoteEntries([...deduped.values()]);
+}
+
+function dedupeAntigravityRemoteEntries(
+  entries: Array<{ remotePath: string; source: SessionSource; kind: RemoteSessionEntryKind }>
+): Array<{ remotePath: string; source: SessionSource; kind: RemoteSessionEntryKind }> {
+  const selected = new Map<
+    string,
+    { remotePath: string; source: SessionSource; kind: RemoteSessionEntryKind }
+  >();
+  const passthrough: Array<{
+    remotePath: string;
+    source: SessionSource;
+    kind: RemoteSessionEntryKind;
+  }> = [];
+
+  for (const entry of entries) {
+    if (entry.source !== "antigravity") {
+      passthrough.push(entry);
+      continue;
+    }
+
+    const sessionId = antigravityRemoteSessionId(entry.remotePath);
+    const key = sessionId ?? entry.remotePath;
+    const current = selected.get(key);
+    if (!current || preferAntigravityRemotePath(entry.remotePath, current.remotePath)) {
+      selected.set(key, entry);
+    }
+  }
+
+  return [...passthrough, ...selected.values()];
+}
+
+function antigravityRemoteSessionId(remotePath: string): string | undefined {
+  const normalized = remotePath.replaceAll("\\", "/");
+  const transcriptMatch = normalized.match(
+    /\/brain\/([^/]+)\/\.system_generated\/logs\/transcript_full\.jsonl$/i
+  );
+  if (transcriptMatch?.[1]) {
+    return transcriptMatch[1];
+  }
+
+  return normalized.endsWith(".pb") ? path.posix.basename(normalized, ".pb") : undefined;
+}
+
+function preferAntigravityRemotePath(candidate: string, current: string): boolean {
+  const candidateIsTranscript = candidate
+    .replaceAll("\\", "/")
+    .toLowerCase()
+    .endsWith("/.system_generated/logs/transcript_full.jsonl");
+  const currentIsTranscript = current
+    .replaceAll("\\", "/")
+    .toLowerCase()
+    .endsWith("/.system_generated/logs/transcript_full.jsonl");
+
+  if (candidateIsTranscript !== currentIsTranscript) {
+    return candidateIsTranscript;
+  }
+
+  return candidate.localeCompare(current) < 0;
 }
 
 async function execRemote(client: Client, command: string): Promise<string> {

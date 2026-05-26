@@ -37,9 +37,9 @@ If you change descriptor or bundle shapes, update `src/parsers/types.ts` first a
 - Claude Code: scanned from `~/.claude/projects`, usually `.jsonl`
 - Gemini CLI: scanned from `~/.gemini/tmp`, usually `.json`
 - Antigravity:
-  - local scan reads `~/.gemini/antigravity/conversations/*.pb`
-  - local scan also reads Antigravity CLI `.pb` files under `~/.gemini/antigravity-cli`
-  - backend decodes `.pb` into generated `#chat.jsonl`
+  - local scan prefers `transcript_full.jsonl` under `~/.gemini/antigravity*/brain/<session-id>/.system_generated/logs/`
+  - if no parseable transcript exists, scan falls back to `.pb` files under `~/.gemini/antigravity*/conversations`
+  - backend converts transcripts or decoded `.pb` into generated `#chat.jsonl`
   - descriptor loading prefers the bundled snapshot in the repo and falls back to the locally installed Antigravity `extension.js` when the snapshot is stale
 - Copilot:
   - local scan reads `~/.copilot/session-state/<session-id>/events.jsonl`

@@ -29,6 +29,7 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 - `~/.claude/projects`
 - `~/.gemini/tmp`
 - `~/.gemini/antigravity/conversations`
+- `~/.gemini/antigravity/brain`
 - `~/.gemini/antigravity-cli`
 - `~/.copilot/session-state`
 - `~/.local/share/opencode/opencode.db`
@@ -40,6 +41,7 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 - `~/.claude/projects`
 - `~/.gemini/tmp`
 - `~/.gemini/antigravity/conversations`
+- `~/.gemini/antigravity/brain`
 - `~/.gemini/antigravity-cli`
 - `~/.copilot/session-state`
 - `~/.local/share/opencode/opencode.db`
@@ -48,7 +50,7 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 
 - Browser import remains text-file based and keeps files in the browser store only.
 - Copilot `events.jsonl` can be imported directly as a standalone file, with optional metadata available when loaded through local scan.
-- Antigravity raw `.pb` files should be loaded through local scan or SSH sync so the backend can decode them into generated `#chat.jsonl`.
+- Antigravity `transcript_full.jsonl` files are preferred when present; raw `.pb` files are loaded through local scan or SSH sync as a fallback so the backend can decode them into generated `#chat.jsonl`.
 
 ## How It Works
 

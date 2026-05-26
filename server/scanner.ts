@@ -4,9 +4,13 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import {
+  antigravitySessionIdFromPath,
   buildAntigravityDescriptor,
   isAntigravityConversationPath,
-  loadAntigravityBundle
+  isScannableAntigravitySessionPath,
+  isAntigravityTranscriptPath,
+  loadAntigravityBundle,
+  resolvePreferredAntigravitySessionPath
 } from "./antigravity.js";
 import {
   COPILOT_BUNDLE_FILES,
@@ -36,14 +40,6 @@ const LOCAL_FILE_SCAN_TARGETS = [
   {
     segments: [".gemini", "tmp"],
     source: "gemini"
-  },
-  {
-    segments: [".gemini", "antigravity", "conversations"],
-    source: "antigravity"
-  },
-  {
-    segments: [".gemini", "antigravity-cli"],
-    source: "antigravity"
   }
 ] as const satisfies ReadonlyArray<{
   segments: readonly string[];
@@ -81,12 +77,18 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
   const home = os.homedir();
   const localOpenCodePath = path.join(home, ".local", "share", "opencode", "opencode.db");
   const localCopilotRoot = path.join(home, ".copilot", "session-state");
+  const localAntigravityRoots = [
+    path.join(home, ".gemini", "antigravity"),
+    path.join(home, ".gemini", "antigravity-cli")
+  ];
 
   const [
     localFileGroups,
+    localAntigravityDescriptors,
     localOpenCodeDescriptors,
     localCopilotDescriptors,
     remoteFileDescriptors,
+    remoteAntigravityDescriptors,
     remoteCopilotDescriptors,
     remoteOpenCodeDescriptors
   ] =
@@ -96,18 +98,22 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
           scanFileTree(path.join(home, ...target.segments), target.source)
         )
       ),
+      scanAntigravitySessions(localAntigravityRoots, "local"),
       scanOpenCodeDatabase(localOpenCodePath, "local"),
       scanCopilotSessionDirectories(localCopilotRoot, "local"),
       scanFileTree(REMOTE_SYNC_ROOT, undefined, "remote"),
+      scanAntigravitySessions([REMOTE_SYNC_ROOT], "remote"),
       scanCopilotSessionDirectoriesInRemoteMirror(),
       scanOpenCodeDatabasesInRemoteMirror()
     ]);
 
   return dedupeAndSortDescriptors([
     ...localFileGroups.flat(),
+    ...localAntigravityDescriptors,
     ...localOpenCodeDescriptors,
     ...localCopilotDescriptors,
     ...remoteFileDescriptors,
+    ...remoteAntigravityDescriptors,
     ...remoteCopilotDescriptors,
     ...remoteOpenCodeDescriptors
   ]);
@@ -176,6 +182,52 @@ async function scanFileTree(
       const content =
         inferredSource === "codex" ? await readTextFileIfPossible(absolutePath) : undefined;
       return buildFileDescriptor(absolutePath, inferredSource, origin, stats, content);
+    })
+  );
+}
+
+async function scanAntigravitySessions(
+  roots: string[],
+  origin: DescriptorOrigin
+): Promise<SessionDescriptor[]> {
+  const files = (await Promise.all(
+    roots.map(async (root) => {
+      if (!(await exists(root))) {
+        return [];
+      }
+      return await collectFiles(root, 0);
+    })
+  )).flat();
+
+  const candidates = files.filter(
+    (absolutePath) =>
+      isAntigravityTranscriptPath(absolutePath) || isAntigravityConversationPath(absolutePath)
+  );
+  const preferredBySession = new Map<string, string>();
+
+  for (const absolutePath of candidates) {
+    const preferredPath = await resolvePreferredAntigravitySessionPath(absolutePath);
+    if (!preferredPath) {
+      continue;
+    }
+    if (!(await isScannableAntigravitySessionPath(preferredPath))) {
+      continue;
+    }
+
+    const sessionId =
+      antigravitySessionIdFromPath(preferredPath) ?? antigravitySessionIdFromPath(absolutePath);
+    const dedupeKey = sessionId ? `${origin}:${sessionId}` : `${origin}:${preferredPath}`;
+    const existingPath = preferredBySession.get(dedupeKey);
+    if (!existingPath || preferAntigravityPath(preferredPath, existingPath)) {
+      preferredBySession.set(dedupeKey, preferredPath);
+    }
+  }
+
+  const preferredPaths = [...new Set(preferredBySession.values())].slice(0, MAX_FILES_PER_SOURCE);
+  return await Promise.all(
+    preferredPaths.map(async (absolutePath) => {
+      const stats = await fs.stat(absolutePath);
+      return buildFileDescriptor(absolutePath, "antigravity", origin, stats);
     })
   );
 }
@@ -341,7 +393,7 @@ async function loadCopilotBundle(sessionDir: string): Promise<SessionBundle> {
 }
 
 async function collectFiles(root: string, depth: number): Promise<string[]> {
-  if (depth > 8) {
+  if (depth > 10) {
     return [];
   }
 
@@ -375,12 +427,12 @@ function isSessionLikeFile(absolutePath: string): boolean {
 }
 
 function shouldIncludeScannedFile(source: SessionSource): boolean {
-  return source !== "opencode" && source !== "copilot";
+  return source !== "opencode" && source !== "copilot" && source !== "antigravity";
 }
 
 export function inferSourceFromPath(absolutePath: string): SessionSource {
   const normalized = normalizePathForMatch(absolutePath);
-  if (isAntigravityConversationPath(absolutePath)) {
+  if (isAntigravityConversationPath(absolutePath) || isAntigravityTranscriptPath(absolutePath)) {
     return "antigravity";
   }
   if (normalized.includes("/.codex/") || normalized.includes("/rollout-")) {
@@ -399,6 +451,16 @@ export function inferSourceFromPath(absolutePath: string): SessionSource {
     return "gemini";
   }
   return "unknown";
+}
+
+function preferAntigravityPath(candidate: string, current: string): boolean {
+  if (isAntigravityTranscriptPath(candidate) && !isAntigravityTranscriptPath(current)) {
+    return true;
+  }
+  if (!isAntigravityTranscriptPath(candidate) && isAntigravityTranscriptPath(current)) {
+    return false;
+  }
+  return candidate.localeCompare(current) < 0;
 }
 
 function inferOrigin(absolutePath: string): DescriptorOrigin {

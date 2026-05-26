@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
+import {
+  isScannableAntigravitySessionPath,
+  loadAntigravityBundle,
+  resolvePreferredAntigravitySessionPath
+} from "../server/antigravity.ts";
 import { parseClaudeSession } from "../src/parsers/claude.ts";
 import { parseCopilotSession } from "../src/parsers/copilot.ts";
 import { parseCodexSession } from "../src/parsers/codex.ts";
@@ -45,9 +53,84 @@ test("inferSourceFromPath recognizes Windows session roots", () => {
     "antigravity"
   );
   assert.equal(
-    inferSourceFromPath("C:\\Users\\alice\\.gemini\\antigravity-cli\\abc.pb"),
+    inferSourceFromPath("C:\\Users\\alice\\.gemini\\antigravity-cli\\conversations\\abc.pb"),
     "antigravity"
   );
+  assert.equal(
+    inferSourceFromPath(
+      "C:\\Users\\alice\\.gemini\\antigravity-cli\\brain\\abc\\.system_generated\\logs\\transcript_full.jsonl"
+    ),
+    "antigravity"
+  );
+});
+
+test("Antigravity loader prefers parseable transcript_full.jsonl over pb", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "thread-atlas-antigravity-"));
+  const sessionId = "session-123";
+  const conversationPath = path.join(
+    root,
+    ".gemini",
+    "antigravity-cli",
+    "conversations",
+    `${sessionId}.pb`
+  );
+  const transcriptPath = path.join(
+    root,
+    ".gemini",
+    "antigravity-cli",
+    "brain",
+    sessionId,
+    ".system_generated",
+    "logs",
+    "transcript_full.jsonl"
+  );
+  await fs.mkdir(path.dirname(conversationPath), { recursive: true });
+  await fs.mkdir(path.dirname(transcriptPath), { recursive: true });
+  await fs.writeFile(conversationPath, "not a protobuf");
+  await fs.writeFile(
+    transcriptPath,
+    [
+      JSON.stringify({
+        step_index: 0,
+        source: "USER_EXPLICIT",
+        type: "USER_INPUT",
+        status: "DONE",
+        created_at: "2026-01-01T00:00:00.000Z",
+        content: "hello"
+      }),
+      JSON.stringify({
+        step_index: 1,
+        source: "MODEL",
+        type: "PLANNER_RESPONSE",
+        status: "DONE",
+        created_at: "2026-01-01T00:00:01.000Z",
+        content: "hi"
+      })
+    ].join("\n")
+  );
+
+  assert.equal(await resolvePreferredAntigravitySessionPath(conversationPath), transcriptPath);
+
+  const bundle = await loadAntigravityBundle(conversationPath, "local");
+  assert.equal(bundle.primaryPath, transcriptPath);
+  assert.equal(bundle.metadata.loaderBackend, "transcript");
+  assert.match(bundle.files[0]?.content ?? "", /"record_type":"message"/);
+});
+
+test("Antigravity scanner rejects pb files that cannot decode content", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "thread-atlas-antigravity-pb-"));
+  const conversationPath = path.join(
+    root,
+    ".gemini",
+    "antigravity-cli",
+    "conversations",
+    "broken.pb"
+  );
+  await fs.mkdir(path.dirname(conversationPath), { recursive: true });
+  await fs.writeFile(conversationPath, "not a protobuf");
+
+  assert.equal(await resolvePreferredAntigravitySessionPath(conversationPath), conversationPath);
+  assert.equal(await isScannableAntigravitySessionPath(conversationPath), false);
 });
 
 test("isWithinPathRoot matches Windows-style remote mirror paths", () => {
