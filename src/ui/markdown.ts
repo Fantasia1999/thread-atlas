@@ -66,6 +66,13 @@ interface CodeFence {
   language: string;
 }
 
+interface ListMarker {
+  ordered: boolean;
+  indent: number;
+  contentStart: number;
+  content: string;
+}
+
 export function renderMarkdown(text: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const lines = text.replace(/\r\n/g, "\n").split("\n");
@@ -134,6 +141,14 @@ export function renderMarkdown(text: string): DocumentFragment {
       continue;
     }
 
+    if (isHorizontalRule(line)) {
+      const rule = document.createElement("hr");
+      rule.className = "md-rule";
+      fragment.append(rule);
+      index += 1;
+      continue;
+    }
+
     if (isTableStart(lines, index)) {
       const [table, nextIndex] = renderTable(lines, index);
       fragment.append(table);
@@ -155,29 +170,11 @@ export function renderMarkdown(text: string): DocumentFragment {
       continue;
     }
 
-    if (/^[-*+]\s+/.test(line)) {
-      const list = document.createElement("ul");
-      list.className = "md-list";
-      while (index < lines.length && /^[-*+]\s+/.test(lines[index])) {
-        const item = document.createElement("li");
-        item.append(renderInline(lines[index].replace(/^[-*+]\s+/, "")));
-        list.append(item);
-        index += 1;
-      }
+    const listMarker = parseListMarker(line);
+    if (listMarker) {
+      const [list, nextIndex] = renderList(lines, index, listMarker);
       fragment.append(list);
-      continue;
-    }
-
-    if (/^\d+\.\s+/.test(line)) {
-      const list = document.createElement("ol");
-      list.className = "md-list md-list-ordered";
-      while (index < lines.length && /^\d+\.\s+/.test(lines[index])) {
-        const item = document.createElement("li");
-        item.append(renderInline(lines[index].replace(/^\d+\.\s+/, "")));
-        list.append(item);
-        index += 1;
-      }
-      fragment.append(list);
+      index = nextIndex;
       continue;
     }
 
@@ -187,9 +184,9 @@ export function renderMarkdown(text: string): DocumentFragment {
       lines[index].trim() &&
       !parseCodeFence(lines[index]) &&
       !/^(#{1,6})\s+/.test(lines[index]) &&
+      !isHorizontalRule(lines[index]) &&
       !/^>\s?/.test(lines[index]) &&
-      !/^[-*+]\s+/.test(lines[index]) &&
-      !/^\d+\.\s+/.test(lines[index]) &&
+      !parseListMarker(lines[index]) &&
       !isTableStart(lines, index)
     ) {
       paragraphLines.push(lines[index]);
@@ -210,6 +207,113 @@ export function renderMarkdown(text: string): DocumentFragment {
   }
 
   return fragment;
+}
+
+function parseListMarker(line: string): ListMarker | null {
+  const match = /^( {0,3})([-*+]|\d+\.)\s+(.*)$/.exec(line);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    ordered: /^\d+\.$/.test(match[2]),
+    indent: match[1].length,
+    contentStart: match[1].length + match[2].length + 1,
+    content: match[3]
+  };
+}
+
+function renderList(
+  lines: string[],
+  startIndex: number,
+  firstMarker: ListMarker
+): [HTMLOListElement | HTMLUListElement, number] {
+  const list = document.createElement(firstMarker.ordered ? "ol" : "ul");
+  list.className = firstMarker.ordered ? "md-list md-list-ordered" : "md-list";
+  let index = startIndex;
+
+  while (index < lines.length) {
+    const marker = parseListMarker(lines[index]);
+    if (
+      !marker ||
+      marker.ordered !== firstMarker.ordered ||
+      marker.indent !== firstMarker.indent
+    ) {
+      break;
+    }
+
+    const itemLines = [marker.content];
+    index += 1;
+
+    while (index < lines.length) {
+      const nextLine = lines[index];
+      const nextMarker = parseListMarker(nextLine);
+
+      if (
+        nextMarker &&
+        nextMarker.ordered === firstMarker.ordered &&
+        nextMarker.indent === firstMarker.indent
+      ) {
+        break;
+      }
+
+      if (!nextLine.trim()) {
+        const followingMarker = parseListMarker(lines[index + 1] ?? "");
+        if (
+          followingMarker &&
+          followingMarker.ordered === firstMarker.ordered &&
+          followingMarker.indent === firstMarker.indent
+        ) {
+          index += 1;
+          break;
+        }
+        if (isIndentedListContinuation(lines[index + 1], marker.contentStart)) {
+          itemLines.push("");
+          index += 1;
+          continue;
+        }
+        break;
+      }
+
+      if (isIndentedListContinuation(nextLine, marker.contentStart)) {
+        itemLines.push(removeListContinuationIndent(nextLine, marker.contentStart));
+        index += 1;
+        continue;
+      }
+
+      break;
+    }
+
+    const item = document.createElement("li");
+    item.append(renderMarkdown(itemLines.join("\n").trimEnd()));
+    list.append(item);
+  }
+
+  return [list, index];
+}
+
+function isIndentedListContinuation(line: string | undefined, contentStart: number): boolean {
+  if (!line?.trim()) {
+    return false;
+  }
+  return countLeadingSpaces(line) >= contentStart;
+}
+
+function isHorizontalRule(line: string): boolean {
+  return /^( {0,3})([-*_])(?:\s*\2){2,}\s*$/.test(line);
+}
+
+function removeListContinuationIndent(line: string, contentStart: number): string {
+  const removable = Math.min(countLeadingSpaces(line), contentStart);
+  return line.slice(removable);
+}
+
+function countLeadingSpaces(line: string): number {
+  let count = 0;
+  while (count < line.length && line[count] === " ") {
+    count += 1;
+  }
+  return count;
 }
 
 function parseCodeFence(line: string): CodeFence | null {

@@ -83,9 +83,7 @@ test("renderMarkdown treats indented fenced code as a block", () => {
     ].join("\n")
   ) as unknown as FakeDocumentFragment;
 
-  const figure = fragment.childNodes.find(
-    (node): node is FakeElement => node.nodeType === 1 && node.tagName === "figure"
-  );
+  const figure = findElementsByTag(fragment, "figure")[0];
 
   assert.ok(figure);
   assert.equal(figure.className, "md-code-frame");
@@ -106,6 +104,36 @@ test("renderMarkdown treats indented fenced code as a block", () => {
   assert.match(code?.className ?? "", /\blanguage-bash\b/);
   assert.match(code?.innerHTML ?? "", /remove_chroma_key\.py/);
   assert.doesNotMatch(code?.innerHTML ?? "", /^ {3}/);
+});
+
+test("renderMarkdown keeps indented continuation paragraphs inside list items", () => {
+  const fragment = renderMarkdown(
+    [
+      "* **普通函数（Function）**：",
+      "  普通函数是一个独立的、固定的代码块。它只能使用传入的参数。",
+      "",
+      "* **闭包（Closure）**：",
+      "  闭包不仅可以像函数一样被调用，还能记住局部变量。"
+    ].join("\n")
+  ) as unknown as FakeDocumentFragment;
+
+  const lists = findElementsByTag(fragment, "ul");
+  const items = findElementsByTag(fragment, "li");
+
+  assert.equal(lists.length, 1);
+  assert.equal(items.length, 2);
+  assert.equal(fragment.childNodes.length, 1);
+  assert.match(collectText(items[0]), /普通函数是一个独立的/);
+  assert.match(collectText(items[1]), /闭包不仅可以像函数一样被调用/);
+});
+
+test("renderMarkdown renders horizontal rules", () => {
+  const fragment = renderMarkdown("Before\n\n---\n\nAfter") as unknown as FakeDocumentFragment;
+  const rules = findElementsByTag(fragment, "hr");
+
+  assert.equal(rules.length, 1);
+  assert.equal(rules[0].className, "md-rule");
+  assert.match(collectText(fragment), /BeforeAfter/);
 });
 
 test("renderMarkdown does not emphasize underscore placeholders inside paths", () => {
