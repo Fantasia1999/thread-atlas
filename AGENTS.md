@@ -38,6 +38,7 @@ If you change descriptor or bundle shapes, update `src/parsers/types.ts` first a
 - Gemini CLI: scanned from `~/.gemini/tmp`, usually `.json`
 - Antigravity:
   - local scan reads `~/.gemini/antigravity/conversations/*.pb`
+  - local scan also reads Antigravity CLI `.pb` files under `~/.gemini/antigravity-cli`
   - backend decodes `.pb` into generated `#chat.jsonl`
   - descriptor loading prefers the bundled snapshot in the repo and falls back to the locally installed Antigravity `extension.js` when the snapshot is stale
 - Copilot:

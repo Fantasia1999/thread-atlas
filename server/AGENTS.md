@@ -31,6 +31,7 @@
   - `~/.claude/projects`
   - `~/.gemini/tmp`
   - `~/.gemini/antigravity/conversations`
+  - `~/.gemini/antigravity-cli`
   - `~/.copilot/session-state`
   - `~/.local/share/opencode/opencode.db`
   - mirrored files under `data/remote/`

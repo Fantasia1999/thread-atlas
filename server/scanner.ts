@@ -40,6 +40,10 @@ const LOCAL_FILE_SCAN_TARGETS = [
   {
     segments: [".gemini", "antigravity", "conversations"],
     source: "antigravity"
+  },
+  {
+    segments: [".gemini", "antigravity-cli"],
+    source: "antigravity"
   }
 ] as const satisfies ReadonlyArray<{
   segments: readonly string[];

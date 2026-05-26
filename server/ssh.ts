@@ -194,6 +194,12 @@ async function collectRemotePaths(
         `find "$HOME/.gemini/antigravity/conversations" -type f -name '*.pb' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
     },
     {
+      source: "antigravity",
+      kind: "file",
+      script:
+        `find "$HOME/.gemini/antigravity-cli" -type f -name '*.pb' 2>/dev/null | head -n ${MAX_REMOTE_RESULTS}`
+    },
+    {
       source: "copilot",
       kind: "directory",
       script:

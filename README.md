@@ -29,6 +29,7 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 - `~/.claude/projects`
 - `~/.gemini/tmp`
 - `~/.gemini/antigravity/conversations`
+- `~/.gemini/antigravity-cli`
 - `~/.copilot/session-state`
 - `~/.local/share/opencode/opencode.db`
 - `data/remote/` for previously synced remote files
@@ -39,6 +40,7 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 - `~/.claude/projects`
 - `~/.gemini/tmp`
 - `~/.gemini/antigravity/conversations`
+- `~/.gemini/antigravity-cli`
 - `~/.copilot/session-state`
 - `~/.local/share/opencode/opencode.db`
 

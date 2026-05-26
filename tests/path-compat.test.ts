@@ -44,6 +44,10 @@ test("inferSourceFromPath recognizes Windows session roots", () => {
     inferSourceFromPath("C:\\Users\\alice\\.gemini\\antigravity\\conversations\\abc.pb"),
     "antigravity"
   );
+  assert.equal(
+    inferSourceFromPath("C:\\Users\\alice\\.gemini\\antigravity-cli\\abc.pb"),
+    "antigravity"
+  );
 });
 
 test("isWithinPathRoot matches Windows-style remote mirror paths", () => {

@@ -97,7 +97,11 @@ let extensionDescriptorFileMapPromise: Promise<Map<string, Buffer> | null> | und
 
 export function isAntigravityConversationPath(absolutePath: string): boolean {
   const normalized = absolutePath.replaceAll("\\", "/").toLowerCase();
-  return normalized.includes("/.gemini/antigravity/conversations/") && normalized.endsWith(".pb");
+  return (
+    (normalized.includes("/.gemini/antigravity/conversations/") ||
+      normalized.includes("/.gemini/antigravity-cli/")) &&
+    normalized.endsWith(".pb")
+  );
 }
 
 export function buildAntigravityDescriptor(

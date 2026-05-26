@@ -54,6 +54,7 @@ export function detectSessionSource(bundle: SessionBundle): SessionSource {
   if (
     bundle.files.some((file) => file.path.endsWith("#chat.jsonl")) ||
     combinedPath.includes("/antigravity/") ||
+    combinedPath.includes("/antigravity-cli/") ||
     (firstContent.includes("\"record_type\":\"session_meta\"") &&
       firstContent.includes("\"cascade_id\""))
   ) {
