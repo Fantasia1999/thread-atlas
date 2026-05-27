@@ -4,6 +4,7 @@ import css from "highlight.js/lib/languages/css";
 import diff from "highlight.js/lib/languages/diff";
 import javascript from "highlight.js/lib/languages/javascript";
 import json from "highlight.js/lib/languages/json";
+import katex from "katex";
 import markdown from "highlight.js/lib/languages/markdown";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
@@ -130,6 +131,13 @@ export function renderMarkdown(text: string): DocumentFragment {
       continue;
     }
 
+    if (isOpeningMathBlock(line)) {
+      const [mathBlock, nextIndex] = renderMathBlock(lines, index);
+      fragment.append(mathBlock);
+      index = nextIndex;
+      continue;
+    }
+
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
       const level = Math.min(6, headingMatch[1].length);
@@ -183,6 +191,7 @@ export function renderMarkdown(text: string): DocumentFragment {
       index < lines.length &&
       lines[index].trim() &&
       !parseCodeFence(lines[index]) &&
+      !isOpeningMathBlock(lines[index]) &&
       !/^(#{1,6})\s+/.test(lines[index]) &&
       !isHorizontalRule(lines[index]) &&
       !/^>\s?/.test(lines[index]) &&
@@ -390,10 +399,63 @@ function normalizeCodeLanguage(value: string): string | undefined {
   return LANGUAGE_ALIASES.get(value.trim().toLowerCase());
 }
 
+function isOpeningMathBlock(line: string): boolean {
+  return /^( {0,3})\$\$/.test(line);
+}
+
+function renderMathBlock(lines: string[], startIndex: number): [HTMLElement, number] {
+  const openingLine = lines[startIndex].replace(/^( {0,3})\$\$\s?/, "");
+  const inlineClose = openingLine.match(/^(.*?)(?:\s?)\$\$\s*$/);
+
+  if (inlineClose) {
+    return [renderMath(inlineClose[1], true), startIndex + 1];
+  }
+
+  const mathLines: string[] = [];
+  if (openingLine) {
+    mathLines.push(openingLine);
+  }
+
+  let index = startIndex + 1;
+  while (index < lines.length) {
+    const closeMatch = /^(.*?)(?:\s?)\$\$\s*$/.exec(lines[index]);
+    if (closeMatch) {
+      if (closeMatch[1]) {
+        mathLines.push(closeMatch[1]);
+      }
+      index += 1;
+      break;
+    }
+
+    mathLines.push(lines[index]);
+    index += 1;
+  }
+
+  return [renderMath(mathLines.join("\n").trim(), true), index];
+}
+
+function renderMath(text: string, displayMode: boolean): HTMLElement {
+  const element = document.createElement(displayMode ? "div" : "span");
+  element.className = displayMode ? "md-math-block" : "md-math-inline";
+
+  try {
+    element.innerHTML = katex.renderToString(text, {
+      displayMode,
+      output: "html",
+      throwOnError: false,
+      trust: false
+    });
+  } catch {
+    element.textContent = displayMode ? `$$\n${text}\n$$` : `$${text}$`;
+  }
+
+  return element;
+}
+
 function renderInline(text: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const tokenPattern =
-    /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|(?<![\\/.\w])__([^_]+)__(?![\w\\/]|[.][A-Za-z0-9])|\*([^*]+)\*|(?<![\\/.\w])_([^_\s](?:[^_]*[^_\s])?)_(?![\w\\/]|[.][A-Za-z0-9]))/g;
+    /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|(?<![\\\w])\$(?![\s$])([^$\n]*?\S)(?<!\\)\$(?!\w)|\*\*([^*]+)\*\*|(?<![\\/.\w])__([^_]+)__(?![\w\\/]|[.][A-Za-z0-9])|\*([^*]+)\*|(?<![\\/.\w])_([^_\s](?:[^_]*[^_\s])?)_(?![\w\\/]|[.][A-Za-z0-9]))/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
 
@@ -415,13 +477,15 @@ function renderInline(text: string): DocumentFragment {
       code.className = "inline-code";
       code.textContent = match[4];
       fragment.append(code);
-    } else if (match[5] || match[6]) {
+    } else if (match[5]) {
+      fragment.append(renderMath(match[5], false));
+    } else if (match[6] || match[7]) {
       const strong = document.createElement("strong");
-      strong.textContent = match[5] ?? match[6] ?? "";
+      strong.append(renderInline(match[6] ?? match[7] ?? ""));
       fragment.append(strong);
-    } else if (match[7] || match[8]) {
+    } else if (match[8] || match[9]) {
       const emphasis = document.createElement("em");
-      emphasis.textContent = match[7] ?? match[8] ?? "";
+      emphasis.append(renderInline(match[8] ?? match[9] ?? ""));
       fragment.append(emphasis);
     }
 

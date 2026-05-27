@@ -997,6 +997,20 @@ input[type="checkbox"] {
   font-size: 85%;
 }
 
+.md-math-inline {
+  display: inline;
+}
+
+.md-math-block {
+  overflow-x: auto;
+  max-width: 100%;
+  padding: 4px 0;
+}
+
+.md-math-block .katex-display {
+  margin: 0;
+}
+
 .md-code-frame {
   overflow: hidden;
   border: 1px solid var(--md-border);

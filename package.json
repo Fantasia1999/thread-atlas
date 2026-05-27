@@ -19,6 +19,7 @@
     "@fontsource/jetbrains-mono": "^5.2.8",
     "express": "^5.1.0",
     "highlight.js": "^11.11.1",
+    "katex": "^0.17.0",
     "ssh2": "^1.16.0"
   },
   "devDependencies": {

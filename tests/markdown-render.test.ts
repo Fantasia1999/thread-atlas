@@ -153,5 +153,77 @@ test("renderMarkdown still emphasizes standalone underscore text", () => {
   const emphasis = findElementsByTag(fragment, "em");
 
   assert.equal(emphasis.length, 1);
-  assert.equal(emphasis[0].textContent, "important");
+  assert.equal(collectText(emphasis[0]), "important");
+});
+
+test("renderMarkdown renders inline code inside strong text", () => {
+  const fragment = renderMarkdown("Use **the `--force` flag** carefully.") as unknown as FakeDocumentFragment;
+  const strong = findElementsByTag(fragment, "strong")[0];
+  const code = findElementsByTag(strong, "code")[0];
+
+  assert.ok(strong);
+  assert.equal(code.className, "inline-code");
+  assert.equal(code.textContent, "--force");
+  assert.equal(collectText(strong), "the --force flag");
+});
+
+test("renderMarkdown renders inline math inside strong text", () => {
+  const fragment = renderMarkdown("Use **$E=mc^2$ here**.") as unknown as FakeDocumentFragment;
+  const strong = findElementsByTag(fragment, "strong")[0];
+  const inlineMath = findElementsByTag(strong, "span").find(
+    (element) => element.className === "md-math-inline"
+  );
+
+  assert.ok(strong);
+  assert.ok(inlineMath);
+  assert.match(inlineMath.innerHTML, /\bkatex\b/);
+});
+
+test("renderMarkdown renders inline math", () => {
+  const fragment = renderMarkdown("Energy is $E=mc^2$.") as unknown as FakeDocumentFragment;
+  const paragraphs = findElementsByTag(fragment, "div");
+  const inlineMath = findElementsByTag(fragment, "span").find(
+    (element) => element.className === "md-math-inline"
+  );
+
+  assert.equal(paragraphs[0].className, "message-text md-paragraph");
+  assert.ok(inlineMath);
+  assert.match(inlineMath.innerHTML, /\bkatex\b/);
+});
+
+test("renderMarkdown keeps shell variables as plain text", () => {
+  const text = "Set $CODEX_HOME or $HOME before launching.";
+  const fragment = renderMarkdown(text) as unknown as FakeDocumentFragment;
+
+  assert.equal(findElementsByTag(fragment, "span").length, 0);
+  assert.equal(collectText(fragment), text);
+});
+
+test("renderMarkdown keeps currency amounts as plain text", () => {
+  const text = "The plan costs $5 and $10 for add-ons.";
+  const fragment = renderMarkdown(text) as unknown as FakeDocumentFragment;
+
+  assert.equal(findElementsByTag(fragment, "span").length, 0);
+  assert.equal(collectText(fragment), text);
+});
+
+test("renderMarkdown renders display math blocks", () => {
+  const fragment = renderMarkdown(
+    [
+      "Before",
+      "",
+      "$$",
+      "a^2 + b^2 = c^2",
+      "$$",
+      "",
+      "After"
+    ].join("\n")
+  ) as unknown as FakeDocumentFragment;
+  const mathBlock = findElementsByTag(fragment, "div").find(
+    (element) => element.className === "md-math-block"
+  );
+
+  assert.ok(mathBlock);
+  assert.match(mathBlock.innerHTML, /\bkatex-display\b/);
+  assert.match(collectText(fragment), /BeforeAfter/);
 });
