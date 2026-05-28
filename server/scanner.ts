@@ -16,7 +16,7 @@ import {
   COPILOT_BUNDLE_FILES,
   COPILOT_EVENTS_FILE
 } from "./copilot.js";
-import { extractCodexThreadName } from "../src/parsers/codex.js";
+import { extractCodexPreviewTitle } from "../src/parsers/codex.js";
 import type {
   SessionBundle,
   SessionDescriptor,
@@ -490,13 +490,13 @@ function buildFileDescriptor(
   if (source === "antigravity") {
     return buildAntigravityDescriptor(absolutePath, origin, stats);
   }
-  const codexThreadName =
-    source === "codex" && content ? extractCodexThreadName(content) : undefined;
+  const codexTitle =
+    source === "codex" && content ? extractCodexPreviewTitle(content) : undefined;
 
   return {
     key: `file::${absolutePath}`,
     source,
-    title: codexThreadName ?? path.basename(absolutePath),
+    title: codexTitle ?? path.basename(absolutePath),
     primaryPath: absolutePath,
     relatedPaths: [],
     transport: origin === "remote" ? "ssh-sync" : "local-scan",

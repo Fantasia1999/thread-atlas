@@ -1,7 +1,6 @@
 import type { Message, Session, SessionBundle, ToolCall } from "./types.js";
 import {
   addToolCall,
-  basenameTitle,
   buildFallbackSession,
   buildSession,
   collectText,
@@ -13,6 +12,7 @@ import {
 } from "./utils.js";
 
 const DUPLICATE_MESSAGE_WINDOW_MS = 2_000;
+const CODEX_TITLE_PREVIEW_LENGTH = 80;
 
 export function parseCodexSession(bundle: SessionBundle): Session {
   const file = bundle.files[0];
@@ -145,13 +145,10 @@ export function parseCodexSession(bundle: SessionBundle): Session {
         ? String(sessionMeta.cwd)
         : undefined;
 
-  const id = typeof sessionMeta?.id === "string" ? sessionMeta.id : undefined;
-  const title =
-    threadName ??
-    (cwd != null
-      ? `${basenameTitle(cwd) || "workspace"} · Codex`
-      : `${bundle.title || "Codex session"}`);
   const dedupedMessages = dedupeCodexMessages(messages);
+  const id = typeof sessionMeta?.id === "string" ? sessionMeta.id : undefined;
+  const firstUserTitle = codexTitleFromMessages(dedupedMessages);
+  const title = threadName ?? firstUserTitle ?? `${bundle.title || "Codex session"}`;
 
   return buildSession(bundle, "codex", {
     id,
@@ -173,9 +170,10 @@ export function parseCodexSession(bundle: SessionBundle): Session {
   });
 }
 
-export function extractCodexThreadName(content: string): string | undefined {
+export function extractCodexPreviewTitle(content: string): string | undefined {
   const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
   let threadName: string | undefined;
+  let firstUserTitle: string | undefined;
 
   for (const row of rows) {
     if (row.type !== "event_msg") {
@@ -183,17 +181,22 @@ export function extractCodexThreadName(content: string): string | undefined {
     }
 
     const payload = row.payload as Record<string, unknown> | undefined;
-    if (payload?.type !== "thread_name_updated") {
-      continue;
+    if (payload?.type === "user_message" && firstUserTitle == null) {
+      firstUserTitle = previewTitle(collectText(payload.message));
+      if (firstUserTitle) {
+        continue;
+      }
     }
 
-    const nextThreadName = normalizeThreadName(payload.thread_name);
-    if (nextThreadName) {
-      threadName = nextThreadName;
+    if (payload?.type === "thread_name_updated") {
+      const nextThreadName = normalizeThreadName(payload.thread_name);
+      if (nextThreadName) {
+        threadName = nextThreadName;
+      }
     }
   }
 
-  return threadName;
+  return threadName ?? firstUserTitle;
 }
 
 function normalizeThreadName(input: unknown): string | undefined {
@@ -203,6 +206,16 @@ function normalizeThreadName(input: unknown): string | undefined {
 
   const value = input.trim();
   return value || undefined;
+}
+
+function codexTitleFromMessages(messages: Message[]): string | undefined {
+  const firstUserMessage = messages.find((message) => message.role === "user");
+  return previewTitle(firstUserMessage?.text ?? "");
+}
+
+function previewTitle(text: string): string | undefined {
+  const title = previewText(text, CODEX_TITLE_PREVIEW_LENGTH);
+  return title || undefined;
 }
 
 function dedupeCodexMessages(messages: Message[]): Message[] {
