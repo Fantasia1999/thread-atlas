@@ -115,8 +115,9 @@ export function parseAntigravitySession(bundle: SessionBundle): Session {
   const primaryWorkspace = extractPrimaryWorkspace(
     sessionMeta?.workspaces ?? bundle.metadata.primaryWorkspace
   );
-  const title = buildAntigravityTitle(cascadeId, primaryWorkspace, bundle.title);
   const firstUserMessage = messages.find((message) => message.role === "user");
+  const firstUserTitle = firstUserMessage ? previewText(firstUserMessage.text, 80) : undefined;
+  const title = firstUserTitle ?? buildAntigravityTitle(cascadeId, primaryWorkspace, bundle.title);
 
   return buildSession(bundle, "antigravity", {
     id: cascadeId,
@@ -284,4 +285,26 @@ function extractUserRequest(text: string): string {
     return text.replace(/<USER_REQUEST>/gi, "").replace(/<\/USER_REQUEST>/gi, "").trim();
   }
   return text.trim();
+}
+
+export function extractAntigravityPreviewTitle(content: string): string | undefined {
+  const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
+  for (const row of rows) {
+    const recordType = String(row.record_type ?? "");
+    const stepType = String(row.type ?? "");
+    const role = String(row.role ?? "");
+
+    const isUser =
+      stepType === "USER_INPUT" ||
+      (recordType === "message" && normalizeRole(role) === "user");
+
+    if (isUser) {
+      const rawContent = collectText(row.content);
+      const text = extractUserRequest(rawContent);
+      if (text.trim()) {
+        return previewText(text, 80);
+      }
+    }
+  }
+  return undefined;
 }

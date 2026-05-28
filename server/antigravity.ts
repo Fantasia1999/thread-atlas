@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { MetadataValue, SessionBundle, SessionDescriptor } from "../src/parsers/types.js";
 import { BUNDLED_ANTIGRAVITY_DESCRIPTORS } from "./antigravityDescriptors.js";
+import { extractAntigravityPreviewTitle } from "../src/parsers/antigravity.js";
 
 const ANTIGRAVITY_KEY = Buffer.from("safeCodeiumworldKeYsecretBalloon", "utf8");
 const EXTENSION_DESCRIPTOR_REGEX = /fileDesc\)\("([A-Za-z0-9+/=]+)"/g;
@@ -176,17 +177,23 @@ export function buildAntigravityDescriptor(
   stats: {
     size: number;
     mtimeMs: number;
-  }
+  },
+  content?: string
 ): SessionDescriptor {
   const cascadeId = antigravitySessionIdFromPath(absolutePath) ?? path.basename(absolutePath);
   const loaderBackend = isAntigravityTranscriptPath(absolutePath) ? "transcript" : "direct";
 
+  let title: string | undefined;
+  if (content) {
+    title = extractAntigravityPreviewTitle(content);
+  }
+
   return {
     key: `file::${absolutePath}`,
     source: "antigravity",
-    title: isAntigravityTranscriptPath(absolutePath)
+    title: title ?? (isAntigravityTranscriptPath(absolutePath)
       ? buildAntigravityTitle(cascadeId)
-      : path.basename(absolutePath),
+      : path.basename(absolutePath)),
     primaryPath: absolutePath,
     relatedPaths: [],
     transport: origin === "remote" ? "ssh-sync" : "local-scan",
@@ -253,7 +260,6 @@ export async function loadAntigravityBundle(
   }
 
   const stats = await fs.stat(absolutePath);
-  const descriptor = buildAntigravityDescriptor(absolutePath, origin, stats);
   const { descriptorSource, trajectory } = await decodeAntigravityTrajectory(absolutePath);
   const cascadeId = String(trajectory.cascadeId ?? path.basename(absolutePath, ".pb"));
   const summary = synthesizeDirectSummary(cascadeId, trajectory);
@@ -270,9 +276,15 @@ export async function loadAntigravityBundle(
   });
   const primaryWorkspace = extractPrimaryWorkspace(summary.workspaces);
 
+  const recordsContent = records.map((record) => JSON.stringify(record)).join("\n");
+  const firstUserTitle = extractAntigravityPreviewTitle(recordsContent);
+  const title = firstUserTitle ?? buildAntigravityTitle(cascadeId, primaryWorkspace);
+
+  const descriptor = buildAntigravityDescriptor(absolutePath, origin, stats, recordsContent);
+
   return {
     ...descriptor,
-    title: buildAntigravityTitle(cascadeId, primaryWorkspace),
+    title,
     metadata: {
       ...descriptor.metadata,
       trajectoryId: toMetadataValue(summary.trajectoryId),
@@ -285,7 +297,7 @@ export async function loadAntigravityBundle(
     files: [
       {
         path: `${absolutePath}#chat.jsonl`,
-        content: records.map((record) => JSON.stringify(record)).join("\n")
+        content: recordsContent
       }
     ]
   };
@@ -299,13 +311,17 @@ async function loadAntigravityTranscriptBundle(
     fs.stat(absolutePath),
     fs.readFile(absolutePath, "utf8")
   ]);
-  const descriptor = buildAntigravityDescriptor(absolutePath, origin, stats);
+  const descriptor = buildAntigravityDescriptor(absolutePath, origin, stats, content);
   const cascadeId = antigravitySessionIdFromPath(absolutePath) ?? path.basename(absolutePath);
   const rows = parseJsonLines(content);
   const records = buildChatRecordsFromTranscriptRows(cascadeId, rows, absolutePath);
+  const recordsContent = records.map((record) => JSON.stringify(record)).join("\n");
+  const firstUserTitle = extractAntigravityPreviewTitle(recordsContent);
+  const title = firstUserTitle ?? descriptor.title;
 
   return {
     ...descriptor,
+    title,
     metadata: {
       ...descriptor.metadata,
       stepCount: rows.length,
@@ -314,7 +330,7 @@ async function loadAntigravityTranscriptBundle(
     files: [
       {
         path: `${absolutePath}#chat.jsonl`,
-        content: records.map((record) => JSON.stringify(record)).join("\n")
+        content: recordsContent
       }
     ]
   };

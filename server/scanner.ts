@@ -233,7 +233,10 @@ async function scanAntigravitySessions(
   return await Promise.all(
     preferredPaths.map(async (absolutePath) => {
       const stats = await fs.stat(absolutePath);
-      return buildFileDescriptor(absolutePath, "antigravity", origin, stats);
+      const content = isAntigravityTranscriptPath(absolutePath)
+        ? await readTextFileIfPossible(absolutePath)
+        : undefined;
+      return buildFileDescriptor(absolutePath, "antigravity", origin, stats, content);
     })
   );
 }
@@ -486,7 +489,7 @@ function buildFileDescriptor(
   content?: string
 ): SessionDescriptor {
   if (source === "antigravity") {
-    return buildAntigravityDescriptor(absolutePath, origin, stats);
+    return buildAntigravityDescriptor(absolutePath, origin, stats, content);
   }
   const codexTitle =
     source === "codex" && content ? extractCodexPreviewTitle(content) : undefined;
