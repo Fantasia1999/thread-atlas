@@ -38,14 +38,19 @@ export function parseAntigravitySession(bundle: SessionBundle): Session {
     }
 
     if (recordType === "message") {
-      const content = collectText(row.content);
+      let content = collectText(row.content);
       if (!content.trim()) {
         continue;
       }
 
+      const role = normalizeRole(row.role);
+      if (role === "user") {
+        content = extractUserRequest(content);
+      }
+
       messages.push({
         id: `${bundle.key}:${index}`,
-        role: normalizeRole(row.role),
+        role,
         text: content,
         createdAt,
         rawType: String(row.message_type ?? recordType)
@@ -268,4 +273,15 @@ function normalizeWorkspacePath(value: string): string {
   } catch {
     return value;
   }
+}
+
+function extractUserRequest(text: string): string {
+  const match = text.match(/<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/i);
+  if (match) {
+    return match[1].trim();
+  }
+  if (text.includes("<USER_REQUEST>")) {
+    return text.replace(/<USER_REQUEST>/gi, "").replace(/<\/USER_REQUEST>/gi, "").trim();
+  }
+  return text.trim();
 }

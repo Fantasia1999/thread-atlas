@@ -601,7 +601,18 @@ function buildAnchorId(message: Message, index: number): string {
 }
 
 function buildTimelinePreview(message: Message): string {
-  const source = message.text.trim() || (message.toolCalls?.[0]?.toolName ?? "tool activity");
+  let source = message.text.trim();
+  if (source.includes("<USER_REQUEST>")) {
+    const match = source.match(/<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/i);
+    if (match) {
+      source = match[1].trim();
+    } else {
+      source = source.replace(/<\/?USER_REQUEST>/gi, "").trim();
+    }
+  }
+  if (!source) {
+    source = message.toolCalls?.[0]?.toolName ?? "tool activity";
+  }
   const firstLine = source.split("\n").find((line) => line.trim()) ?? source;
   return firstLine.trim().slice(0, 86) || "Empty message";
 }

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { parseClaudeSession } from "../src/parsers/claude.ts";
 import { parseGeminiSession } from "../src/parsers/gemini.ts";
+import { parseAntigravitySession } from "../src/parsers/antigravity.ts";
 import type { SessionBundle } from "../src/parsers/types.ts";
 
 test("parseClaudeSession preserves tool_result content as a fenced code block", () => {
@@ -307,4 +308,38 @@ test("parseGeminiSession preserves functionResponse content as a fenced code blo
     message?.toolCalls?.[1]?.output,
     "./deps/lance/test_debug.py\n./deps/lance/vbench/__init__.py"
   );
+});
+
+test("parseAntigravitySession extracts actual user request from <USER_REQUEST> tags", () => {
+  const bundle: SessionBundle = {
+    key: "file::antigravity-session.jsonl",
+    source: "antigravity",
+    title: "antigravity-session.jsonl",
+    primaryPath: "/tmp/antigravity-session.jsonl",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 1,
+    size: 1,
+    mtimeMs: 1,
+    metadata: {},
+    files: [
+      {
+        path: "/tmp/antigravity-session.jsonl",
+        content: [
+          JSON.stringify({
+            record_type: "message",
+            role: "user",
+            created_at: "2026-05-28T16:59:38Z",
+            content: "<USER_REQUEST>\nHello world! Help me code.\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nsome metadata\n</ADDITIONAL_METADATA>"
+          })
+        ].join("\n")
+      }
+    ]
+  };
+
+  const session = parseAntigravitySession(bundle);
+  const [message] = session.messages;
+
+  assert.equal(message?.text, "Hello world! Help me code.");
 });
