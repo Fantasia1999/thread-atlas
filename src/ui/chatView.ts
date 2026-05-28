@@ -374,30 +374,50 @@ function renderChatLayout(options: {
     }
   };
 
-  for (const [index, message] of options.messages.entries()) {
-    const anchorId = buildAnchorId(message, index);
-    const messageElement = renderMessage(message, {
-      anchorId,
-      showToolBlocks: options.showToolBlocks
-    });
-    const timelineButton = renderTimelineButton(message, index, anchorId);
+  const totalMessages = options.messages.length;
+  let currentIndex = 0;
+  const chunkSize = 10;
 
-    timelineButton.addEventListener("click", () => {
-      messageElement.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
+  function renderNextChunk() {
+    // If the messageList has been disconnected, the user has navigated away, so stop rendering.
+    if (currentIndex > 0 && !messageList.isConnected) {
+      return;
+    }
+
+    const end = Math.min(currentIndex + chunkSize, totalMessages);
+    for (let i = currentIndex; i < end; i++) {
+      const message = options.messages[i];
+      const anchorId = buildAnchorId(message, i);
+      const messageElement = renderMessage(message, {
+        anchorId,
+        showToolBlocks: options.showToolBlocks
       });
-      setActiveTimelineItem(anchorId);
-    });
+      const timelineButton = renderTimelineButton(message, i, anchorId);
 
-    timelineButtons.push(timelineButton);
-    messageList.append(messageElement);
-    timelineList.append(timelineButton);
+      timelineButton.addEventListener("click", () => {
+        messageElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+        setActiveTimelineItem(anchorId);
+      });
+
+      timelineButtons.push(timelineButton);
+      messageList.append(messageElement);
+      timelineList.append(timelineButton);
+    }
+
+    if (currentIndex === 0 && timelineButtons[0]) {
+      timelineButtons[0].classList.add("active");
+    }
+
+    currentIndex = end;
+    if (currentIndex < totalMessages) {
+      setTimeout(renderNextChunk, 0);
+    }
   }
 
-  if (timelineButtons[0]) {
-    timelineButtons[0].classList.add("active");
-  }
+  renderNextChunk();
 
   timeline.append(timelineHeader, timelineList);
   timelineDock.append(timelineRail, timeline);
@@ -477,9 +497,8 @@ function renderMessage(
       const label = document.createElement("div");
       label.className = "tool-call-label";
       label.textContent = "input";
-      const pre = document.createElement("pre");
-      pre.textContent = toolCall.args;
-      output.append(label, pre);
+      output.append(label);
+      renderTruncatedPre(output, toolCall.args);
     }
 
     if (toolCall.backgroundTask) {
@@ -490,9 +509,8 @@ function renderMessage(
       const label = document.createElement("div");
       label.className = "tool-call-label";
       label.textContent = "output";
-      const pre = document.createElement("pre");
-      pre.textContent = toolCall.output;
-      output.append(label, pre);
+      output.append(label);
+      renderTruncatedPre(output, toolCall.output);
     }
 
     block.append(summary, output);
@@ -611,4 +629,45 @@ function timelineEmoji(role: Message["role"]): string {
     default:
       return "•";
   }
+}
+
+function renderTruncatedPre(parent: HTMLElement, text: string): void {
+  const lines = text.split("\n");
+  const isLong = lines.length > 100 || text.length > 15000;
+
+  const pre = document.createElement("pre");
+
+  if (!isLong) {
+    pre.textContent = text;
+    parent.append(pre);
+    return;
+  }
+
+  const truncatedText = lines.slice(0, 100).join("\n");
+  pre.textContent = truncatedText;
+
+  const toggleButton = document.createElement("button");
+  toggleButton.className = "button secondary message-expand-button";
+  toggleButton.type = "button";
+  toggleButton.style.marginTop = "6px";
+  toggleButton.style.padding = "4px 8px";
+  toggleButton.style.fontSize = "11px";
+  toggleButton.style.height = "auto";
+  toggleButton.style.display = "inline-block";
+  toggleButton.textContent = `Show full output (+${lines.length - 100} lines)`;
+
+  let isExpanded = false;
+  toggleButton.addEventListener("click", () => {
+    isExpanded = !isExpanded;
+    if (isExpanded) {
+      pre.textContent = text;
+      toggleButton.textContent = "Show less";
+    } else {
+      pre.textContent = truncatedText;
+      toggleButton.textContent = `Show full output (+${lines.length - 100} lines)`;
+      pre.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  });
+
+  parent.append(pre, toggleButton);
 }
