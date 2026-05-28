@@ -22,6 +22,7 @@ type Listener = (state: StoreState) => void;
 export class SessionStore {
   private listeners = new Set<Listener>();
   private importedBundles = new Map<string, SessionBundle>();
+  private cachedKeysOrder: string[] = [];
   private state: StoreState = {
     descriptors: [],
     sessions: new Map(),
@@ -123,6 +124,13 @@ export class SessionStore {
 
     try {
       if (this.state.sessions.has(key)) {
+        // Move key to the end of the order to mark it as recently used
+        const index = this.cachedKeysOrder.indexOf(key);
+        if (index >= 0) {
+          this.cachedKeysOrder.splice(index, 1);
+        }
+        this.cachedKeysOrder.push(key);
+
         this.updateState({
           loadingSession: false,
           status: "Session loaded."
@@ -134,6 +142,15 @@ export class SessionStore {
       const session = parseSessionBundle(bundle);
       const nextSessions = new Map(this.state.sessions);
       nextSessions.set(key, session);
+      this.cachedKeysOrder.push(key);
+
+      // Enforce the LRU cache limit of 3 sessions
+      if (nextSessions.size > 3) {
+        const oldestKey = this.cachedKeysOrder.shift();
+        if (oldestKey && oldestKey !== key) {
+          nextSessions.delete(oldestKey);
+        }
+      }
 
       this.updateState({
         sessions: nextSessions,
@@ -155,6 +172,12 @@ export class SessionStore {
     for (const bundle of bundles) {
       nextImported.set(bundle.key, bundle);
       nextSessions.set(bundle.key, parseSessionBundle(bundle));
+
+      const index = this.cachedKeysOrder.indexOf(bundle.key);
+      if (index >= 0) {
+        this.cachedKeysOrder.splice(index, 1);
+      }
+      this.cachedKeysOrder.push(bundle.key);
     }
 
     this.importedBundles = nextImported;
@@ -162,6 +185,14 @@ export class SessionStore {
       (descriptor) => !descriptor.key.startsWith("import::")
     );
     const descriptors = mergeDescriptors(nextImported, existingLocalDescriptors);
+
+    // Enforce the LRU cache limit of 3 sessions on imports
+    while (nextSessions.size > 3) {
+      const oldestKey = this.cachedKeysOrder.shift();
+      if (oldestKey) {
+        nextSessions.delete(oldestKey);
+      }
+    }
 
     this.updateState({
       descriptors,
