@@ -1,4 +1,5 @@
 import express, { type Request, type Response } from "express";
+import os from "node:os";
 import path from "node:path";
 
 import { loadLocalSessionBundle, scanLocalSessions } from "./scanner.js";
@@ -67,7 +68,20 @@ const clientRoot = path.resolve(process.cwd(), "dist");
 app.use(express.static(clientRoot));
 
 app.listen(port, () => {
-  console.log(`ThreadAtlas backend listening on http://localhost:${port}`);
+  console.log(`ThreadAtlas backend listening on:`);
+  console.log(`  - Local:   http://localhost:${port}`);
+  try {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name] ?? []) {
+        if (iface.family === "IPv4" && !iface.internal) {
+          console.log(`  - Network: http://${iface.address}:${port}`);
+        }
+      }
+    }
+  } catch {
+    // Gracefully ignore network interface query errors
+  }
 });
 
 class HttpError extends Error {
