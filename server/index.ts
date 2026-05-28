@@ -67,7 +67,7 @@ const clientRoot = path.resolve(process.cwd(), "dist");
 app.use(express.static(clientRoot));
 
 app.listen(port, () => {
-  console.log(`ThreadAtlas backend listening on http://127.0.0.1:${port}`);
+  console.log(`ThreadAtlas backend listening on http://localhost:${port}`);
 });
 
 class HttpError extends Error {
