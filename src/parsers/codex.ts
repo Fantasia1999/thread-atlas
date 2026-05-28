@@ -1,6 +1,7 @@
 import type { Message, Session, SessionBundle, ToolCall } from "./types.js";
 import {
   addToolCall,
+  basenameTitle,
   buildFallbackSession,
   buildSession,
   collectText,
@@ -148,7 +149,11 @@ export function parseCodexSession(bundle: SessionBundle): Session {
   const dedupedMessages = dedupeCodexMessages(messages);
   const id = typeof sessionMeta?.id === "string" ? sessionMeta.id : undefined;
   const firstUserTitle = codexTitleFromMessages(dedupedMessages);
-  const title = threadName ?? firstUserTitle ?? `${bundle.title || "Codex session"}`;
+  const title =
+    threadName ??
+    (cwd ? `${basenameTitle(cwd) || "project"} · Codex` : undefined) ??
+    firstUserTitle ??
+    `${bundle.title || "Codex session"}`;
 
   return buildSession(bundle, "codex", {
     id,

@@ -386,7 +386,13 @@ function highlightCode(text: string, language?: string): string {
       }).value;
     }
 
-    return hljs.highlightAuto(text, [...AUTO_DETECT_LANGUAGES]).value;
+    // Only auto-detect if the text is small (under 1000 characters)
+    // to prevent blocking the main thread for long logs/outputs
+    if (text.length < 1000) {
+      return hljs.highlightAuto(text, [...AUTO_DETECT_LANGUAGES]).value;
+    }
+
+    return escapeHtml(text);
   } catch {
     return escapeHtml(text);
   }

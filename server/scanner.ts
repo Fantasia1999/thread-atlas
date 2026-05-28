@@ -82,6 +82,10 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
     path.join(home, ".gemini", "antigravity-cli")
   ];
 
+  const remoteFiles = (await exists(REMOTE_SYNC_ROOT))
+    ? await collectFiles(REMOTE_SYNC_ROOT, 0)
+    : [];
+
   const [
     localFileGroups,
     localAntigravityDescriptors,
@@ -101,10 +105,10 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
       scanAntigravitySessions(localAntigravityRoots, "local"),
       scanOpenCodeDatabase(localOpenCodePath, "local"),
       scanCopilotSessionDirectories(localCopilotRoot, "local"),
-      scanFileTree(REMOTE_SYNC_ROOT, undefined, "remote"),
-      scanAntigravitySessions([REMOTE_SYNC_ROOT], "remote"),
-      scanCopilotSessionDirectoriesInRemoteMirror(),
-      scanOpenCodeDatabasesInRemoteMirror()
+      scanFileTree(REMOTE_SYNC_ROOT, undefined, "remote", remoteFiles),
+      scanAntigravitySessions([REMOTE_SYNC_ROOT], "remote", remoteFiles),
+      scanCopilotSessionDirectoriesInRemoteMirror(remoteFiles),
+      scanOpenCodeDatabasesInRemoteMirror(remoteFiles)
     ]);
 
   return dedupeAndSortDescriptors([
@@ -159,13 +163,14 @@ export async function loadLocalSessionBundle(key: string): Promise<SessionBundle
 async function scanFileTree(
   root: string,
   source?: SessionSource,
-  origin: DescriptorOrigin = "local"
+  origin: DescriptorOrigin = "local",
+  precollectedFiles?: string[]
 ): Promise<SessionDescriptor[]> {
-  if (!(await exists(root))) {
+  if (!precollectedFiles && !(await exists(root))) {
     return [];
   }
 
-  const files = await collectFiles(root, 0);
+  const files = precollectedFiles ?? await collectFiles(root, 0);
   const candidates = files
     .map((absolutePath) => ({
       absolutePath,
@@ -188,9 +193,10 @@ async function scanFileTree(
 
 async function scanAntigravitySessions(
   roots: string[],
-  origin: DescriptorOrigin
+  origin: DescriptorOrigin,
+  precollectedFiles?: string[]
 ): Promise<SessionDescriptor[]> {
-  const files = (await Promise.all(
+  const files = precollectedFiles ?? (await Promise.all(
     roots.map(async (root) => {
       if (!(await exists(root))) {
         return [];
@@ -234,12 +240,8 @@ async function scanAntigravitySessions(
 
 type SqliteParameter = string | number | bigint | Uint8Array | null;
 
-async function scanOpenCodeDatabasesInRemoteMirror(): Promise<SessionDescriptor[]> {
-  if (!(await exists(REMOTE_SYNC_ROOT))) {
-    return [];
-  }
-
-  const files = await collectFiles(REMOTE_SYNC_ROOT, 0);
+async function scanOpenCodeDatabasesInRemoteMirror(remoteFiles?: string[]): Promise<SessionDescriptor[]> {
+  const files = remoteFiles ?? (await exists(REMOTE_SYNC_ROOT) ? await collectFiles(REMOTE_SYNC_ROOT, 0) : []);
   const databasePaths = files.filter((entry) => path.basename(entry) === "opencode.db");
   const descriptorGroups = await Promise.all(
     databasePaths.map((dbPath) => scanOpenCodeDatabase(dbPath, "remote"))
@@ -248,12 +250,8 @@ async function scanOpenCodeDatabasesInRemoteMirror(): Promise<SessionDescriptor[
   return descriptorGroups.flat();
 }
 
-async function scanCopilotSessionDirectoriesInRemoteMirror(): Promise<SessionDescriptor[]> {
-  if (!(await exists(REMOTE_SYNC_ROOT))) {
-    return [];
-  }
-
-  const files = await collectFiles(REMOTE_SYNC_ROOT, 0);
+async function scanCopilotSessionDirectoriesInRemoteMirror(remoteFiles?: string[]): Promise<SessionDescriptor[]> {
+  const files = remoteFiles ?? (await exists(REMOTE_SYNC_ROOT) ? await collectFiles(REMOTE_SYNC_ROOT, 0) : []);
   const sessionDirs = [
     ...new Set(
       files

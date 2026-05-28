@@ -5,7 +5,7 @@ import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 
 import { loadLocalSessionBundle } from "../server/scanner.ts";
-import { extractCodexThreadName, parseCodexSession } from "../src/parsers/codex.ts";
+import { extractCodexPreviewTitle, parseCodexSession } from "../src/parsers/codex.ts";
 import type { SessionBundle } from "../src/parsers/types.ts";
 
 const CODEX_THREAD_NAME = "解释 physical-planner 模块";
@@ -45,7 +45,7 @@ test("parseCodexSession uses the latest thread_name_updated event as the title",
   assert.equal(session.metadata.threadName, CODEX_THREAD_NAME);
 });
 
-test("extractCodexThreadName returns the latest non-empty thread name", () => {
+test("extractCodexPreviewTitle returns the latest non-empty thread name", () => {
   const content = [
     JSON.stringify({
       type: "event_msg",
@@ -70,7 +70,7 @@ test("extractCodexThreadName returns the latest non-empty thread name", () => {
     })
   ].join("\n");
 
-  assert.equal(extractCodexThreadName(content), CODEX_THREAD_NAME);
+  assert.equal(extractCodexPreviewTitle(content), CODEX_THREAD_NAME);
 });
 
 test("loadLocalSessionBundle uses Codex thread name for bundle title", async (t) => {
