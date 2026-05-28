@@ -7,14 +7,33 @@ interface SidebarOptions {
   sourceFilter: SessionSource | "all";
   search: string;
   loading: boolean;
+  pinned: boolean;
+  open: boolean;
+  onToggleOpen: () => void;
+  onTogglePin: () => void;
   onSearch: (value: string) => void;
   onFilter: (value: SessionSource | "all") => void;
   onSelect: (key: string) => void;
 }
 
 export function renderSidebar(options: SidebarOptions): HTMLElement {
-  const container = document.createElement("aside");
-  container.className = "sidebar";
+  const container = document.createElement("div");
+  container.className = `sidebar-dock${options.open ? " open" : ""}${options.pinned ? " pinned" : ""}`;
+
+  const rail = document.createElement("div");
+  rail.className = "sidebar-rail";
+
+  const openButton = document.createElement("button");
+  openButton.className = "rail-button";
+  openButton.type = "button";
+  openButton.title = options.open ? "Collapse sessions" : "Open sessions";
+  openButton.setAttribute("aria-label", openButton.title);
+  openButton.innerHTML = listIcon();
+  openButton.addEventListener("click", options.onToggleOpen);
+  rail.append(openButton);
+
+  const panel = document.createElement("aside");
+  panel.className = "sidebar";
 
   const heading = document.createElement("div");
   heading.className = "panel-header";
@@ -23,8 +42,19 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       <p class="eyebrow">Session Index</p>
       <h2>Local + Synced Logs</h2>
     </div>
-    <div class="count-badge">${options.descriptors.length}</div>
+    <div class="panel-header-actions">
+      <div class="count-badge">${options.descriptors.length}</div>
+    </div>
   `;
+
+  const pinButton = document.createElement("button");
+  pinButton.className = `panel-icon-button${options.pinned ? " active" : ""}`;
+  pinButton.type = "button";
+  pinButton.title = options.pinned ? "Unpin sessions" : "Pin sessions";
+  pinButton.setAttribute("aria-label", pinButton.title);
+  pinButton.innerHTML = pinIcon();
+  pinButton.addEventListener("click", options.onTogglePin);
+  heading.querySelector(".panel-header-actions")?.append(pinButton);
 
   const controls = document.createElement("div");
   controls.className = "sidebar-controls";
@@ -87,7 +117,8 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     }
   }
 
-  container.append(heading, controls, list);
+  panel.append(heading, controls, list);
+  container.append(rail, panel);
   return container;
 }
 
@@ -96,4 +127,20 @@ function emptyState(message: string): HTMLElement {
   element.className = "empty-state";
   element.textContent = message;
   return element;
+}
+
+function listIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2.75 4a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9A.75.75 0 0 1 2.75 4Zm0 4a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9A.75.75 0 0 1 2.75 8Zm0 4a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1-.75-.75Z"/>
+    </svg>
+  `;
+}
+
+function pinIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M5.25 1.75A.75.75 0 0 1 6 1h4a.75.75 0 0 1 .53 1.28l-.78.78v3.38l2.28 2.28A.75.75 0 0 1 11.5 10H8.75v4.25a.75.75 0 0 1-1.5 0V10H4.5a.75.75 0 0 1-.53-1.28l2.28-2.28V3.06l-.78-.78a.75.75 0 0 1-.22-.53Zm2.03.75.25.25a.75.75 0 0 1 .22.53v3.47a.75.75 0 0 1-.22.53L6.31 8.5h3.38L8.47 7.28a.75.75 0 0 1-.22-.53V3.28a.75.75 0 0 1 .22-.53l.25-.25H7.28Z"/>
+    </svg>
+  `;
 }

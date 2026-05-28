@@ -15,7 +15,11 @@ interface ChatViewOptions {
   session?: Session;
   loading: boolean;
   messageFilter: MessageViewFilter;
+  timelinePinned: boolean;
+  timelineOpen: boolean;
   onFilterChange: (filter: MessageViewFilter) => void;
+  onTimelineToggleOpen: () => void;
+  onTimelineTogglePin: () => void;
   onExport: (session: Session) => void;
 }
 
@@ -28,7 +32,7 @@ const FILTER_OPTIONS: Array<{ key: MessageViewFilter; label: string }> = [
 
 export function renderChatView(options: ChatViewOptions): HTMLElement {
   const container = document.createElement("section");
-  container.className = "main-panel";
+  container.className = `main-panel${options.timelinePinned ? " timeline-pinned" : ""}${options.timelineOpen ? " timeline-open" : ""}`;
 
   if (!options.descriptor) {
     container.append(createEmpty("Select a session or import files to begin."));
@@ -62,7 +66,16 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
     return container;
   }
 
-  container.append(renderChatLayout(filteredMessages, options.messageFilter === "default"));
+  container.append(
+    renderChatLayout({
+      messages: filteredMessages,
+      showToolBlocks: options.messageFilter === "default",
+      timelinePinned: options.timelinePinned,
+      timelineOpen: options.timelineOpen,
+      onTimelineToggleOpen: options.onTimelineToggleOpen,
+      onTimelineTogglePin: options.onTimelineTogglePin
+    })
+  );
 
   return container;
 }
@@ -250,12 +263,50 @@ function errorIcon(): string {
   `;
 }
 
-function renderChatLayout(messages: Message[], showToolBlocks: boolean): HTMLElement {
+function timelineIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4 2.25a1.75 1.75 0 1 1 1.5 1.73v2.27h5a1.75 1.75 0 1 1 0 1.5h-5v2.27a1.75 1.75 0 1 1-1.5 0V3.98A1.75 1.75 0 0 1 4 2.25Zm1.5 0a.25.25 0 1 0-.5 0 .25.25 0 0 0 .5 0ZM12 6.75a.25.25 0 1 0 0 .5.25.25 0 0 0 0-.5Zm-6.5 7a.25.25 0 1 0-.5 0 .25.25 0 0 0 .5 0Z"/>
+    </svg>
+  `;
+}
+
+function pinIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M5.25 1.75A.75.75 0 0 1 6 1h4a.75.75 0 0 1 .53 1.28l-.78.78v3.38l2.28 2.28A.75.75 0 0 1 11.5 10H8.75v4.25a.75.75 0 0 1-1.5 0V10H4.5a.75.75 0 0 1-.53-1.28l2.28-2.28V3.06l-.78-.78a.75.75 0 0 1-.22-.53Zm2.03.75.25.25a.75.75 0 0 1 .22.53v3.47a.75.75 0 0 1-.22.53L6.31 8.5h3.38L8.47 7.28a.75.75 0 0 1-.22-.53V3.28a.75.75 0 0 1 .22-.53l.25-.25H7.28Z"/>
+    </svg>
+  `;
+}
+
+function renderChatLayout(options: {
+  messages: Message[];
+  showToolBlocks: boolean;
+  timelinePinned: boolean;
+  timelineOpen: boolean;
+  onTimelineToggleOpen: () => void;
+  onTimelineTogglePin: () => void;
+}): HTMLElement {
   const layout = document.createElement("div");
   layout.className = "chat-layout";
 
   const messageList = document.createElement("div");
   messageList.className = "chat-messages";
+
+  const timelineDock = document.createElement("div");
+  timelineDock.className = `timeline-dock${options.timelineOpen ? " open" : ""}${options.timelinePinned ? " pinned" : ""}`;
+
+  const timelineRail = document.createElement("div");
+  timelineRail.className = "timeline-rail";
+
+  const timelineToggle = document.createElement("button");
+  timelineToggle.className = "rail-button";
+  timelineToggle.type = "button";
+  timelineToggle.title = options.timelineOpen ? "Collapse timeline" : "Open timeline";
+  timelineToggle.setAttribute("aria-label", timelineToggle.title);
+  timelineToggle.innerHTML = timelineIcon();
+  timelineToggle.addEventListener("click", options.onTimelineToggleOpen);
+  timelineRail.append(timelineToggle);
 
   const timeline = document.createElement("aside");
   timeline.className = "timeline-panel";
@@ -263,9 +314,20 @@ function renderChatLayout(messages: Message[], showToolBlocks: boolean): HTMLEle
   const timelineHeader = document.createElement("div");
   timelineHeader.className = "timeline-header";
   timelineHeader.innerHTML = `
-    <div class="eyebrow">Timeline</div>
-    <div class="timeline-summary">Click to jump through the session.</div>
+    <div>
+      <div class="eyebrow">Timeline</div>
+      <div class="timeline-summary">Click to jump through the session.</div>
+    </div>
   `;
+
+  const timelinePin = document.createElement("button");
+  timelinePin.className = `panel-icon-button${options.timelinePinned ? " active" : ""}`;
+  timelinePin.type = "button";
+  timelinePin.title = options.timelinePinned ? "Unpin timeline" : "Pin timeline";
+  timelinePin.setAttribute("aria-label", timelinePin.title);
+  timelinePin.innerHTML = pinIcon();
+  timelinePin.addEventListener("click", options.onTimelineTogglePin);
+  timelineHeader.append(timelinePin);
 
   const timelineList = document.createElement("div");
   timelineList.className = "timeline-list";
@@ -277,11 +339,11 @@ function renderChatLayout(messages: Message[], showToolBlocks: boolean): HTMLEle
     }
   };
 
-  for (const [index, message] of messages.entries()) {
+  for (const [index, message] of options.messages.entries()) {
     const anchorId = buildAnchorId(message, index);
     const messageElement = renderMessage(message, {
       anchorId,
-      showToolBlocks
+      showToolBlocks: options.showToolBlocks
     });
     const timelineButton = renderTimelineButton(message, index, anchorId);
 
@@ -303,7 +365,8 @@ function renderChatLayout(messages: Message[], showToolBlocks: boolean): HTMLEle
   }
 
   timeline.append(timelineHeader, timelineList);
-  layout.append(messageList, timeline);
+  timelineDock.append(timelineRail, timeline);
+  layout.append(messageList, timelineDock);
   return layout;
 }
 

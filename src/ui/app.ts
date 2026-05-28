@@ -8,6 +8,8 @@ import { createSshModal } from "./sshModal.js";
 type AppTheme = "light" | "dark";
 
 const THEME_STORAGE_KEY = "thread-atlas-theme";
+const SIDEBAR_PIN_STORAGE_KEY = "thread-atlas-sidebar-pinned";
+const TIMELINE_PIN_STORAGE_KEY = "thread-atlas-timeline-pinned";
 
 export class ThreadAtlasApp {
   private readonly shell: HTMLElement;
@@ -18,6 +20,11 @@ export class ThreadAtlasApp {
   private readonly themeControls: HTMLElement;
   private messageFilter: MessageViewFilter = "default";
   private theme: AppTheme = getInitialTheme();
+  private sidebarPinned = getStoredBoolean(SIDEBAR_PIN_STORAGE_KEY, true);
+  private sidebarOpen = false;
+  private timelinePinned = getStoredBoolean(TIMELINE_PIN_STORAGE_KEY, window.innerWidth >= 1200);
+  private timelineOpen = false;
+  private viewportWidth = window.innerWidth;
   private sidebarScrollTop = 0;
 
   constructor(
@@ -85,6 +92,34 @@ export class ThreadAtlasApp {
     this.store.subscribe((state) => {
       this.render(state);
     });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      let changed = false;
+      if (!this.isSidebarPinned() && this.sidebarOpen) {
+        this.sidebarOpen = false;
+        changed = true;
+      }
+      if (!this.isTimelinePinned() && this.timelineOpen) {
+        this.timelineOpen = false;
+        changed = true;
+      }
+      if (changed) {
+        this.render(this.store.getState());
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      const nextWidth = window.innerWidth;
+      if (nextWidth === this.viewportWidth) {
+        return;
+      }
+      this.viewportWidth = nextWidth;
+      this.render(this.store.getState());
+    });
   }
 
   async init(): Promise<void> {
@@ -92,6 +127,16 @@ export class ThreadAtlasApp {
   }
 
   private render(state: StoreState): void {
+    const sidebarPinned = this.isSidebarPinned();
+    const timelinePinned = this.isTimelinePinned();
+    const sidebarOpen = sidebarPinned || this.sidebarOpen;
+    const timelineOpen = timelinePinned || this.timelineOpen;
+
+    this.shell.classList.toggle("sidebar-pinned", sidebarPinned);
+    this.shell.classList.toggle("sidebar-open", this.sidebarOpen);
+    this.shell.classList.toggle("timeline-pinned", timelinePinned);
+    this.shell.classList.toggle("timeline-open", this.timelineOpen);
+
     this.statusNode.textContent = state.status;
     this.statusNode.title = state.status;
 
@@ -107,6 +152,19 @@ export class ThreadAtlasApp {
         sourceFilter: state.sourceFilter,
         search: state.search,
         loading: state.loadingScan,
+        pinned: sidebarPinned,
+        open: sidebarOpen,
+        onToggleOpen: () => {
+          this.sidebarOpen = !sidebarOpen;
+          this.render(this.store.getState());
+        },
+        onTogglePin: () => {
+          const nextPinned = !this.sidebarPinned;
+          this.sidebarPinned = nextPinned;
+          this.sidebarOpen = !nextPinned;
+          localStorage.setItem(SIDEBAR_PIN_STORAGE_KEY, String(this.sidebarPinned));
+          this.render(this.store.getState());
+        },
         onSearch: (value) => {
           this.store.setSearch(value);
         },
@@ -115,6 +173,10 @@ export class ThreadAtlasApp {
         },
         onSelect: async (key) => {
           await this.store.selectSession(key);
+          if (!this.isSidebarPinned()) {
+            this.sidebarOpen = false;
+            this.render(this.store.getState());
+          }
         }
       })
     );
@@ -126,8 +188,21 @@ export class ThreadAtlasApp {
         session: selectedSession,
         loading: state.loadingSession,
         messageFilter: this.messageFilter,
+        timelinePinned,
+        timelineOpen,
         onFilterChange: (filter) => {
           this.messageFilter = filter;
+          this.render(this.store.getState());
+        },
+        onTimelineToggleOpen: () => {
+          this.timelineOpen = !timelineOpen;
+          this.render(this.store.getState());
+        },
+        onTimelineTogglePin: () => {
+          const nextPinned = !this.timelinePinned;
+          this.timelinePinned = nextPinned;
+          this.timelineOpen = !nextPinned;
+          localStorage.setItem(TIMELINE_PIN_STORAGE_KEY, String(this.timelinePinned));
           this.render(this.store.getState());
         },
         onExport: (session) => {
@@ -135,6 +210,14 @@ export class ThreadAtlasApp {
         }
       })
     );
+  }
+
+  private isSidebarPinned(): boolean {
+    return this.sidebarPinned && this.viewportWidth >= 960;
+  }
+
+  private isTimelinePinned(): boolean {
+    return this.timelinePinned && this.viewportWidth >= 1200;
   }
 
   private captureSidebarScroll(): void {
@@ -245,4 +328,15 @@ function getInitialTheme(): AppTheme {
   }
 
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function getStoredBoolean(key: string, fallback: boolean): boolean {
+  const value = localStorage.getItem(key);
+  if (value === "true") {
+    return true;
+  }
+  if (value === "false") {
+    return false;
+  }
+  return fallback;
 }

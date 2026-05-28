@@ -1,5 +1,7 @@
 :root {
   --timeline-width: 320px;
+  --sidebar-width: 320px;
+  --rail-width: 44px;
   --bg-app: #f6f8fa;
   --bg-panel: #ffffff;
   --bg-panel-muted: #f6f8fa;
@@ -341,6 +343,8 @@ input[type="checkbox"] {
 .filter-chip:focus-visible,
 .session-row:focus-visible,
 .timeline-item:focus-visible,
+.rail-button:focus-visible,
+.panel-icon-button:focus-visible,
 .text-input:focus-visible,
 .select-input:focus-visible,
 .text-area:focus-visible {
@@ -429,19 +433,26 @@ input[type="checkbox"] {
 
 .content-grid {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
+  position: relative;
+}
+
+.app-shell.sidebar-pinned .content-grid {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .sidebar-mount {
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   border-right: 1px solid var(--border-default);
   background: var(--bg-panel-muted);
+  z-index: 4;
 }
 
 .main-mount {
@@ -453,11 +464,110 @@ input[type="checkbox"] {
   background: var(--bg-app);
 }
 
+.sidebar-dock {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--rail-width) var(--sidebar-width);
+  width: var(--rail-width);
+  height: 100%;
+  min-height: 0;
+}
+
+.sidebar-dock.open {
+  width: var(--rail-width);
+}
+
+.sidebar-dock.pinned {
+  width: 100%;
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.sidebar-rail,
+.timeline-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  border-right: 1px solid var(--border-default);
+  background: var(--bg-panel);
+}
+
+.sidebar-dock.pinned .sidebar-rail {
+  display: none;
+}
+
+.rail-button,
+.panel-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-muted);
+  color: var(--text-secondary);
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+
+.rail-button:hover,
+.panel-icon-button:hover,
+.panel-icon-button.active {
+  border-color: var(--border-strong);
+  background: var(--accent-subtle);
+  color: var(--accent-emphasis);
+}
+
+.rail-button svg,
+.panel-icon-button svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
 .sidebar {
+  position: absolute;
+  left: var(--rail-width);
+  top: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  width: var(--sidebar-width);
+  border-right: 1px solid var(--border-default);
+  background: var(--bg-panel-muted);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-100%);
+  transition: transform var(--transition);
+}
+
+.sidebar-dock.open .sidebar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.sidebar-dock.pinned .sidebar {
+  grid-column: 1 / -1;
+  position: static;
+  width: auto;
+  border-right: 0;
+  box-shadow: none;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.panel-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .panel-header {
@@ -636,21 +746,31 @@ input[type="checkbox"] {
 
 .main-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--timeline-width);
+  grid-template-columns: minmax(0, 1fr) var(--rail-width);
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.main-panel.timeline-pinned {
+  grid-template-columns: minmax(0, 1fr) var(--timeline-width);
 }
 
 .chat-header {
   grid-column: 1 / -1;
   grid-row: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--timeline-width);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   position: relative;
   z-index: 1;
   background: transparent;
+}
+
+.main-panel.timeline-pinned .chat-header {
+  grid-column: 1 / 2;
 }
 
 .chat-header-main {
@@ -665,15 +785,13 @@ input[type="checkbox"] {
 .chat-header-aside {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   align-self: start;
-  justify-self: center;
+  justify-self: stretch;
   min-width: 0;
-  margin: 8px auto 0;
-  padding: 6px 10px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-panel-muted);
+  padding: 0 16px 10px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-panel);
 }
 
 .chat-title-row {
@@ -796,18 +914,76 @@ input[type="checkbox"] {
   gap: 16px;
 }
 
-.timeline-panel {
+.timeline-dock {
   grid-column: 2;
   grid-row: 1 / span 2;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--rail-width) var(--timeline-width);
+  width: var(--rail-width);
+  min-height: 0;
+  min-width: 0;
+  z-index: 3;
+}
+
+.timeline-dock.open {
+  width: var(--rail-width);
+}
+
+.timeline-dock.pinned {
+  width: 100%;
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.timeline-dock.pinned .timeline-rail {
+  display: none;
+}
+
+.timeline-rail {
+  border-right: 0;
+  border-left: 1px solid var(--border-default);
+}
+
+.timeline-panel {
+  position: absolute;
+  right: var(--rail-width);
+  top: 0;
+  width: var(--timeline-width);
+  height: 100%;
   min-height: 0;
   border-left: 1px solid var(--border-default);
   background: var(--bg-panel-muted);
   display: flex;
   flex-direction: column;
   min-width: 0;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(100%);
+  transition: transform var(--transition);
+}
+
+.timeline-dock.open .timeline-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.timeline-dock.pinned .timeline-panel {
+  grid-column: 1 / -1;
+  position: static;
+  width: auto;
+  box-shadow: none;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
 }
 
 .timeline-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   padding: 48px 16px 16px;
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-panel);
@@ -1570,12 +1746,8 @@ input[type="checkbox"] {
 }
 
 @media (max-width: 1200px) {
-  .main-panel {
-    display: flex;
-    flex-direction: column;
-  }
-
   .chat-header {
+    grid-column: 1 / 2;
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -1592,26 +1764,21 @@ input[type="checkbox"] {
   }
 
   .chat-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .chat-messages {
-    grid-column: auto;
-    grid-row: auto;
-  }
-
-  .timeline-panel {
-    display: none;
+    display: contents;
   }
 }
 
 @media (max-width: 960px) {
+  :root {
+    --sidebar-width: 280px;
+  }
+
   .content-grid {
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  }
+
+  .app-shell.sidebar-pinned .content-grid {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   }
 
   .chat-header {
@@ -1655,13 +1822,13 @@ input[type="checkbox"] {
   }
 
   .content-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
   }
 
   .sidebar-mount {
-    border-right: 0;
-    border-bottom: 1px solid var(--border-default);
-    max-height: 42vh;
+    border-right: 1px solid var(--border-default);
+    border-bottom: 0;
+    max-height: none;
   }
 
   .chat-title-row,
