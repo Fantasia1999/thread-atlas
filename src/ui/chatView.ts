@@ -96,8 +96,6 @@ function renderSessionHeader(options: {
 
   const main = document.createElement("div");
   main.className = "chat-header-main";
-  const aside = document.createElement("div");
-  aside.className = "chat-header-aside";
 
   const titleRow = document.createElement("div");
   titleRow.className = "chat-title-row";
@@ -190,7 +188,9 @@ function renderSessionHeader(options: {
 
   meta.innerHTML = metaItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("");
 
-  main.append(titleRow, pathWrapper, meta);
+  const metaRow = document.createElement("div");
+  metaRow.className = "chat-meta-row";
+  metaRow.append(meta);
 
   if (session) {
     const filterRow = document.createElement("div");
@@ -211,10 +211,12 @@ function renderSessionHeader(options: {
     }
 
     filterRow.append(chipRow);
-    aside.append(filterRow);
+    metaRow.append(filterRow);
   }
 
-  header.append(main, aside);
+  main.append(titleRow, pathWrapper, metaRow);
+
+  header.append(main);
   return header;
 }
 

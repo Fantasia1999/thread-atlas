@@ -882,14 +882,13 @@ html[data-theme="dark"] .log-role-badge.system {
   width: 100%;
 }
 
-.chat-header-aside {
+.chat-meta-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start; /* Align filters to the left */
+  justify-content: space-between; /* Space between metadata and filters */
+  flex-wrap: wrap;
+  gap: 12px;
   width: 100%;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-subtle); /* Elegant top divider for filters */
-  margin-top: 4px;
 }
 
 .chat-title-row {
@@ -1022,6 +1021,7 @@ html[data-theme="dark"] .log-role-badge.system {
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
+  justify-content: flex-end; /* Align chips inside the row to the right */
 }
 
 /* Stark micro filter chips */
@@ -2106,6 +2106,7 @@ details[open] .tool-call-header::after {
   }
 
   .chat-title-row,
+  .chat-meta-row,
   .chat-filter-row {
     flex-direction: column;
     align-items: stretch;
