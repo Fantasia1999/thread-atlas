@@ -94,76 +94,76 @@
 }
 
 html[data-theme="dark"] {
-  /* Stark Technical Dark Theme (Vercel Obsidian Slate) */
-  --bg-app: #090a0f; /* Deep solid technical black */
-  --bg-panel: #11141a;
-  --bg-panel-muted: #181d26;
-  --bg-surface: #11141a;
-  --bg-surface-hover: #181d26;
-  --bg-surface-active: #212836;
-  --bg-code: #090a0f;
-  --bg-overlay: rgba(0, 0, 0, 0.6);
+  /* Stark Technical Dark Theme (Premium Obsidian Charcoal/Zinc) */
+  --bg-app: #09090b; /* Deep rich zinc black */
+  --bg-panel: #141416; /* Clean solid slate dark gray */
+  --bg-panel-muted: #18181b; /* Soft dark panel backdrop */
+  --bg-surface: #141416;
+  --bg-surface-hover: #1e1e21; /* Micro-hover state */
+  --bg-surface-active: #27272a;
+  --bg-code: #09090b;
+  --bg-overlay: rgba(0, 0, 0, 0.7);
 
-  --border-subtle: #181d26;
-  --border-default: #1e293b;
-  --border-strong: #334155;
-  --border-focus: #ffffff; /* Stark white focus borders */
+  --border-subtle: #18181b;
+  --border-default: #27272a; /* Precise zinc borders */
+  --border-strong: #3f3f46; /* Pronounced slate/zinc borders */
+  --border-focus: #f4f4f5; /* Stark off-white focus indicators */
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #475569;
-  --text-link: #3b82f6;
-  --text-link-hover: #60a5fa;
+  --text-primary: #f4f4f5; /* Calming off-white for superb readability */
+  --text-secondary: #a1a1aa; /* Professional soft gray */
+  --text-muted: #52525b; /* Zinc-600 */
+  --text-link: #60a5fa; /* Premium developer link blue */
+  --text-link-hover: #93c5fd;
 
-  --accent-subtle: #1e293b;
-  --accent-emphasis: #ffffff; /* Stark white solid accents */
+  --accent-subtle: #27272a;
+  --accent-emphasis: #f4f4f5; /* Stark solid accent text */
   --accent-base: #10b981;
   --accent-base-hover: #34d399;
-  --accent-inverse: #090a0f;
+  --accent-inverse: #09090b;
 
   --success: #34d399;
   --warning: #fbbf24;
   --danger: #f87171;
   
-  --brand-claude: #fdba74;
-  --brand-opencode: #34d399;
-  --brand-gemini: #fcd34d;
-  --brand-codex: #60a5fa;
-  --brand-antigravity: #22d3ee;
-  --brand-copilot: #c084fc;
+  --brand-claude: #f97316; /* Soft natural brand colors */
+  --brand-opencode: #10b981;
+  --brand-gemini: #eab308;
+  --brand-codex: #3b82f6;
+  --brand-antigravity: #06b6d4;
+  --brand-copilot: #8b5cf6;
 
-  --md-surface: #11141a;
-  --md-surface-strong: #181d26;
-  --md-border: #1e293b;
-  --md-code-bg: #090a0f;
-  --md-code-header: #11141a;
-  --md-code-text: #e2e8f0; /* Soft light text for dark mode code */
-  --md-code-comment: #475569;
-  --md-code-keyword: #fb7185;
-  --md-code-string: #34d399;
-  --md-code-number: #fbbf24;
-  --md-code-function: #60a5fa;
-  --md-code-builtin: #22d3ee;
-  --md-code-attr: #f97316;
-  --md-code-property: #c084fc;
-  --md-code-tag: #fb7185;
-  --md-code-operator: #94a3b8;
-  --md-code-meta: #475569;
-  --md-code-emphasis: #181d26;
-  --md-code-line-insert: rgba(52, 211, 153, 0.1);
-  --md-code-line-delete: rgba(248, 113, 113, 0.1);
-  --md-code-line-meta: rgba(96, 165, 250, 0.08);
-  --md-inline-code-bg: #1e293b;
-  --md-inline-code-text: #fda4af;
-  --md-link: #3b82f6;
-  --md-link-hover: #60a5fa;
-  --md-quote-border: #334155;
-  --md-quote-bg: rgba(30, 41, 59, 0.2);
-  --md-table-stripe: rgba(255, 255, 255, 0.01);
+  --md-surface: #141416;
+  --md-surface-strong: #18181b;
+  --md-border: #27272a;
+  --md-code-bg: #09090b;
+  --md-code-header: #141416;
+  --md-code-text: #e4e4e7; /* Soft light zinc text for code blocks */
+  --md-code-comment: #71717a; /* Clean zinc gray comments */
+  --md-code-keyword: #ff7b72; /* Premium soft red/coral */
+  --md-code-string: #7ee787; /* Gentle pastel green */
+  --md-code-number: #79c0ff; /* Muted sky blue */
+  --md-code-function: #d2a8ff; /* Soft professional purple/lavender */
+  --md-code-builtin: #ffa657; /* Warm soft orange */
+  --md-code-attr: #79c0ff;
+  --md-code-property: #a5d6ff;
+  --md-code-tag: #7ee787;
+  --md-code-operator: #ff7b72;
+  --md-code-meta: #a1a1aa;
+  --md-code-emphasis: #18181b;
+  --md-code-line-insert: rgba(16, 185, 129, 0.08);
+  --md-code-line-delete: rgba(239, 68, 68, 0.08);
+  --md-code-line-meta: rgba(59, 130, 246, 0.06);
+  --md-inline-code-bg: #27272a;
+  --md-inline-code-text: #f43f5e;
+  --md-link: #60a5fa;
+  --md-link-hover: #93c5fd;
+  --md-quote-border: #3f3f46;
+  --md-quote-bg: rgba(39, 39, 42, 0.3);
+  --md-table-stripe: rgba(255, 255, 255, 0.015);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
 }
 
 *,
@@ -762,8 +762,8 @@ html[data-theme="dark"] .source-badge.codex,
 html[data-theme="dark"] .log-role-badge.assistant,
 html[data-theme="dark"] .log-role-badge.developer {
   color: #93c5fd;
-  background: #1e3a8a;
-  border-color: #172554;
+  background: rgba(147, 197, 253, 0.08);
+  border-color: rgba(147, 197, 253, 0.15);
 }
 
 .source-badge.claude {
@@ -773,8 +773,8 @@ html[data-theme="dark"] .log-role-badge.developer {
 }
 html[data-theme="dark"] .source-badge.claude {
   color: #fdba74;
-  background: #431407;
-  border-color: #2c0e05;
+  background: rgba(253, 186, 116, 0.08);
+  border-color: rgba(253, 186, 116, 0.15);
 }
 
 .source-badge.opencode {
@@ -784,8 +784,8 @@ html[data-theme="dark"] .source-badge.claude {
 }
 html[data-theme="dark"] .source-badge.opencode {
   color: #6ee7b7;
-  background: #064e3b;
-  border-color: #022c22;
+  background: rgba(110, 231, 183, 0.08);
+  border-color: rgba(110, 231, 183, 0.15);
 }
 
 .source-badge.gemini,
@@ -797,8 +797,8 @@ html[data-theme="dark"] .source-badge.opencode {
 html[data-theme="dark"] .source-badge.gemini,
 html[data-theme="dark"] .log-role-badge.tool {
   color: #fcd34d;
-  background: #451a03;
-  border-color: #2d0f02;
+  background: rgba(252, 211, 77, 0.08);
+  border-color: rgba(252, 211, 77, 0.15);
 }
 
 .source-badge.antigravity {
@@ -808,8 +808,8 @@ html[data-theme="dark"] .log-role-badge.tool {
 }
 html[data-theme="dark"] .source-badge.antigravity {
   color: #67e8f9;
-  background: #164e63;
-  border-color: #083344;
+  background: rgba(103, 232, 249, 0.08);
+  border-color: rgba(103, 232, 249, 0.15);
 }
 
 .source-badge.copilot {
@@ -819,8 +819,8 @@ html[data-theme="dark"] .source-badge.antigravity {
 }
 html[data-theme="dark"] .source-badge.copilot {
   color: #d8b4fe;
-  background: #3b0764;
-  border-color: #240046;
+  background: rgba(216, 180, 254, 0.08);
+  border-color: rgba(216, 180, 254, 0.15);
 }
 
 .log-role-badge.user {
@@ -830,8 +830,8 @@ html[data-theme="dark"] .source-badge.copilot {
 }
 html[data-theme="dark"] .log-role-badge.user {
   color: #6ee7b7;
-  background: #064e3b;
-  border-color: #022c22;
+  background: rgba(110, 231, 183, 0.08);
+  border-color: rgba(110, 231, 183, 0.15);
 }
 
 .log-role-badge.system {
@@ -841,8 +841,8 @@ html[data-theme="dark"] .log-role-badge.user {
 }
 html[data-theme="dark"] .log-role-badge.system {
   color: #fca5a5;
-  background: #450a0a;
-  border-color: #2d0606;
+  background: rgba(252, 165, 165, 0.08);
+  border-color: rgba(252, 165, 165, 0.15);
 }
 
 /* Chat Detail Layout */
