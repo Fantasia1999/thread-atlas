@@ -263,20 +263,6 @@ input[type="checkbox"] {
   color: var(--text-primary);
 }
 
-.brand-repo-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 22px; /* Increased from 20px */
-  padding: 0 8px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--bg-panel-muted);
-  color: var(--text-secondary);
-  font-size: 11px; /* Increased from 10px */
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
 .topbar-actions {
   display: flex;
   align-items: center;

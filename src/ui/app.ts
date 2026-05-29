@@ -42,7 +42,6 @@ export class ThreadAtlasApp {
     brand.innerHTML = `
       <p class="eyebrow">AI Session Browser</p>
       <h1>ThreadAtlas</h1>
-      <span class="brand-repo-chip">github-style</span>
     `;
 
     const actions = document.createElement("div");
