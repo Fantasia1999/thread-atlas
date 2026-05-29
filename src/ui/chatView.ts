@@ -135,20 +135,62 @@ function renderSessionHeader(options: {
   const meta = document.createElement("div");
   meta.className = "chat-meta";
 
-  const metaItems = [
-    descriptor.source,
-    descriptor.origin,
-    descriptor.transport,
-    ...(session
-      ? [
-          `${options.filteredCount}/${session.messageCount} messages`,
-          session.cwd ?? "cwd unavailable",
-          formatDateTime(session.startedAt, "time unavailable")
-        ]
-      : [])
-  ];
+  // 1. Source
+  const sourceSpan = document.createElement("span");
+  sourceSpan.textContent = descriptor.source;
+  meta.append(sourceSpan);
 
-  meta.innerHTML = metaItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("");
+  // 2. Origin
+  const originSpan = document.createElement("span");
+  originSpan.textContent = descriptor.origin;
+  meta.append(originSpan);
+
+  // 3. Transport
+  const transportSpan = document.createElement("span");
+  transportSpan.textContent = descriptor.transport;
+  meta.append(transportSpan);
+
+  if (session) {
+    // 4. Messages count
+    const msgSpan = document.createElement("span");
+    msgSpan.textContent = `${options.filteredCount}/${session.messageCount} messages`;
+    meta.append(msgSpan);
+
+    // 5. CWD (Workspace)
+    const cwdSpan = document.createElement("span");
+    if (session.cwd) {
+      const dirName = session.cwd.split(/[\\/]/).filter(Boolean).at(-1) ?? session.cwd;
+      cwdSpan.textContent = dirName;
+      cwdSpan.title = `${session.cwd} (Double-click to copy full path)`;
+      cwdSpan.style.cursor = "pointer";
+      cwdSpan.style.userSelect = "none";
+      
+      cwdSpan.addEventListener("dblclick", async () => {
+        try {
+          await copyText(session.cwd!);
+          const originalText = cwdSpan.textContent;
+          cwdSpan.textContent = "Copied!";
+          cwdSpan.style.color = "var(--success)";
+          cwdSpan.style.fontWeight = "700";
+          setTimeout(() => {
+            cwdSpan.textContent = originalText;
+            cwdSpan.style.color = "";
+            cwdSpan.style.fontWeight = "";
+          }, 1200);
+        } catch {
+          // Fallback if clipboard API fails
+        }
+      });
+    } else {
+      cwdSpan.textContent = "cwd unavailable";
+    }
+    meta.append(cwdSpan);
+
+    // 6. Started At
+    const timeSpan = document.createElement("span");
+    timeSpan.textContent = formatDateTime(session.startedAt, "time unavailable");
+    meta.append(timeSpan);
+  }
 
   const metaRow = document.createElement("div");
   metaRow.className = "chat-meta-row";

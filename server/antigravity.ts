@@ -246,6 +246,27 @@ async function decodeAntigravityTrajectory(
   throw new Error("Failed to decode Antigravity trajectory with bundled or extension descriptors.");
 }
 
+async function findWorkspaceFromHistory(cascadeId: string): Promise<string | undefined> {
+  try {
+    const historyPath = path.join(os.homedir(), ".gemini", "antigravity-cli", "history.jsonl");
+    const content = await fs.readFile(historyPath, "utf8");
+    const lines = content.split("\n").filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const entry = JSON.parse(lines[i]);
+        if (entry.conversationId === cascadeId && typeof entry.workspace === "string" && entry.workspace.trim()) {
+          return entry.workspace;
+        }
+      } catch {
+        // Ignore JSON parsing errors
+      }
+    }
+  } catch {
+    // Ignore file reading errors
+  }
+  return undefined;
+}
+
 export async function loadAntigravityBundle(
   absolutePath: string,
   origin: "local" | "remote"
@@ -274,7 +295,8 @@ export async function loadAntigravityBundle(
     sourceJson: null,
     brainDir
   });
-  const primaryWorkspace = extractPrimaryWorkspace(summary.workspaces);
+  const historyWorkspace = await findWorkspaceFromHistory(cascadeId);
+  const primaryWorkspace = historyWorkspace ?? extractPrimaryWorkspace(summary.workspaces);
 
   const recordsContent = records.map((record) => JSON.stringify(record)).join("\n");
   const firstUserTitle = extractAntigravityPreviewTitle(recordsContent);
@@ -319,13 +341,16 @@ async function loadAntigravityTranscriptBundle(
   const firstUserTitle = extractAntigravityPreviewTitle(recordsContent);
   const title = firstUserTitle ?? descriptor.title;
 
+  const historyWorkspace = await findWorkspaceFromHistory(cascadeId);
+
   return {
     ...descriptor,
     title,
     metadata: {
       ...descriptor.metadata,
       stepCount: rows.length,
-      loaderBackend: "transcript"
+      loaderBackend: "transcript",
+      primaryWorkspace: historyWorkspace ? String(historyWorkspace) : null
     },
     files: [
       {
@@ -336,7 +361,7 @@ async function loadAntigravityTranscriptBundle(
   };
 }
 
-class DirectPbDecoder {
+export class DirectPbDecoder {
   private readonly loadedFiles = new Set<string>();
   private readonly messages = new Map<string, MessageDescriptor>();
   private readonly enums = new Map<string, EnumDescriptor>();
@@ -705,7 +730,7 @@ async function tryDecodeAntigravityTrajectory(
   }
 }
 
-function loadBundledDescriptorFiles(): Map<string, Buffer> {
+export function loadBundledDescriptorFiles(): Map<string, Buffer> {
   if (!bundledDescriptorFiles) {
     bundledDescriptorFiles = descriptorMapFromBase64(BUNDLED_ANTIGRAVITY_DESCRIPTORS);
   }

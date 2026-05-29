@@ -419,6 +419,10 @@ input[type="checkbox"] {
 }
 
 .status-pill {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 24px;
+  text-align: left;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -430,7 +434,7 @@ input[type="checkbox"] {
   user-select: none;
   transition: all var(--transition);
   font-family: inherit; /* Use the premium sans-serif Inter font */
-  font-weight: 600;
+  font-weight: 500; /* Elegant medium weight instead of heavy bold */
   letter-spacing: -0.01em;
 }
 
