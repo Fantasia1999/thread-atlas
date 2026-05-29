@@ -426,6 +426,21 @@ input[type="checkbox"] {
   text-overflow: ellipsis;
   border-color: var(--border-strong);
   color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--transition);
+}
+
+.status-pill:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-focus);
+}
+
+.status-pill.copied {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.3);
+  font-weight: 600;
 }
 
 .topbar .button {

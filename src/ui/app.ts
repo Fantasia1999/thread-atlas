@@ -64,6 +64,23 @@ export class ThreadAtlasApp {
 
     this.statusNode = document.createElement("div");
     this.statusNode.className = "status-pill";
+    this.statusNode.addEventListener("dblclick", () => {
+      const textToCopy = this.statusNode.getAttribute("data-path") || this.statusNode.textContent || "";
+      if (!textToCopy) return;
+
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        this.statusNode.classList.add("copied");
+        this.statusNode.textContent = "Copied! ✓";
+        this.statusNode.title = "Successfully copied to clipboard";
+        
+        setTimeout(() => {
+          this.statusNode.classList.remove("copied");
+          const latestPath = this.statusNode.getAttribute("data-path") || "";
+          this.statusNode.textContent = latestPath;
+          this.statusNode.title = "Double-click to copy absolute path\n" + latestPath;
+        }, 1200);
+      });
+    });
 
     const rightRail = document.createElement("div");
     rightRail.className = "topbar-side";
@@ -137,12 +154,14 @@ export class ThreadAtlasApp {
     this.shell.classList.toggle("timeline-open", this.timelineOpen);
 
     const selectedDescriptor = this.store.getSelectedDescriptor();
-    if (selectedDescriptor) {
-      this.statusNode.textContent = selectedDescriptor.primaryPath;
-      this.statusNode.title = selectedDescriptor.primaryPath;
-    } else {
-      this.statusNode.textContent = state.status;
-      this.statusNode.title = state.status;
+    const currentPath = selectedDescriptor ? selectedDescriptor.primaryPath : state.status;
+    this.statusNode.setAttribute("data-path", currentPath);
+
+    if (!this.statusNode.classList.contains("copied")) {
+      this.statusNode.textContent = currentPath;
+      this.statusNode.title = selectedDescriptor 
+        ? "Double-click to copy absolute path\n" + currentPath 
+        : currentPath;
     }
 
     const visibleDescriptors = this.store.getVisibleDescriptors();
