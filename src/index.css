@@ -1626,7 +1626,7 @@ html[data-theme="dark"] .log-role-badge.system {
   align-items: center;
   min-height: 34px;
   padding: 0 12px;
-  background: var(--bg-surface);
+  background: var(--bg-panel-muted);
   color: var(--text-secondary);
   font-size: 12px;
   list-style: none;
@@ -1663,7 +1663,7 @@ details[open] .tool-call-header::after {
 .tool-call-output {
   padding: 12px;
   border-top: 1px solid var(--border-default);
-  background: var(--bg-surface);
+  background: var(--bg-panel-muted);
 }
 
 .tool-call-label {
