@@ -900,68 +900,6 @@ html[data-theme="dark"] .log-role-badge.system {
   letter-spacing: -0.02em;
 }
 
-.chat-path-wrapper {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap; /* Allow wrapping for copy button on narrow widths */
-  gap: 6px;
-}
-
-.chat-path {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 12px; /* Increased from 11px for better monospace readability */
-  line-height: 1.4;
-  word-break: break-all; /* Allow breaking anywhere to wrap cleanly */
-  white-space: pre-wrap; /* Wrap naturally instead of ellipsis */
-  padding: 4px 8px; /* Slightly larger padding for multiline paths */
-  background: var(--bg-panel-muted);
-  border-radius: var(--radius-sm);
-  display: inline-block;
-  align-self: start;
-  border: 1px solid var(--border-default);
-  max-width: 100%; /* Occupy up to full width to show whole path */
-}
-
-.copy-path-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  min-height: 22px;
-  padding: 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.copy-path-button svg {
-  width: 11px;
-  height: 11px;
-  fill: currentColor;
-}
-
-.copy-path-button:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-surface-hover);
-  color: var(--text-primary);
-}
-
-.copy-path-button[data-state="success"] {
-  border-color: var(--success);
-  background: rgba(16, 185, 129, 0.06);
-  color: var(--success);
-}
-
-.copy-path-button[data-state="error"] {
-  border-color: var(--danger);
-  background: rgba(239, 68, 68, 0.06);
-  color: var(--danger);
-}
 
 /* Stark Tiny Metadata Badges */
 .chat-meta {

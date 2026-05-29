@@ -136,11 +136,16 @@ export class ThreadAtlasApp {
     this.shell.classList.toggle("timeline-pinned", timelinePinned);
     this.shell.classList.toggle("timeline-open", this.timelineOpen);
 
-    this.statusNode.textContent = state.status;
-    this.statusNode.title = state.status;
+    const selectedDescriptor = this.store.getSelectedDescriptor();
+    if (selectedDescriptor) {
+      this.statusNode.textContent = selectedDescriptor.primaryPath;
+      this.statusNode.title = selectedDescriptor.primaryPath;
+    } else {
+      this.statusNode.textContent = state.status;
+      this.statusNode.title = state.status;
+    }
 
     const visibleDescriptors = this.store.getVisibleDescriptors();
-    const selectedDescriptor = this.store.getSelectedDescriptor();
     const selectedSession = this.store.getSelectedSession();
     this.captureSidebarScroll();
 
