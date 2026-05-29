@@ -4,6 +4,7 @@ import { createImportModal } from "./importModal.js";
 import { renderSidebar } from "./sidebar.js";
 import { type MessageViewFilter, renderChatView } from "./chatView.js";
 import { createSshModal } from "./sshModal.js";
+import { showToast } from "./utils.js";
 
 type AppTheme = "light" | "dark";
 
@@ -72,6 +73,7 @@ export class ThreadAtlasApp {
         this.statusNode.classList.add("copied");
         this.statusNode.textContent = "Copied! ✓";
         this.statusNode.title = "Successfully copied to clipboard";
+        showToast("Path copied to clipboard!", "success");
         
         setTimeout(() => {
           this.statusNode.classList.remove("copied");

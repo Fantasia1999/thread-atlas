@@ -80,3 +80,38 @@ function parseTimestamp(value?: string): number | null {
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? null : timestamp;
 }
+
+export function showToast(message: string, type: "success" | "error" = "success"): void {
+  let container = document.querySelector(".toast-container") as HTMLDivElement | null;
+  if (!container) {
+    container = document.createElement("div");
+    container.className = "toast-container";
+    document.body.append(container);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  
+  const icon = type === "success" ? "✓" : "✗";
+  toast.innerHTML = `
+    <span class="toast-icon">${icon}</span>
+    <span class="toast-message">${escapeHtml(message)}</span>
+  `;
+
+  container.append(toast);
+
+  // Trigger layout reflow
+  toast.getBoundingClientRect();
+  toast.classList.add("visible");
+
+  setTimeout(() => {
+    toast.classList.remove("visible");
+    toast.classList.add("exiting");
+    setTimeout(() => {
+      toast.remove();
+      if (container && container.children.length === 0) {
+        container.remove();
+      }
+    }, 300);
+  }, 2500);
+}
