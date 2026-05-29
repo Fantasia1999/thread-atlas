@@ -56,6 +56,19 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   closeButton.addEventListener("click", options.onClose);
   header.append(closeButton);
 
+  // Tab Header
+  const tabHeader = document.createElement("div");
+  tabHeader.className = "modal-tabs";
+  tabHeader.innerHTML = `
+    <button class="tab-btn active" data-tab="saved" type="button">📂 Saved Connections</button>
+    <button class="tab-btn" data-tab="configure" type="button">⚙️ New Connection</button>
+    <button class="tab-btn" data-tab="results" id="tab-results-btn" type="button">📡 Discovered Sessions</button>
+  `;
+
+  // Tab 1: Saved Connections panel
+  const tabSavedContent = document.createElement("div");
+  tabSavedContent.className = "tab-content active";
+
   const savedSection = document.createElement("section");
   savedSection.className = "saved-server-panel";
 
@@ -75,14 +88,27 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   const syncSavedButton = button("Sync checked", "primary");
   savedActions.append(saveCurrentButton, syncSavedButton);
 
+  const savedStatus = document.createElement("div");
+  savedStatus.className = "saved-status-inline";
+  savedStatus.textContent = "Select saved connections to sync in batch.";
+
   const savedList = document.createElement("div");
   savedList.className = "saved-server-list";
 
-  savedSection.append(savedSectionHeader, savedActions, savedList);
+  savedSection.append(savedSectionHeader, savedActions, savedStatus, savedList);
+  tabSavedContent.append(savedSection);
+
+  // Tab 2: New Connection config form
+  const tabConfigureContent = document.createElement("div");
+  tabConfigureContent.className = "tab-content";
 
   const form = document.createElement("div");
   form.className = "form-grid";
   form.innerHTML = `
+    <div class="auth-mode-selector field-span-2">
+      <button class="auth-mode-btn active" data-mode="password" type="button">🔑 Password Auth</button>
+      <button class="auth-mode-btn" data-mode="privateKey" type="button">🔒 Private Key Auth</button>
+    </div>
     <label>
       <span>Host</span>
       <input class="text-input" name="host" placeholder="example.com" />
@@ -110,7 +136,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   `;
 
   const status = document.createElement("div");
-  status.className = "status-inline";
+  status.className = "status-inline status-info";
   status.textContent = "Fill host and username, then test or scan.";
 
   const controls = document.createElement("div");
@@ -118,32 +144,273 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
   const testButton = button("Test connection", "secondary");
   const scanButton = button("Scan remote", "");
-  const syncButton = button("Sync selected", "");
-  syncButton.disabled = true;
-  controls.append(testButton, scanButton, syncButton);
+  controls.append(testButton, scanButton);
 
-  const results = document.createElement("div");
-  results.className = "remote-results empty-state";
-  results.textContent = "No remote scan results yet.";
+  const formScrollContainer = document.createElement("div");
+  formScrollContainer.className = "form-scroll-container";
+  formScrollContainer.append(form);
 
+  tabConfigureContent.append(formScrollContainer, status, controls);
+
+  // Tab 3: Discovered Sessions browser
+  const tabResultsContent = document.createElement("div");
+  tabResultsContent.className = "tab-content";
+
+  const resultsToolbar = document.createElement("div");
+  resultsToolbar.className = "results-toolbar";
+
+  const searchInput = document.createElement("input");
+  searchInput.className = "text-input search-input";
+  searchInput.placeholder = "🔍 Search remote paths...";
+
+  const selectAllLabel = document.createElement("label");
+  selectAllLabel.className = "select-all-label";
+  selectAllLabel.innerHTML = `
+    <input type="checkbox" checked />
+    <span>Select All</span>
+  `;
+  const selectAllCheckbox = selectAllLabel.querySelector("input") as HTMLInputElement;
+
+  const sourceFilterContainer = document.createElement("div");
+  sourceFilterContainer.className = "source-filter-pills";
+
+  resultsToolbar.append(searchInput, selectAllLabel, sourceFilterContainer);
+
+  const resultsList = document.createElement("div");
+  resultsList.className = "remote-results empty-state";
+  resultsList.textContent = "No remote scan results yet.";
+
+  const resultsFooter = document.createElement("div");
+  resultsFooter.className = "results-footer";
+  
+  const resultsStatus = document.createElement("div");
+  resultsStatus.className = "results-status-inline";
+  resultsStatus.textContent = "Scan remote sessions first.";
+
+  const inlineSyncButton = button("Sync Selected", "primary");
+  inlineSyncButton.disabled = true;
+  
+  resultsFooter.append(resultsStatus, inlineSyncButton);
+  tabResultsContent.append(resultsToolbar, resultsList, resultsFooter);
+
+  card.append(header, tabHeader, tabSavedContent, tabConfigureContent, tabResultsContent);
+  overlay.append(card);
+
+  // States
+  let activeTab: "saved" | "configure" | "results" = "saved";
+  let activeAuthMode: "password" | "privateKey" = "password";
   let files: RemoteSessionEntry[] = [];
   const selected = new Set<string>();
+  let activeSourceFilter: string | null = null;
+  let searchText = "";
 
+  // Functions
+  function switchTab(tab: "saved" | "configure" | "results") {
+    activeTab = tab;
+    tabHeader.querySelectorAll(".tab-btn").forEach((btn) => {
+      const isTarget = btn.getAttribute("data-tab") === tab;
+      btn.classList.toggle("active", isTarget);
+    });
+    tabSavedContent.classList.toggle("active", tab === "saved");
+    tabConfigureContent.classList.toggle("active", tab === "configure");
+    tabResultsContent.classList.toggle("active", tab === "results");
+  }
+
+  function updateAuthFieldsVisibility(mode: "password" | "privateKey") {
+    activeAuthMode = mode;
+    const passwordLabel = form.querySelector('[name="password"]')?.closest("label") as HTMLElement | null;
+    const privateKeyLabel = form.querySelector('[name="privateKey"]')?.closest("label") as HTMLElement | null;
+    const passphraseLabel = form.querySelector('[name="passphrase"]')?.closest("label") as HTMLElement | null;
+
+    form.querySelectorAll(".auth-mode-btn").forEach((btn) => {
+      const isTarget = btn.getAttribute("data-mode") === mode;
+      btn.classList.toggle("active", isTarget);
+    });
+
+    if (mode === "password") {
+      if (passwordLabel) passwordLabel.style.display = "";
+      if (privateKeyLabel) privateKeyLabel.style.display = "none";
+      if (passphraseLabel) passphraseLabel.style.display = "none";
+    } else {
+      if (passwordLabel) passwordLabel.style.display = "none";
+      if (privateKeyLabel) privateKeyLabel.style.display = "";
+      if (passphraseLabel) passphraseLabel.style.display = "";
+    }
+  }
+
+  function updateStatus(message: string, type: "info" | "success" | "error" | "loading" = "info") {
+    status.className = `status-inline status-${type}`;
+    status.innerHTML = "";
+    
+    let icon = "⚙️";
+    if (type === "success") icon = "✅";
+    if (type === "error") icon = "❌";
+    if (type === "loading") icon = "⏳";
+    
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "status-icon";
+    iconSpan.textContent = icon;
+    
+    const textSpan = document.createElement("span");
+    textSpan.textContent = message;
+    
+    status.append(iconSpan, textSpan);
+  }
+
+  const SUPPORTED_SOURCES = ["copilot", "claude", "antigravity", "codex", "gemini", "opencode"];
+  function renderSourcePills() {
+    sourceFilterContainer.replaceChildren();
+
+    const allPill = document.createElement("button");
+    allPill.className = `filter-pill ${activeSourceFilter === null ? "active" : ""}`;
+    allPill.textContent = "All";
+    allPill.type = "button";
+    allPill.addEventListener("click", () => {
+      activeSourceFilter = null;
+      renderSourcePills();
+      renderFilteredResults();
+    });
+    sourceFilterContainer.append(allPill);
+
+    for (const src of SUPPORTED_SOURCES) {
+      const pill = document.createElement("button");
+      pill.className = `filter-pill ${activeSourceFilter === src ? "active" : ""} filter-pill-${src}`;
+      pill.textContent = src;
+      pill.type = "button";
+      pill.addEventListener("click", () => {
+        activeSourceFilter = src;
+        renderSourcePills();
+        renderFilteredResults();
+      });
+      sourceFilterContainer.append(pill);
+    }
+  }
+
+  function renderFilteredResults(): void {
+    resultsList.className = "remote-results";
+    resultsList.replaceChildren();
+
+    const filteredFiles = files.filter((file) => {
+      const matchSource = !activeSourceFilter || file.source === activeSourceFilter;
+      const matchText = !searchText || file.path.toLowerCase().includes(searchText.toLowerCase());
+      return matchSource && matchText;
+    });
+
+    if (filteredFiles.length === 0) {
+      resultsList.className = "remote-results empty-state";
+      resultsList.textContent = files.length === 0 
+        ? "No sessions found in known remote scan roots."
+        : "No results match the current filters.";
+      inlineSyncButton.disabled = true;
+      return;
+    }
+
+    const allFilteredSelected = filteredFiles.every((file) => selected.has(file.path));
+    const noneFilteredSelected = filteredFiles.every((file) => !selected.has(file.path));
+    
+    selectAllCheckbox.checked = allFilteredSelected && filteredFiles.length > 0;
+    selectAllCheckbox.indeterminate = !allFilteredSelected && !noneFilteredSelected;
+
+    for (const file of filteredFiles) {
+      const row = document.createElement("label");
+      row.className = `remote-row ${selected.has(file.path) ? "selected" : ""}`;
+      
+      const sourceClass = `source-badge ${file.source}`;
+      
+      row.innerHTML = `
+        <input type="checkbox" ${selected.has(file.path) ? "checked" : ""} />
+        <div class="remote-row-content">
+          <div class="remote-row-top">
+            <span class="${sourceClass}">${file.source}</span>
+            <span class="kind-badge">${file.kind === "directory" ? "📁 dir" : "📄 file"}</span>
+            <span class="mtime-badge">${escapeHtml(formatTimestampLabel(file.mtimeMs))}</span>
+          </div>
+          <div class="remote-path">${escapeHtml(file.path)}</div>
+        </div>
+      `;
+
+      const checkbox = row.querySelector("input") as HTMLInputElement;
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          selected.add(file.path);
+          row.classList.add("selected");
+        } else {
+          selected.delete(file.path);
+          row.classList.remove("selected");
+        }
+        
+        const allSel = filteredFiles.every((f) => selected.has(f.path));
+        const noneSel = filteredFiles.every((f) => !selected.has(f.path));
+        selectAllCheckbox.checked = allSel;
+        selectAllCheckbox.indeterminate = !allSel && !noneSel;
+        
+        inlineSyncButton.disabled = selected.size === 0;
+      });
+
+      resultsList.append(row);
+    }
+
+    inlineSyncButton.disabled = selected.size === 0;
+  }
+
+  function resetResults(message: string): void {
+    files = [];
+    selected.clear();
+    inlineSyncButton.disabled = true;
+    resultsList.className = "remote-results empty-state";
+    resultsList.textContent = message;
+  }
+
+  function readCredentialsForm(): SshFormValues {
+    const creds = readCredentials(form);
+    if (activeAuthMode === "password") {
+      creds.privateKey = "";
+      creds.passphrase = "";
+    } else {
+      creds.password = "";
+    }
+    return creds;
+  }
+
+  // Event wiring
+  tabHeader.addEventListener("click", (event) => {
+    const btn = (event.target as HTMLElement).closest(".tab-btn");
+    if (!btn) return;
+    const tab = btn.getAttribute("data-tab") as "saved" | "configure" | "results";
+    if (tab) switchTab(tab);
+  });
+
+  form.querySelector(".auth-mode-selector")?.addEventListener("click", (event) => {
+    const btn = (event.target as HTMLElement).closest(".auth-mode-btn");
+    if (!btn) return;
+    const mode = btn.getAttribute("data-mode") as "password" | "privateKey";
+    if (mode) updateAuthFieldsVisibility(mode);
+  });
+
+  // Save current server to localStorage
   saveCurrentButton.addEventListener("click", () => {
     try {
-      const server = rememberServer(readCredentials(form));
-      status.textContent = `Saved ${formatServerLabel(server)} in this browser.`;
+      const server = rememberServer(readCredentialsForm());
+      savedStatus.className = "saved-status-inline status-success";
+      savedStatus.textContent = `Saved ${formatServerLabel(server)} in this browser.`;
     } catch (error) {
-      status.textContent = error instanceof Error ? error.message : "Failed to save server.";
+      savedStatus.className = "saved-status-inline status-error";
+      savedStatus.textContent = error instanceof Error ? error.message : "Failed to save server.";
     }
   });
 
+  // Batch sync checked servers
   syncSavedButton.addEventListener("click", async () => {
     const servers = savedServers.filter((server) => selectedSavedIds.has(server.id));
     if (servers.length === 0) {
-      status.textContent = "Select at least one saved server to sync.";
+      savedStatus.className = "saved-status-inline status-error";
+      savedStatus.textContent = "Select at least one saved server to sync.";
       return;
     }
+
+    syncSavedButton.disabled = true;
+    saveCurrentButton.disabled = true;
+    savedStatus.className = "saved-status-inline status-loading";
 
     let checkedServers = 0;
     let emptyServers = 0;
@@ -154,7 +421,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
     for (const server of servers) {
       checkedServers += 1;
-      status.textContent = `Syncing saved server ${checkedServers}/${servers.length}: ${formatServerLabel(server)}...`;
+      savedStatus.textContent = `Syncing saved server ${checkedServers}/${servers.length}: ${formatServerLabel(server)}...`;
 
       try {
         const scanPayload = await postJson("/api/ssh/scan", server);
@@ -191,46 +458,63 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
       await options.onSynced();
     }
 
+    syncSavedButton.disabled = false;
+    saveCurrentButton.disabled = false;
+
     if (errors.length === 0 && totalDownloads > 0) {
-      status.textContent =
-        `Synced ${syncedServers} saved server${syncedServers === 1 ? "" : "s"}, ` +
-        `downloaded ${totalDownloads} file${totalDownloads === 1 ? "" : "s"} ` +
-        `from ${totalSelections} remote selection${totalSelections === 1 ? "" : "s"}.`;
-      options.onClose();
+      savedStatus.className = "saved-status-inline status-success";
+      savedStatus.textContent =
+        `Synced ${syncedServers} saved servers, downloaded ${totalDownloads} files.`;
+      
+      setTimeout(() => {
+        options.onClose();
+      }, 1500);
       return;
     }
 
     if (errors.length === 0) {
-      status.textContent =
+      savedStatus.className = "saved-status-inline";
+      savedStatus.textContent =
         emptyServers === servers.length
           ? "No sessions found in the selected saved servers."
-          : `Checked ${servers.length} saved server${servers.length === 1 ? "" : "s"} with no downloadable changes.`;
+          : `Checked ${servers.length} saved servers with no downloadable changes.`;
       return;
     }
 
-    status.textContent = errors.join(" | ");
+    savedStatus.className = "saved-status-inline status-error";
+    savedStatus.textContent = errors.join(" | ");
   });
 
+  // Test current connection
   testButton.addEventListener("click", async () => {
-    status.textContent = "Testing SSH connection...";
+    updateStatus("Testing SSH connection...", "loading");
+    testButton.disabled = true;
+    scanButton.disabled = true;
     try {
-      const credentials = readCredentials(form);
+      const credentials = readCredentialsForm();
       assertCredentials(credentials);
       const payload = await postJson("/api/ssh/test", credentials);
       if (!payload.ok) {
         throw new Error(asErrorMessage(payload.error, "Connection test failed."));
       }
       rememberServer(credentials);
-      status.textContent = "SSH connection succeeded.";
+      updateStatus("SSH connection succeeded.", "success");
     } catch (error) {
-      status.textContent = error instanceof Error ? error.message : "Connection test failed.";
+      const msg = error instanceof Error ? error.message : "Connection test failed.";
+      updateStatus(msg, "error");
+    } finally {
+      testButton.disabled = false;
+      scanButton.disabled = false;
     }
   });
 
+  // Scan remote server
   scanButton.addEventListener("click", async () => {
-    status.textContent = "Scanning remote sessions...";
+    updateStatus("Scanning remote sessions...", "loading");
+    scanButton.disabled = true;
+    testButton.disabled = true;
     try {
-      const credentials = readCredentials(form);
+      const credentials = readCredentialsForm();
       assertCredentials(credentials);
       const payload = await postJson("/api/ssh/scan", credentials);
       if (!payload.ok || !Array.isArray(payload.files)) {
@@ -244,25 +528,40 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
       }
 
       rememberServer(credentials);
-      syncButton.disabled = files.length === 0;
-      renderResults();
-      status.textContent = `Found ${files.length} remote session item${files.length === 1 ? "" : "s"}.`;
+      
+      activeSourceFilter = null;
+      searchText = "";
+      searchInput.value = "";
+      renderSourcePills();
+      renderFilteredResults();
+      
+      updateStatus(`Found ${files.length} remote session item${files.length === 1 ? "" : "s"}.`, "success");
+      resultsStatus.textContent = `Found ${files.length} items. Select which ones to sync.`;
+      
+      switchTab("results");
     } catch (error) {
       resetResults("Remote scan failed.");
-      status.textContent = error instanceof Error ? error.message : "Remote scan failed.";
+      const msg = error instanceof Error ? error.message : "Remote scan failed.";
+      updateStatus(msg, "error");
+      resultsStatus.textContent = msg;
+    } finally {
+      scanButton.disabled = false;
+      testButton.disabled = false;
     }
   });
 
-  syncButton.addEventListener("click", async () => {
+  // Sync selected results
+  inlineSyncButton.addEventListener("click", async () => {
     const selectedFiles = files.filter((file) => selected.has(file.path));
     if (selectedFiles.length === 0) {
-      status.textContent = "Select at least one remote session item to sync.";
+      resultsStatus.textContent = "Select at least one remote session item to sync.";
       return;
     }
 
-    status.textContent = "Downloading selected remote sessions...";
+    resultsStatus.textContent = "Downloading selected remote sessions...";
+    inlineSyncButton.disabled = true;
     try {
-      const credentials = readCredentials(form);
+      const credentials = readCredentialsForm();
       assertCredentials(credentials);
       const payload = await postJson("/api/ssh/sync", {
         ...credentials,
@@ -275,18 +574,46 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
       rememberServer(credentials);
       const downloadedCount = Array.isArray(payload.downloaded) ? payload.downloaded.length : 0;
-      status.textContent =
-        `Downloaded ${downloadedCount} file${downloadedCount === 1 ? "" : "s"} ` +
-        `from ${selectedFiles.length} remote selection${selectedFiles.length === 1 ? "" : "s"}.`;
+      
+      resultsStatus.textContent = `Downloaded ${downloadedCount} file${downloadedCount === 1 ? "" : "s"} from ${selectedFiles.length} remote selections.`;
+      updateStatus(`Successfully synced ${downloadedCount} file${downloadedCount === 1 ? "" : "s"}!`, "success");
+      
       await options.onSynced();
-      options.onClose();
+      setTimeout(() => {
+        options.onClose();
+      }, 1500);
     } catch (error) {
-      status.textContent = error instanceof Error ? error.message : "Remote sync failed.";
+      const msg = error instanceof Error ? error.message : "Remote sync failed.";
+      resultsStatus.textContent = msg;
+      updateStatus(msg, "error");
+      inlineSyncButton.disabled = false;
     }
   });
 
-  card.append(header, savedSection, form, status, controls, results);
-  overlay.append(card);
+  // Search input listeners
+  searchInput.addEventListener("input", () => {
+    searchText = searchInput.value.trim();
+    renderFilteredResults();
+  });
+
+  // Select all action
+  selectAllCheckbox.addEventListener("change", () => {
+    const isChecked = selectAllCheckbox.checked;
+    const filteredFiles = files.filter((file) => {
+      const matchSource = !activeSourceFilter || file.source === activeSourceFilter;
+      const matchText = !searchText || file.path.toLowerCase().includes(searchText.toLowerCase());
+      return matchSource && matchText;
+    });
+
+    for (const file of filteredFiles) {
+      if (isChecked) {
+        selected.add(file.path);
+      } else {
+        selected.delete(file.path);
+      }
+    }
+    renderFilteredResults();
+  });
 
   overlay.addEventListener("click", (event) => {
     if (event.target === overlay) {
@@ -294,6 +621,8 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
     }
   });
 
+  // Initialize visibility & saved servers list
+  updateAuthFieldsVisibility("password");
   renderSavedServers();
 
   return overlay;
@@ -343,8 +672,11 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
       const loadButton = button("Load", "ghost");
       loadButton.addEventListener("click", () => {
         applyCredentials(form, server);
+        const mode = server.privateKey?.trim() ? "privateKey" : "password";
+        updateAuthFieldsVisibility(mode);
         resetResults("No remote scan results yet.");
-        status.textContent = `Loaded ${formatServerLabel(server)}.`;
+        updateStatus(`Loaded ${formatServerLabel(server)}.`, "success");
+        switchTab("configure");
       });
 
       const deleteButton = button("Delete", "ghost");
@@ -353,7 +685,8 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
         savedServers = savedServers.filter((entry) => entry.id !== server.id);
         writeSavedServers(savedServers);
         renderSavedServers();
-        status.textContent = `Removed ${formatServerLabel(server)} from saved servers.`;
+        savedStatus.className = "saved-status-inline";
+        savedStatus.textContent = `Removed ${formatServerLabel(server)} from saved servers.`;
       });
 
       actions.append(loadButton, deleteButton);
@@ -381,52 +714,6 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
     writeSavedServers(savedServers);
     renderSavedServers();
     return server;
-  }
-
-  function renderResults(): void {
-    results.className = "remote-results";
-    results.replaceChildren();
-
-    if (files.length === 0) {
-      results.className = "remote-results empty-state";
-      results.textContent = "No sessions found in known remote scan roots.";
-      return;
-    }
-
-    for (const file of files) {
-      const row = document.createElement("label");
-      row.className = "remote-row";
-      row.innerHTML = `
-        <input type="checkbox" ${selected.has(file.path) ? "checked" : ""} />
-        <div>
-          <div class="remote-row-top">
-            <span class="source-badge ${file.source}">${file.source}</span>
-            <span>${file.kind === "directory" ? "directory" : "file"}</span>
-            <span>${escapeHtml(formatTimestampLabel(file.mtimeMs))}</span>
-          </div>
-          <div class="remote-path">${escapeHtml(file.path)}</div>
-        </div>
-      `;
-
-      const checkbox = row.querySelector("input") as HTMLInputElement;
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) {
-          selected.add(file.path);
-        } else {
-          selected.delete(file.path);
-        }
-      });
-
-      results.append(row);
-    }
-  }
-
-  function resetResults(message: string): void {
-    files = [];
-    selected.clear();
-    syncButton.disabled = true;
-    results.className = "remote-results empty-state";
-    results.textContent = message;
   }
 }
 
