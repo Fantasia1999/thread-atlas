@@ -429,6 +429,9 @@ input[type="checkbox"] {
   cursor: pointer;
   user-select: none;
   transition: all var(--transition);
+  font-family: inherit; /* Use the premium sans-serif Inter font */
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .status-pill:hover {
