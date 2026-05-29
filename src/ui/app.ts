@@ -4,7 +4,7 @@ import { createImportModal } from "./importModal.js";
 import { renderSidebar } from "./sidebar.js";
 import { type MessageViewFilter, renderChatView } from "./chatView.js";
 import { createSshModal } from "./sshModal.js";
-import { showToast } from "./utils.js";
+import { showToast, copyText } from "./utils.js";
 
 type AppTheme = "light" | "dark";
 
@@ -65,11 +65,12 @@ export class ThreadAtlasApp {
 
     this.statusNode = document.createElement("div");
     this.statusNode.className = "status-pill";
-    this.statusNode.addEventListener("dblclick", () => {
+    this.statusNode.addEventListener("dblclick", async () => {
       const textToCopy = this.statusNode.getAttribute("data-path") || this.statusNode.textContent || "";
       if (!textToCopy) return;
 
-      navigator.clipboard.writeText(textToCopy).then(() => {
+      try {
+        await copyText(textToCopy);
         this.statusNode.classList.add("copied");
         this.statusNode.textContent = "Copied! ✓";
         this.statusNode.title = "Successfully copied to clipboard";
@@ -81,7 +82,9 @@ export class ThreadAtlasApp {
           this.statusNode.textContent = latestPath;
           this.statusNode.title = "Double-click to copy absolute path\n" + latestPath;
         }, 1200);
-      });
+      } catch (error) {
+        showToast("Failed to copy path.", "error");
+      }
     });
 
     const rightRail = document.createElement("div");
