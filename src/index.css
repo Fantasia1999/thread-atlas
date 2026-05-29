@@ -77,8 +77,8 @@
   /* Modern Fonts */
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-brand: "Inter", sans-serif;
-  --font-mono: "Fira Code", "JetBrains Mono", "SF Mono", monospace;
-  --font-code: "Fira Code", "JetBrains Mono", "SF Mono", monospace;
+  --font-mono: "Fira Code", "JetBrains Mono", "SF Mono", "Segoe UI Symbol", "Noto Sans Symbols", "Apple Color Emoji", "Segoe UI Emoji", monospace;
+  --font-code: "Fira Code", "JetBrains Mono", "SF Mono", "Segoe UI Symbol", "Noto Sans Symbols", "Apple Color Emoji", "Segoe UI Emoji", monospace;
 
   /* Flat drop shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);

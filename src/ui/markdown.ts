@@ -8,7 +8,8 @@ import katex from "katex";
 import markdown from "highlight.js/lib/languages/markdown";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, ansiToHtml } from "./utils.js";
+
 
 hljs.registerLanguage("bash", bash);
 hljs.registerLanguage("css", css);
@@ -204,7 +205,12 @@ export function renderMarkdown(text: string): DocumentFragment {
 
     const paragraph = document.createElement("div");
     paragraph.className = "message-text md-paragraph";
-    paragraph.append(renderInline(paragraphLines.join("\n").trim()));
+    const paragraphText = paragraphLines.join("\n").trim();
+    if (paragraphText.includes("\u001b") || paragraphText.includes("\x1b")) {
+      paragraph.innerHTML = ansiToHtml(paragraphText);
+    } else {
+      paragraph.append(renderInline(paragraphText));
+    }
     fragment.append(paragraph);
   }
 

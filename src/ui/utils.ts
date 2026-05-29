@@ -115,3 +115,97 @@ export function showToast(message: string, type: "success" | "error" = "success"
     }, 300);
   }, 2500);
 }
+
+export function ansiToHtml(text: string): string {
+  const tokens = text.split(/([\u001b\x1b]\[[0-9;]*m)/);
+  let html = "";
+  
+  let bold = false;
+  let italic = false;
+  let color: string | null = null;
+
+  function getStyles(): string {
+    const styles: string[] = [];
+    if (bold) styles.push("font-weight: bold;");
+    if (italic) styles.push("font-style: italic;");
+    if (color) styles.push(`color: ${color};`);
+    return styles.length > 0 ? ` style="${styles.join(' ')}"` : "";
+  }
+
+  for (const token of tokens) {
+    if (token.startsWith('\u001b[') || token.startsWith('\x1b[')) {
+      const code = token.slice(2, -1);
+      
+      if (code === '0') {
+        if (bold || italic || color) {
+          html += "</span>";
+          bold = false;
+          italic = false;
+          color = null;
+        }
+      } else if (code === '1') {
+        if (bold || italic || color) html += "</span>";
+        bold = true;
+        html += `<span${getStyles()}>`;
+      } else if (code === '22') {
+        if (bold || italic || color) html += "</span>";
+        bold = false;
+        if (italic || color) {
+          html += `<span${getStyles()}>`;
+        }
+      } else if (code === '3') {
+        if (bold || italic || color) html += "</span>";
+        italic = true;
+        html += `<span${getStyles()}>`;
+      } else if (code === '23') {
+        if (bold || italic || color) html += "</span>";
+        italic = false;
+        if (bold || color) {
+          html += `<span${getStyles()}>`;
+        }
+      } else if (code === '39') {
+        if (bold || italic || color) html += "</span>";
+        color = null;
+        if (bold || italic) {
+          html += `<span${getStyles()}>`;
+        }
+      } else if (code.startsWith('38;5;')) {
+        if (bold || italic || color) html += "</span>";
+        const colorNum = parseInt(code.split(';')[2], 10);
+        color = convert256Color(colorNum);
+        html += `<span${getStyles()}>`;
+      }
+    } else {
+      html += escapeHtml(token);
+    }
+  }
+
+  if (bold || italic || color) {
+    html += "</span>";
+  }
+
+  return html;
+}
+
+function convert256Color(num: number): string | null {
+  const standardColors = [
+    "#000000", "#cd0000", "#00cd00", "#cdcd00", "#0000ee", "#cd00cd", "#00cdcd", "#e5e5e5",
+    "#7f7f7f", "#ff0000", "#00ff00", "#ffff00", "#5c5cff", "#ff00ff", "#00ffff", "#ffffff"
+  ];
+  if (num < 16) return standardColors[num];
+
+  if (num >= 16 && num <= 231) {
+    const index = num - 16;
+    const r = Math.floor(index / 36) * 51;
+    const g = (Math.floor(index / 6) % 6) * 51;
+    const b = (index % 6) * 51;
+    return `rgb(${r},${g},${b})`;
+  }
+
+  if (num >= 232 && num <= 255) {
+    const grayscaleValue = 8 + (num - 232) * 10;
+    return `rgb(${grayscaleValue},${grayscaleValue},${grayscaleValue})`;
+  }
+
+  return null;
+}

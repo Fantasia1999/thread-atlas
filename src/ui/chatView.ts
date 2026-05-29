@@ -5,7 +5,8 @@ import {
   escapeHtml,
   formatDateTime,
   formatDateTimeTitle,
-  formatDisplayTime
+  formatDisplayTime,
+  ansiToHtml
 } from "./utils.js";
 
 export type MessageViewFilter = "default" | "not-tool" | "user" | "answer";
@@ -655,13 +656,21 @@ function renderTruncatedPre(parent: HTMLElement, text: string): void {
   const pre = document.createElement("pre");
 
   if (!isLong) {
-    pre.textContent = text;
+    if (text.includes("\u001b") || text.includes("\x1b")) {
+      pre.innerHTML = ansiToHtml(text);
+    } else {
+      pre.textContent = text;
+    }
     parent.append(pre);
     return;
   }
 
   const truncatedText = lines.slice(0, 100).join("\n");
-  pre.textContent = truncatedText;
+  if (text.includes("\u001b") || text.includes("\x1b")) {
+    pre.innerHTML = ansiToHtml(truncatedText);
+  } else {
+    pre.textContent = truncatedText;
+  }
 
   const toggleButton = document.createElement("button");
   toggleButton.className = "button secondary message-expand-button";
@@ -677,10 +686,18 @@ function renderTruncatedPre(parent: HTMLElement, text: string): void {
   toggleButton.addEventListener("click", () => {
     isExpanded = !isExpanded;
     if (isExpanded) {
-      pre.textContent = text;
+      if (text.includes("\u001b") || text.includes("\x1b")) {
+        pre.innerHTML = ansiToHtml(text);
+      } else {
+        pre.textContent = text;
+      }
       toggleButton.textContent = "Show less";
     } else {
-      pre.textContent = truncatedText;
+      if (text.includes("\u001b") || text.includes("\x1b")) {
+        pre.innerHTML = ansiToHtml(truncatedText);
+      } else {
+        pre.textContent = truncatedText;
+      }
       toggleButton.textContent = `Show full output (+${lines.length - 100} lines)`;
       pre.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
