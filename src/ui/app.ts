@@ -183,6 +183,11 @@ export class ThreadAtlasApp {
 
     const visibleDescriptors = this.store.getVisibleDescriptors();
     const selectedSession = this.store.getSelectedSession();
+    // Record search focus and selection to prevent losing focus during keystrokes
+    const activeEl = document.activeElement as HTMLInputElement | null;
+    const isSearchActive = activeEl && activeEl.type === "search" && activeEl.className?.includes("text-input");
+    const selectionStart = isSearchActive ? activeEl.selectionStart : null;
+    const selectionEnd = isSearchActive ? activeEl.selectionEnd : null;
 
     this.sidebarMount.replaceChildren(
       renderSidebar({
@@ -222,6 +227,18 @@ export class ThreadAtlasApp {
         }
       })
     );
+
+    // Restore focus and selection
+    if (isSearchActive) {
+      const newSearch = this.sidebarMount.querySelector("input[type='search']") as HTMLInputElement | null;
+      if (newSearch) {
+        newSearch.focus();
+        if (selectionStart !== null && selectionEnd !== null) {
+          newSearch.setSelectionRange(selectionStart, selectionEnd);
+        }
+      }
+    }
+
     this.restoreSidebarScroll();
 
     this.mainMount.replaceChildren(
