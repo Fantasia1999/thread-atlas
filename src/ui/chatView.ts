@@ -461,7 +461,7 @@ function renderChatLayout(options: {
       timelineButton.addEventListener("click", () => {
         messageElement.scrollIntoView({
           behavior: "smooth",
-          block: "center"
+          block: "start"
         });
         setActiveTimelineItem(anchorId);
       });
