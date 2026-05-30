@@ -1383,6 +1383,45 @@ html[data-theme="dark"] .log-role-badge.system {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition);
+}
+
+.md-code-frame-header:hover {
+  background: var(--bg-surface-hover);
+}
+
+.md-code-frame.collapsed .code-block {
+  display: none;
+}
+
+.md-code-frame.collapsed {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.md-code-frame.collapsed .md-code-frame-header {
+  border-bottom: 0;
+}
+
+.code-frame-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.code-frame-toggle svg {
+  width: 10px;
+  height: 10px;
+  fill: currentColor;
+}
+
+.md-code-frame.collapsed .code-frame-toggle {
+  transform: rotate(-90deg);
 }
 
 .code-block,
