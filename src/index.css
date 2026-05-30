@@ -574,7 +574,7 @@ input[type="checkbox"] {
   opacity: 0;
   pointer-events: none;
   transform: translateX(-100%);
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar-dock.open .sidebar {
@@ -1072,7 +1072,7 @@ html[data-theme="dark"] .log-role-badge.system {
   opacity: 0;
   pointer-events: none;
   transform: translateX(100%);
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .timeline-dock.open .timeline-panel {

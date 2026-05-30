@@ -329,6 +329,20 @@ function renderChatLayout(options: {
   onTimelineToggleOpen: () => void;
   onTimelineTogglePin: () => void;
 }): HTMLElement {
+  let hoverTimeout: number | undefined;
+  let leaveTimeout: number | undefined;
+
+  const clearAllTimeouts = () => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = undefined;
+    }
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = undefined;
+    }
+  };
+
   const layout = document.createElement("div");
   layout.className = "chat-layout";
 
@@ -337,9 +351,20 @@ function renderChatLayout(options: {
 
   const timelineDock = document.createElement("div");
   timelineDock.className = `timeline-dock${options.timelineOpen ? " open" : ""}${options.timelinePinned ? " pinned" : ""}`;
+
   timelineDock.addEventListener("mouseleave", () => {
+    clearAllTimeouts();
     if (options.timelineOpen && !options.timelinePinned) {
-      options.onTimelineToggleOpen();
+      leaveTimeout = window.setTimeout(() => {
+        options.onTimelineToggleOpen();
+      }, 150);
+    }
+  });
+
+  timelineDock.addEventListener("mouseenter", () => {
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = undefined;
     }
   });
 
@@ -352,12 +377,27 @@ function renderChatLayout(options: {
   timelineToggle.title = options.timelineOpen ? "Collapse timeline" : "Open timeline";
   timelineToggle.setAttribute("aria-label", timelineToggle.title);
   timelineToggle.innerHTML = timelineIcon();
-  timelineToggle.addEventListener("click", options.onTimelineToggleOpen);
+
+  timelineToggle.addEventListener("click", () => {
+    clearAllTimeouts();
+    options.onTimelineToggleOpen();
+  });
+
   timelineToggle.addEventListener("mouseenter", () => {
     if (!options.timelineOpen) {
-      options.onTimelineToggleOpen();
+      hoverTimeout = window.setTimeout(() => {
+        options.onTimelineToggleOpen();
+      }, 120);
     }
   });
+
+  timelineToggle.addEventListener("mouseleave", () => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = undefined;
+    }
+  });
+
   timelineRail.append(timelineToggle);
 
   const timeline = document.createElement("aside");

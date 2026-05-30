@@ -17,11 +17,36 @@ interface SidebarOptions {
 }
 
 export function renderSidebar(options: SidebarOptions): HTMLElement {
+  let hoverTimeout: number | undefined;
+  let leaveTimeout: number | undefined;
+
   const container = document.createElement("div");
   container.className = `sidebar-dock${options.open ? " open" : ""}${options.pinned ? " pinned" : ""}`;
+
+  const clearAllTimeouts = () => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = undefined;
+    }
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = undefined;
+    }
+  };
+
   container.addEventListener("mouseleave", () => {
+    clearAllTimeouts();
     if (options.open && !options.pinned) {
-      options.onToggleOpen();
+      leaveTimeout = window.setTimeout(() => {
+        options.onToggleOpen();
+      }, 150);
+    }
+  });
+
+  container.addEventListener("mouseenter", () => {
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = undefined;
     }
   });
 
@@ -34,12 +59,27 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   openButton.title = options.open ? "Collapse sessions" : "Open sessions";
   openButton.setAttribute("aria-label", openButton.title);
   openButton.innerHTML = listIcon();
-  openButton.addEventListener("click", options.onToggleOpen);
+
+  openButton.addEventListener("click", () => {
+    clearAllTimeouts();
+    options.onToggleOpen();
+  });
+
   openButton.addEventListener("mouseenter", () => {
     if (!options.open) {
-      options.onToggleOpen();
+      hoverTimeout = window.setTimeout(() => {
+        options.onToggleOpen();
+      }, 120);
     }
   });
+
+  openButton.addEventListener("mouseleave", () => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = undefined;
+    }
+  });
+
   rail.append(openButton);
 
   const panel = document.createElement("aside");
