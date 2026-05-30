@@ -1,240 +1,240 @@
 {
   "themeToggle": {
-    "x": 1805,
-    "y": 18,
-    "w": 191,
-    "h": 55,
+    "x": 2757,
+    "y": 25,
+    "w": 274,
+    "h": 79,
     "selector": ".theme-toggle"
   },
   "rescanBtn": {
-    "x": 2007,
-    "y": 19,
-    "w": 182,
-    "h": 53
+    "x": 3046,
+    "y": 27,
+    "w": 261,
+    "h": 75
   },
   "importBtn": {
-    "x": 2199,
-    "y": 19,
-    "w": 167,
-    "h": 53
+    "x": 3322,
+    "y": 27,
+    "w": 240,
+    "h": 75
   },
   "sshBtn": {
-    "x": 2376,
-    "y": 19,
-    "w": 149,
-    "h": 53
+    "x": 3577,
+    "y": 27,
+    "w": 213,
+    "h": 75
   },
   "pathDisplay": {
-    "x": 245,
-    "y": 22,
-    "w": 1533,
-    "h": 46,
+    "x": 350,
+    "y": 32,
+    "w": 2368,
+    "h": 65,
     "selector": ".status-pill"
   },
   "searchInput": {
-    "x": 21,
-    "y": 197,
-    "w": 319,
-    "h": 49,
+    "x": 30,
+    "y": 282,
+    "w": 456,
+    "h": 70,
     "selector": ".sidebar-controls .text-input"
   },
   "sourceFilter": {
-    "x": 354,
-    "y": 197,
-    "w": 184,
-    "h": 49,
+    "x": 506,
+    "y": 282,
+    "w": 263,
+    "h": 70,
     "selector": ".sidebar-controls .select-input"
   },
   "sidebarHeader": {
     "x": 0,
-    "y": 91,
-    "w": 559,
-    "h": 92,
+    "y": 130,
+    "w": 798,
+    "h": 132,
     "selector": ".sidebar .panel-header"
   },
   "sessionList": {
     "x": 0,
-    "y": 261,
-    "w": 559,
-    "h": 2259,
+    "y": 374,
+    "w": 798,
+    "h": 5026,
     "selector": ".session-list"
   },
   "sessionCount": {
-    "x": 422,
-    "y": 114,
-    "w": 50,
-    "h": 46,
+    "x": 601,
+    "y": 163,
+    "w": 72,
+    "h": 65,
     "selector": ".sidebar .panel-header .count-badge"
   },
   "sortToggle": {
-    "x": 482,
-    "y": 112,
-    "w": 49,
-    "h": 49,
+    "x": 688,
+    "y": 160,
+    "w": 70,
+    "h": 70,
     "selector": ".sidebar .panel-header .panel-icon-button"
   },
   "chatHeader": {
-    "x": 560,
-    "y": 91,
-    "w": 1440,
-    "h": 247,
+    "x": 800,
+    "y": 130,
+    "w": 2240,
+    "h": 227,
     "selector": ".chat-header"
   },
   "chatTitleRow": {
-    "x": 595,
-    "y": 116,
-    "w": 1370,
-    "h": 82,
+    "x": 850,
+    "y": 165,
+    "w": 2140,
+    "h": 70,
     "selector": ".chat-title-row"
   },
   "chatActions": {
-    "x": 1751,
-    "y": 132,
-    "w": 214,
-    "h": 49,
+    "x": 2657,
+    "y": 165,
+    "w": 333,
+    "h": 70,
     "selector": ".chat-actions"
   },
   "chatMeta": {
-    "x": 595,
-    "y": 211,
-    "w": 956,
-    "h": 34,
+    "x": 850,
+    "y": 262,
+    "w": 1373,
+    "h": 50,
     "selector": ".chat-meta"
   },
   "filterTabs": {
-    "x": 595,
-    "y": 267,
-    "w": 434,
-    "h": 46,
+    "x": 2366,
+    "y": 255,
+    "w": 624,
+    "h": 65,
     "selector": ".filter-chip-row"
   },
   "actionButtons": [
     {
-      "x": 1751,
-      "y": 132,
-      "w": 56,
-      "h": 49,
+      "x": 2657,
+      "y": 165,
+      "w": 80,
+      "h": 70,
       "text": "\n    \n      \n    \n  ",
       "index": 0
     },
     {
-      "x": 1817,
-      "y": 132,
-      "w": 148,
-      "h": 49,
+      "x": 2752,
+      "y": 165,
+      "w": 238,
+      "h": 70,
       "text": "Export JSON",
       "index": 1
     }
   ],
   "toolRows": [
     {
-      "x": 631,
-      "y": 962,
-      "w": 1298,
-      "h": 62,
+      "x": 902,
+      "y": 1253,
+      "w": 2036,
+      "h": 89,
       "text": "view_file · completedinput/workspace/markdown-view",
       "index": 0
     }
   ],
   "timeline": {
-    "x": 2000,
-    "y": 91,
-    "w": 560,
-    "h": 2429,
+    "x": 3040,
+    "y": 130,
+    "w": 800,
+    "h": 5270,
     "selector": ".timeline-panel"
   },
   "timelineEntries": [
     {
-      "x": 2015,
-      "y": 197,
-      "w": 531,
-      "h": 55,
+      "x": 3062,
+      "y": 282,
+      "w": 758,
+      "h": 79,
       "text": "\n    01\n    🙂\n    How do I build a lightweight, d",
       "index": 0
     },
     {
-      "x": 2015,
-      "y": 259,
-      "w": 531,
-      "h": 55,
+      "x": 3062,
+      "y": 371,
+      "w": 758,
+      "h": 79,
       "text": "\n    02\n    🤖\n    Building a clean, lightweight M",
       "index": 1
     },
     {
-      "x": 2015,
-      "y": 320,
-      "w": 531,
-      "h": 55,
+      "x": 3062,
+      "y": 460,
+      "w": 758,
+      "h": 79,
       "text": "\n    03\n    🔧\n    view_file\n    18:16:05\n  ",
       "index": 2
     },
     {
-      "x": 2015,
-      "y": 382,
-      "w": 531,
-      "h": 55,
+      "x": 3062,
+      "y": 549,
+      "w": 758,
+      "h": 79,
       "text": "\n    04\n    🤖\n    This simple line-by-line parser",
       "index": 3
     }
   ],
   "exportBtn": {
-    "x": 1817,
-    "y": 132,
-    "w": 148,
-    "h": 49
+    "x": 2752,
+    "y": 165,
+    "w": 238,
+    "h": 70
   },
   "copyBtn": {
-    "x": 1751,
-    "y": 132,
-    "w": 56,
-    "h": 49,
+    "x": 2657,
+    "y": 165,
+    "w": 80,
+    "h": 70,
     "selector": ".chat-actions .copy-command-button"
   },
   "pinBtn": {
-    "x": 2483,
-    "y": 112,
-    "w": 49,
-    "h": 49,
+    "x": 3730,
+    "y": 160,
+    "w": 70,
+    "h": 70,
     "selector": ".timeline-header .panel-icon-button"
   },
   "allButtons": [
     {
-      "x": 1810,
-      "y": 22,
-      "w": 91,
-      "h": 46,
+      "x": 2764,
+      "y": 32,
+      "w": 130,
+      "h": 65,
       "text": "Light",
       "index": 0
     },
     {
-      "x": 1901,
-      "y": 22,
-      "w": 91,
-      "h": 46,
+      "x": 2894,
+      "y": 32,
+      "w": 130,
+      "h": 65,
       "text": "Dark",
       "index": 1
     },
     {
-      "x": 2007,
-      "y": 19,
-      "w": 182,
-      "h": 53,
+      "x": 3046,
+      "y": 27,
+      "w": 261,
+      "h": 75,
       "text": "Rescan local",
       "index": 2
     },
     {
-      "x": 2199,
-      "y": 19,
-      "w": 167,
-      "h": 53,
+      "x": 3322,
+      "y": 27,
+      "w": 240,
+      "h": 75,
       "text": "Import files",
       "index": 3
     },
     {
-      "x": 2376,
-      "y": 19,
-      "w": 149,
-      "h": 53,
+      "x": 3577,
+      "y": 27,
+      "w": 213,
+      "h": 75,
       "text": "SSH sync",
       "index": 4
     },
@@ -247,90 +247,90 @@
       "index": 5
     },
     {
-      "x": 482,
-      "y": 112,
-      "w": 49,
-      "h": 49,
+      "x": 688,
+      "y": 160,
+      "w": 70,
+      "h": 70,
       "text": "\n    \n      \n    \n  ",
       "index": 6
     },
     {
-      "x": 18,
-      "y": 279,
-      "w": 524,
-      "h": 157,
+      "x": 25,
+      "y": 399,
+      "w": 748,
+      "h": 226,
       "text": "\n        \n          antigravity\n          May 28, ",
       "index": 7
     },
     {
-      "x": 18,
-      "y": 450,
-      "w": 524,
-      "h": 157,
+      "x": 25,
+      "y": 645,
+      "w": 748,
+      "h": 226,
       "text": "\n        \n          claude\n          May 28, 2026,",
       "index": 8
     },
     {
-      "x": 18,
-      "y": 621,
-      "w": 524,
-      "h": 157,
+      "x": 25,
+      "y": 891,
+      "w": 748,
+      "h": 226,
       "text": "\n        \n          codex\n          May 28, 2026, ",
       "index": 9
     },
     {
-      "x": 18,
-      "y": 792,
-      "w": 524,
-      "h": 157,
+      "x": 25,
+      "y": 1136,
+      "w": 748,
+      "h": 226,
       "text": "\n        \n          copilot\n          May 28, 2026",
       "index": 10
     },
     {
-      "x": 1751,
-      "y": 132,
-      "w": 56,
-      "h": 49,
+      "x": 2657,
+      "y": 165,
+      "w": 80,
+      "h": 70,
       "text": "\n    \n      \n    \n  ",
       "index": 11
     },
     {
-      "x": 1817,
-      "y": 132,
-      "w": 148,
-      "h": 49,
+      "x": 2752,
+      "y": 165,
+      "w": 238,
+      "h": 70,
       "text": "Export JSON",
       "index": 12
     },
     {
-      "x": 595,
-      "y": 267,
-      "w": 108,
-      "h": 46,
+      "x": 2366,
+      "y": 255,
+      "w": 156,
+      "h": 65,
       "text": "default",
       "index": 13
     },
     {
-      "x": 710,
-      "y": 267,
-      "w": 113,
-      "h": 46,
+      "x": 2532,
+      "y": 255,
+      "w": 162,
+      "h": 65,
       "text": "not tool",
       "index": 14
     },
     {
-      "x": 830,
-      "y": 267,
-      "w": 81,
-      "h": 46,
+      "x": 2704,
+      "y": 255,
+      "w": 117,
+      "h": 65,
       "text": "user",
       "index": 15
     },
     {
-      "x": 919,
-      "y": 267,
-      "w": 110,
-      "h": 46,
+      "x": 2831,
+      "y": 255,
+      "w": 159,
+      "h": 65,
       "text": "answer",
       "index": 16
     },
@@ -343,42 +343,42 @@
       "index": 17
     },
     {
-      "x": 2483,
-      "y": 112,
-      "w": 49,
-      "h": 49,
+      "x": 3730,
+      "y": 160,
+      "w": 70,
+      "h": 70,
       "text": "\n    \n      \n    \n  ",
       "index": 18
     },
     {
-      "x": 2015,
-      "y": 197,
-      "w": 531,
-      "h": 55,
+      "x": 3062,
+      "y": 282,
+      "w": 758,
+      "h": 79,
       "text": "\n    01\n    🙂\n    How do I build a lightweight, d",
       "index": 19
     },
     {
-      "x": 2015,
-      "y": 259,
-      "w": 531,
-      "h": 55,
+      "x": 3062,
+      "y": 371,
+      "w": 758,
+      "h": 79,
       "text": "\n    02\n    🤖\n    Building a clean, lightweight M",
       "index": 20
     },
     {
-      "x": 2015,
-      "y": 320,
-      "w": 531,
-      "h": 55,
+      "x": 3062,
+      "y": 460,
+      "w": 758,
+      "h": 79,
       "text": "\n    03\n    🔧\n    view_file\n    18:16:05\n  ",
       "index": 21
     },
     {
-      "x": 2015,
-      "y": 382,
-      "w": 531,
-      "h": 55,
+      "x": 3062,
+      "y": 549,
+      "w": 758,
+      "h": 79,
       "text": "\n    04\n    🤖\n    This simple line-by-line parser",
       "index": 22
     }

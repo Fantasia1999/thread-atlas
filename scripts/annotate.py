@@ -198,10 +198,11 @@ features = [
 ]
 
 
-def draw_marker(draw, cx, cy, num, color, font, r):
+def draw_marker(draw, cx, cy, num, color, font, r, ss=4):
     """Draw a numbered circle marker with smooth white border."""
+    border = int(1.5 * ss)
     # White halo
-    draw.ellipse([cx - r - 3, cy - r - 3, cx + r + 3, cy + r + 3],
+    draw.ellipse([cx - r - border, cy - r - border, cx + r + border, cy + r + border],
                  fill=(255, 255, 255, 255))
     # Colored circle
     draw.ellipse([cx - r, cy - r, cx + r, cy + r],
@@ -211,7 +212,8 @@ def draw_marker(draw, cx, cy, num, color, font, r):
     bbox = draw.textbbox((0, 0), text, font=font)
     tw = bbox[2] - bbox[0]
     th = bbox[3] - bbox[1]
-    draw.text((cx - tw // 2, cy - th // 2 - 1), text,
+    y_adj = int(0.25 * ss)
+    draw.text((cx - tw // 2, cy - th // 2 - y_adj), text,
               fill=(255, 255, 255, 255), font=font)
 
 
@@ -224,8 +226,11 @@ def main():
     W, H = img.size
     print(f"Input image size: {W}×{H}")
 
-    # Legend area height at the bottom
-    legend_h = 240
+    # Calculate layout scale factor relative to 1920x1080 (our baseline resolution)
+    scale = W / 1920.0
+
+    # Legend area height at the bottom (scaled proportionally)
+    legend_h = int(240 * scale)
     canvas = Image.new("RGBA", (W, H + legend_h), (255, 255, 255, 255))
     canvas.paste(img, (0, 0))
 
@@ -234,13 +239,19 @@ def main():
     big = canvas.resize((cw * SS, ch * SS), Image.LANCZOS)
     draw = ImageDraw.Draw(big)
 
-    # 4x Supersampled Fonts
-    font_marker = ImageFont.truetype(FONT_BOLD, 12 * SS)
-    font_legend_title = ImageFont.truetype(FONT_BOLD, 16 * SS)
-    font_legend_num = ImageFont.truetype(FONT_BOLD, 10 * SS)
-    font_legend_text = ImageFont.truetype(FONT_REG, 11 * SS)
+    # 4x Supersampled Fonts (scaled proportionally)
+    base_font_marker = int(12 * scale)
+    base_font_legend_title = int(16 * scale)
+    base_font_legend_num = int(10 * scale)
+    base_font_legend_text = int(11 * scale)
 
-    marker_r = 12 * SS
+    font_marker = ImageFont.truetype(FONT_BOLD, max(8, base_font_marker) * SS)
+    font_legend_title = ImageFont.truetype(FONT_BOLD, max(12, base_font_legend_title) * SS)
+    font_legend_num = ImageFont.truetype(FONT_BOLD, max(6, base_font_legend_num) * SS)
+    font_legend_text = ImageFont.truetype(FONT_REG, max(8, base_font_legend_text) * SS)
+
+    marker_r = max(6, int(12 * scale)) * SS
+    border_width = max(1, int(2 * scale)) * SS
 
     # Draw bounding boxes and markers
     for i, feat in enumerate(features):
@@ -252,40 +263,50 @@ def main():
         # Outline border only, no fill
         draw.rectangle([x1, y1, x2, y2],
                        outline=color,
-                       width=2 * SS)
+                       width=border_width)
         # Marker
         mx, my = marker[0] * SS, marker[1] * SS
-        draw_marker(draw, mx, my, i + 1, color, font_marker, r=marker_r)
+        draw_marker(draw, mx, my, i + 1, color, font_marker, r=marker_r, ss=SS)
 
     # ---- Legend ----
-    legend_top = (H + 20) * SS
+    legend_top = (H + int(20 * scale)) * SS
+    divider_margin = int(40 * scale) * SS
+    divider_offset = int(5 * scale) * SS
+    divider_width = max(1, int(1 * scale)) * SS
+
     # Divider line
-    draw.line([(40 * SS, legend_top - 5 * SS),
-               ((W - 40) * SS, legend_top - 5 * SS)],
-              fill=(226, 232, 240, 255), width=1 * SS)
+    draw.line([(divider_margin, legend_top - divider_offset),
+               ((W * SS) - divider_margin, legend_top - divider_offset)],
+              fill=(226, 232, 240, 255), width=divider_width)
+    
     # Title
-    draw.text((50 * SS, legend_top), "Interactive Features Guide",
+    title_margin_x = int(50 * scale) * SS
+    draw.text((title_margin_x, legend_top), "Interactive Features Guide",
               fill=(15, 23, 42, 255), font=font_legend_title)
 
-    legend_body_top = legend_top + 36 * SS
+    legend_body_top = legend_top + int(36 * scale) * SS
 
     cols = 3
     items_per_col = (len(features) + cols - 1) // cols
     col_w = (W * SS) // cols
-    row_h = 32 * SS
-    marker_r_legend = 10 * SS
+    row_h = int(32 * scale) * SS
+    marker_r_legend = max(5, int(10 * scale)) * SS
+
+    item_margin_x = int(50 * scale) * SS
+    text_offset_x = int(10 * scale) * SS
+    text_offset_y = int(2 * scale) * SS
 
     for i, feat in enumerate(features):
         color = PALETTE[i % len(PALETTE)]
         col = i // items_per_col
         row = i % items_per_col
-        x = 50 * SS + col * col_w
+        x = item_margin_x + col * col_w
         y = legend_body_top + row * row_h
 
         draw_marker(draw, x + marker_r_legend, y + marker_r_legend,
-                    i + 1, color, font_legend_num, r=marker_r_legend)
-        text_x = x + marker_r_legend * 2 + 10 * SS
-        text_y = y + 2 * SS
+                    i + 1, color, font_legend_num, r=marker_r_legend, ss=SS)
+        text_x = x + marker_r_legend * 2 + text_offset_x
+        text_y = y + text_offset_y
         draw.text((text_x, text_y), feat["label"],
                   fill=(71, 85, 105, 255), font=font_legend_text)
 
@@ -293,8 +314,6 @@ def main():
     final = big.resize((cw, ch), Image.LANCZOS).convert("RGB")
     final.save(DST_DOCS, "PNG")
     print(f"Saved annotated screenshot: {DST_DOCS}")
-
-    
     print(f"Final annotated size: {final.size}")
 
 
