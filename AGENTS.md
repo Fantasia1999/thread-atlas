@@ -62,6 +62,7 @@ Imported browser files can still be source-detected from content and path hints 
 - Maintain graceful degradation for optional capabilities:
   - missing local directories should just produce no results
 - Never let SSH-related code execute remote commands built from unsanitized user shell input.
+- When writing or modifying UI modules, ensure they are guarded by appropriate test cases. Use `tests/dom-mock.ts` to simulate a browser DOM environment in Node.js test runner, allowing clean assertion of element classes, event registrations (e.g. click listeners), and structural changes.
 
 ## UI Expectations
 
@@ -89,6 +90,7 @@ Imported browser files can still be source-detected from content and path hints 
 
 ## Verification
 
+- `npm run test` to verify all parser, store, markdown and UI tests pass
 - `npm run typecheck`
 - `npm run build`
 - Manual pass through:
@@ -96,3 +98,4 @@ Imported browser files can still be source-detected from content and path hints 
   - local scan
   - SSH test / scan / sync
   - message filters, timeline jump, and export on a loaded session
+

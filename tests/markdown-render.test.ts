@@ -3,72 +3,12 @@ import assert from "node:assert/strict";
 
 import { renderMarkdown } from "../src/ui/markdown.ts";
 
-type FakeNode = FakeDocumentFragment | FakeElement | FakeText;
-
-class FakeDocumentFragment {
-  readonly nodeType = 11;
-  readonly childNodes: FakeNode[] = [];
-
-  append(...nodes: FakeNode[]): void {
-    for (const node of nodes) {
-      if (node.nodeType === 11) {
-        this.childNodes.push(...node.childNodes);
-      } else {
-        this.childNodes.push(node);
-      }
-    }
-  }
-}
-
-class FakeElement extends FakeDocumentFragment {
-  override readonly nodeType = 1;
-  readonly dataset: Record<string, string> = {};
-  className = "";
-  innerHTML = "";
-  textContent = "";
-
-  constructor(readonly tagName: string) {
-    super();
-  }
-}
-
-class FakeText {
-  readonly nodeType = 3;
-  readonly childNodes: FakeNode[] = [];
-
-  constructor(readonly textContent: string) {}
-}
-
-function findElementsByTag(node: FakeNode, tagName: string): FakeElement[] {
-  const matches: FakeElement[] = [];
-  if (node.nodeType === 1 && node.tagName === tagName) {
-    matches.push(node);
-  }
-
-  for (const child of node.childNodes) {
-    matches.push(...findElementsByTag(child, tagName));
-  }
-
-  return matches;
-}
-
-function collectText(node: FakeNode): string {
-  if (node.nodeType === 3) {
-    return node.textContent;
-  }
-
-  if (node.nodeType === 11) {
-    return node.childNodes.map(collectText).join("");
-  }
-
-  return [node.textContent, ...node.childNodes.map(collectText)].join("");
-}
-
-globalThis.document = {
-  createDocumentFragment: () => new FakeDocumentFragment(),
-  createElement: (tagName: string) => new FakeElement(tagName),
-  createTextNode: (text: string) => new FakeText(text)
-} as unknown as Document;
+import {
+  FakeDocumentFragment,
+  FakeElement,
+  findElementsByTag,
+  collectText
+} from "./dom-mock.ts";
 
 test("renderMarkdown treats indented fenced code as a block", () => {
   const fragment = renderMarkdown(
@@ -226,4 +166,31 @@ test("renderMarkdown renders display math blocks", () => {
   assert.ok(mathBlock);
   assert.match(mathBlock.innerHTML, /\bkatex-display\b/);
   assert.match(collectText(fragment), /BeforeAfter/);
+});
+
+test("renderMarkdown interactive code frames toggle collapsed class on click", () => {
+  const fragment = renderMarkdown(
+    [
+      "```typescript",
+      "const a = 1;",
+      "```"
+    ].join("\n")
+  ) as any;
+
+  const figure = fragment.childNodes.find((node: any) => node.tagName === "figure");
+  assert.ok(figure);
+  assert.equal(figure.classList.contains("collapsed"), false);
+
+  const caption = figure.childNodes.find((node: any) => node.tagName === "figcaption");
+  assert.ok(caption);
+
+  // Trigger click on the caption (the collapsible header)
+  caption.dispatchEvent("click");
+
+  // Verify that it is now collapsed
+  assert.equal(figure.classList.contains("collapsed"), true);
+
+  // Click again to uncollapse
+  caption.dispatchEvent("click");
+  assert.equal(figure.classList.contains("collapsed"), false);
 });
