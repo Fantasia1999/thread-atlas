@@ -64,7 +64,10 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
 
   openButton.addEventListener("click", () => {
     clearAllTimeouts();
-    options.onToggleOpen();
+    const isOpen = container.classList.contains("open");
+    if (!isOpen) {
+      options.onToggleOpen();
+    }
   });
 
   openButton.addEventListener("mouseenter", () => {

@@ -385,7 +385,10 @@ function renderChatLayout(options: {
 
   timelineToggle.addEventListener("click", () => {
     clearAllTimeouts();
-    options.onTimelineToggleOpen();
+    const isOpen = timelineDock.classList.contains("open");
+    if (!isOpen) {
+      options.onTimelineToggleOpen();
+    }
   });
 
   timelineToggle.addEventListener("mouseenter", () => {
