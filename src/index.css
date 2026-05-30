@@ -929,8 +929,11 @@ html[data-theme="dark"] .log-role-badge.system {
 
 .chat-heading {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1;
+  max-width: 45%; /* Keep maximum 45% width to prevent crowding pin and favorite actions */
 }
 
 .chat-heading h1 {
@@ -940,6 +943,25 @@ html[data-theme="dark"] .log-role-badge.system {
   line-height: 1.3;
   color: var(--text-primary);
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.chat-title-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.chat-header-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 
@@ -2472,5 +2494,366 @@ details[open] .tool-call-header::after {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 280px;
+}
+
+/* ==========================================================================
+   📌 PIN & FAVORITES PREMIUM DESIGN SYSTEM
+   ========================================================================== */
+
+/* 1. Group Headers inside Sidebar */
+.session-group-header {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 12px 14px 4px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.session-group-header.divider {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 8px;
+}
+
+/* 2. Pinned & Favorited Card Styles */
+.session-row.pinned-row {
+  border-left: 3px solid #ff7a59 !important; /* Premium Coral left accent */
+  background: linear-gradient(90deg, rgba(255, 122, 89, 0.04) 0%, rgba(0, 0, 0, 0) 100%) !important;
+}
+
+.session-row.favorite-row {
+  border-left-color: #ffd700; /* Gold star left indicator if favorited but not pinned */
+}
+
+.session-row.pinned-row.favorite-row {
+  border-left-color: #ff7a59; /* Pinned takes precedence on accent border */
+}
+
+/* 3. Inline Actions on Sidebar Row */
+.source-and-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.session-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transform: translateX(10px);
+  transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.session-row:hover .session-item-actions {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.session-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.session-action-btn:hover {
+  background: var(--bg-panel-muted);
+  transform: scale(1.15);
+}
+
+.session-action-btn.pin-btn:hover,
+.session-action-btn.pin-btn.active {
+  color: #ff7a59 !important; /* Coral pink glow */
+}
+
+.session-action-btn.favorite-btn:hover,
+.session-action-btn.favorite-btn.active {
+  color: #ffc83b !important; /* Beautiful glowing gold */
+}
+
+/* Keep active icons visible without hover */
+.session-action-btn.active {
+  opacity: 1 !important;
+}
+
+.session-row:not(:hover) .session-item-actions:has(.active) {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.session-row:not(:hover) .session-action-btn:not(.active) {
+  opacity: 0; /* Keep inactive actions invisible unless hovered */
+}
+
+/* 4. Tag Pills & Custom Notes inside Row */
+.session-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  width: 100%;
+}
+
+.tag-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  background: var(--bg-panel-muted);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+
+.tag-pill:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-surface);
+}
+
+.session-row-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 4px;
+  text-align: left;
+}
+
+/* 5. C.3 Quick Search Chips Bar */
+.quick-chips-container {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 0 0;
+  margin-top: -2px;
+  margin-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Hide scrollbar for clean visual */
+  grid-column: 1 / -1; /* Span across all grid columns to occupy the full row */
+}
+
+.quick-chips-container::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-btn {
+  background: var(--bg-panel-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.chip-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.chip-btn.active {
+  background: var(--text-primary);
+  color: var(--bg-surface);
+  border-color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.chip-btn.star-chip.active {
+  background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
+  color: #000;
+  border-color: #ffd700;
+}
+
+/* 6. ChatView Header Buttons & Badges */
+.chat-fav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.header-fav-btn {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 6px 12px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--transition) !important;
+}
+
+.header-fav-btn.pin-btn.active {
+  background: #ff7a59 !important;
+  color: white !important;
+  border-color: #ff7a59 !important;
+  box-shadow: 0 0 10px rgba(255, 122, 89, 0.25);
+}
+
+.header-fav-btn.favorite-btn.active {
+  background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%) !important;
+  color: #000 !important;
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.25);
+}
+
+.header-badge {
+  font-size: 16px;
+  display: inline-flex;
+  vertical-align: middle;
+  animation: badgePop 350ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 7. Glassmorphic Tags Editing Panel */
+.tags-edit-panel {
+  margin: 12px 0;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal) !important;
+  animation: panelSlideDown 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="light"] .tags-edit-panel {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+@keyframes panelSlideDown {
+  0% { transform: translateY(-10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.tags-panel-inner h3 {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tags-form-field {
+  margin-bottom: 12px;
+}
+
+.tags-form-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.tags-form-field input.tags-input {
+  width: 100%;
+}
+
+.tags-form-field textarea.notes-input {
+  width: 100%;
+  min-height: 60px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tags-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* 8. Summary Display in Chat Header */
+.header-bookmark-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-panel-muted);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  border-left: 3px solid #ffc83b;
+  animation: summaryFadeIn 250ms ease-out;
+}
+
+@keyframes summaryFadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.summary-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.summary-tags .tag-pill {
+  background: var(--bg-surface);
+}
+
+.summary-notes .note-text {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.tag-filter-select {
+  padding: 3px 8px 3px 10px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  height: auto !important;
+  border-radius: var(--radius-full) !important;
+  cursor: pointer;
+  background-position: right 6px center !important;
+  background-size: 10px 10px !important;
+  padding-right: 20px !important;
+  max-width: 140px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  background-color: var(--bg-panel-muted) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-muted) !important;
+  transition: all var(--transition) !important;
+  flex-shrink: 0 !important;
+}
+
+.tag-filter-select:hover {
+  border-color: var(--border-strong) !important;
+  color: var(--text-primary) !important;
 }
 

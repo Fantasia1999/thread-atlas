@@ -28,8 +28,13 @@ function createSidebarOptions(overrides?: Partial<Parameters<typeof renderSideba
     loading: false,
     pinned: false,
     open: true,
+    pinnedKeys: new Set<string>(),
+    favoriteKeys: new Set<string>(),
+    favoriteMetadata: new Map<string, { tags: string[]; notes: string }>(),
     onToggleOpen: () => {},
     onTogglePin: () => {},
+    onTogglePinSession: () => {},
+    onToggleFavoriteSession: () => {},
     onSearch: () => {},
     onFilter: () => {},
     onSelect: () => {},
@@ -215,5 +220,88 @@ test("select-input blurs on change", () => {
 
   select.dispatchEvent("change");
   assert.equal(blurred, true);
+});
+
+test("renderSidebar renders pinned/favorite row classes and custom tag pills", () => {
+  const key = "file::/path/to/session.jsonl";
+  const options = createSidebarOptions({
+    pinnedKeys: new Set([key]),
+    favoriteKeys: new Set([key]),
+    favoriteMetadata: new Map([[key, { tags: ["auth", "bug"], notes: "Some notes" }]])
+  });
+
+  const sidebar = renderSidebar(options);
+  const row = sidebar.querySelector(".session-row");
+  assert.ok(row);
+  assert.ok(row.classList.contains("pinned-row"));
+  assert.ok(row.classList.contains("favorite-row"));
+
+  // Check tag pills
+  const pills = row.querySelectorAll(".tag-pill");
+  assert.equal(pills.length, 2);
+  assert.equal(pills[0].textContent, "auth");
+  assert.equal(pills[1].textContent, "bug");
+
+  // Check notes display
+  const note = row.querySelector(".session-row-note");
+  assert.ok(note);
+  assert.ok(note.textContent?.includes("Some notes"));
+});
+
+test("clicking pin and favorite action buttons triggers appropriate callbacks", () => {
+  let pinTriggered = false;
+  let favTriggered = false;
+  const key = "file::/path/to/session.jsonl";
+
+  const options = createSidebarOptions({
+    onTogglePinSession: (k) => {
+      if (k === key) pinTriggered = true;
+    },
+    onToggleFavoriteSession: (k) => {
+      if (k === key) favTriggered = true;
+    }
+  });
+
+  const sidebar = renderSidebar(options);
+  const pinBtn = sidebar.querySelector(".pin-btn") as HTMLButtonElement | null;
+  const favBtn = sidebar.querySelector(".favorite-btn") as HTMLButtonElement | null;
+
+  assert.ok(pinBtn);
+  assert.ok(favBtn);
+
+  pinBtn.dispatchEvent("click");
+  favBtn.dispatchEvent("click");
+
+  assert.equal(pinTriggered, true);
+  assert.equal(favTriggered, true);
+});
+
+test("renderSidebar renders quick search chips when favorites exist", () => {
+  const key = "file::/path/to/session.jsonl";
+  const options = createSidebarOptions({
+    favoriteKeys: new Set([key]),
+    favoriteMetadata: new Map([[key, { tags: ["ui", "store"], notes: "" }]])
+  });
+
+  const sidebar = renderSidebar(options);
+  const chipsContainer = sidebar.querySelector(".quick-chips-container") as any;
+  assert.ok(chipsContainer);
+  assert.equal(chipsContainer.classList.contains("hidden"), false);
+
+  // Verify only Favorites button and the select dropdown are rendered
+  const chipBtn = chipsContainer.querySelector(".chip-btn") as any;
+  assert.ok(chipBtn);
+  assert.ok(chipBtn.textContent?.includes("Favorites"));
+
+  const selectDropdown = chipsContainer.querySelector("select") as any;
+  assert.ok(selectDropdown);
+  assert.equal(selectDropdown.className, "select-input tag-filter-select");
+
+  // Verify select options: placeholder, store, ui (3 options total)
+  const optionsList = selectDropdown.querySelectorAll("option");
+  assert.equal(optionsList.length, 3);
+  assert.equal(optionsList[0].textContent, "🏷️ Filter by Tag");
+  assert.equal(optionsList[1].textContent, "#store (1)");
+  assert.equal(optionsList[2].textContent, "#ui (1)");
 });
 

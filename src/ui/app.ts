@@ -193,6 +193,15 @@ export class ThreadAtlasApp {
         loading: state.loadingScan,
         pinned: sidebarPinned,
         open: sidebarOpen,
+        pinnedKeys: state.pinnedKeys,
+        favoriteKeys: state.favoriteKeys,
+        favoriteMetadata: state.favoriteMetadata,
+        onTogglePinSession: (key) => {
+          this.store.togglePin(key);
+        },
+        onToggleFavoriteSession: (key) => {
+          this.store.toggleFavorite(key);
+        },
         onToggleOpen: () => {
           this.toggleSidebarOpen();
         },
@@ -223,6 +232,18 @@ export class ThreadAtlasApp {
         messageFilter: this.messageFilter,
         timelinePinned,
         timelineOpen,
+        pinnedKeys: state.pinnedKeys,
+        favoriteKeys: state.favoriteKeys,
+        favoriteMetadata: state.favoriteMetadata,
+        onTogglePinSession: (key) => {
+          this.store.togglePin(key);
+        },
+        onToggleFavoriteSession: (key) => {
+          this.store.toggleFavorite(key);
+        },
+        onUpdateMetadata: (key, tags, notes) => {
+          this.store.updateFavoriteMetadata(key, { tags, notes });
+        },
         onFilterChange: (filter) => {
           this.messageFilter = filter;
           localStorage.setItem(MESSAGE_FILTER_STORAGE_KEY, filter);

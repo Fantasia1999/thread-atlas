@@ -9,8 +9,13 @@ interface SidebarOptions {
   loading: boolean;
   pinned: boolean;
   open: boolean;
+  pinnedKeys: Set<string>;
+  favoriteKeys: Set<string>;
+  favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
   onToggleOpen: () => void;
   onTogglePin: () => void;
+  onTogglePinSession: (key: string) => void;
+  onToggleFavoriteSession: (key: string) => void;
   onSearch: (value: string) => void;
   onFilter: (value: SessionSource | "all") => void;
   onSelect: (key: string) => void;
@@ -186,7 +191,112 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     options.onFilter(filter.value as SessionSource | "all");
   });
 
-  controls.append(search, filter);
+  // Render C.3 Quick Search Chips (Favorites Chip + Tag Select Dropdown)
+  const chipsContainer = document.createElement("div");
+  chipsContainer.className = "quick-chips-container";
+
+  const renderChips = () => {
+    chipsContainer.innerHTML = "";
+    const hasFavorites = options.favoriteKeys.size > 0;
+    if (chipsContainer.style) {
+      chipsContainer.style.display = hasFavorites ? "flex" : "none";
+    }
+    chipsContainer.classList.toggle("hidden", !hasFavorites);
+    if (!hasFavorites) {
+      return;
+    }
+
+    // 1. Favorites overall chip
+    const allFavChip = document.createElement("button");
+    allFavChip.type = "button";
+    const isFavSearchActive =
+      options.search.toLowerCase().includes("is:starred") ||
+      options.search.toLowerCase().includes("is:favorite");
+    allFavChip.className = `chip-btn star-chip${isFavSearchActive ? " active" : ""}`;
+    allFavChip.textContent = `⭐ Favorites`;
+    allFavChip.addEventListener("click", (e) => {
+      e?.stopPropagation();
+      if (isFavSearchActive) {
+        const nextSearch = options.search
+          .replace(/\bis:starred\b/gi, "")
+          .replace(/\bis:favorite\b/gi, "")
+          .trim()
+          .replace(/\s+/g, " ");
+        options.onSearch(nextSearch);
+      } else {
+        const nextSearch = (options.search ? options.search + " " : "") + "is:starred";
+        options.onSearch(nextSearch.trim());
+      }
+    });
+    chipsContainer.append(allFavChip);
+
+    // 2. Extract unique tags and Usage Counts
+    const tagCounts = new Map<string, number>();
+    for (const key of options.favoriteKeys) {
+      const meta = options.favoriteMetadata.get(key);
+      if (meta && meta.tags) {
+        for (const t of meta.tags) {
+          const cleanT = t.trim();
+          if (cleanT) {
+            tagCounts.set(cleanT, (tagCounts.get(cleanT) || 0) + 1);
+          }
+        }
+      }
+    }
+
+    // Render tag filter select if any tags exist
+    if (tagCounts.size > 0) {
+      const tagSelect = document.createElement("select");
+      tagSelect.className = "select-input tag-filter-select";
+
+      // Default option
+      const defaultOpt = document.createElement("option");
+      defaultOpt.value = "";
+      defaultOpt.textContent = "🏷️ Filter by Tag";
+      tagSelect.append(defaultOpt);
+
+      let activeTagValue = "";
+      const searchLower = options.search.toLowerCase();
+
+      [...tagCounts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .forEach(([tag, count]) => {
+          const opt = document.createElement("option");
+          opt.value = tag;
+          opt.textContent = `#${tag} (${count})`;
+          tagSelect.append(opt);
+
+          if (searchLower.includes(`#${tag.toLowerCase()}`)) {
+            activeTagValue = tag;
+          }
+        });
+
+      tagSelect.value = activeTagValue;
+
+      tagSelect.addEventListener("change", () => {
+        const selectedTag = tagSelect.value;
+
+        // Clear existing tags from search query first
+        let nextSearch = options.search;
+        [...tagCounts.keys()].forEach((t) => {
+          const regex = new RegExp(`#${t}\\b`, "gi");
+          nextSearch = nextSearch.replace(regex, "");
+        });
+        nextSearch = nextSearch.trim().replace(/\s+/g, " ");
+
+        if (selectedTag) {
+          nextSearch = (nextSearch ? nextSearch + " " : "") + `#${selectedTag}`;
+        }
+
+        options.onSearch(nextSearch.trim());
+      });
+
+      chipsContainer.append(tagSelect);
+    }
+  };
+
+  renderChips();
+  controls.append(search, filter, chipsContainer);
 
   const list = document.createElement("div");
   list.className = "session-list";
@@ -196,9 +306,30 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   } else if (options.descriptors.length === 0) {
     list.append(emptyState("No sessions found."));
   } else {
+    let hasRenderedPinnedHeader = false;
+    let hasRenderedNormalHeader = false;
+
     for (const descriptor of options.descriptors) {
+      const isPinned = options.pinnedKeys.has(descriptor.key);
+      const isFavorited = options.favoriteKeys.has(descriptor.key);
+
+      // Group headers
+      if (isPinned && !hasRenderedPinnedHeader) {
+        const pHeader = document.createElement("div");
+        pHeader.className = "session-group-header";
+        pHeader.innerHTML = `📌 Pinned Sessions`;
+        list.append(pHeader);
+        hasRenderedPinnedHeader = true;
+      } else if (!isPinned && !hasRenderedNormalHeader) {
+        const nHeader = document.createElement("div");
+        nHeader.className = "session-group-header divider";
+        nHeader.innerHTML = `📁 Scanned History`;
+        list.append(nHeader);
+        hasRenderedNormalHeader = true;
+      }
+
       const button = document.createElement("button");
-      button.className = `session-row${descriptor.key === options.selectedKey ? " active" : ""}`;
+      button.className = `session-row${descriptor.key === options.selectedKey ? " active" : ""}${isPinned ? " pinned-row" : ""}${isFavorited ? " favorite-row" : ""}`;
       button.type = "button";
       button.addEventListener("click", () => {
         options.onSelect(descriptor.key);
@@ -210,17 +341,79 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
         ? `<span class="session-workspace" title="${escapeHtml(getWorkspaceFullPath(descriptor))}">${escapeHtml(workspaceLabel)}</span>`
         : "";
 
-      button.innerHTML = `
-        <div class="session-row-top">
-          <span class="source-badge ${descriptor.source}">${descriptor.source}</span>
-          <span class="session-date">${dateLabel}</span>
-        </div>
-        <strong class="session-title">${escapeHtml(descriptor.title)}</strong>
-        <div class="session-path-row">
-          ${workspaceHtml}
-          <p class="session-path">${escapeHtml(descriptor.primaryPath)}</p>
-        </div>
+      const meta = options.favoriteMetadata.get(descriptor.key);
+
+      // Create rowTop elegantly via DOM elements for mock testing harness compatibility
+      const rowTop = document.createElement("div");
+      rowTop.className = "session-row-top";
+
+      const sourceAndDate = document.createElement("div");
+      sourceAndDate.className = "source-and-date";
+      sourceAndDate.innerHTML = `
+        <span class="source-badge ${descriptor.source}">${descriptor.source}</span>
+        <span class="session-date">${dateLabel}</span>
       `;
+      rowTop.append(sourceAndDate);
+      button.append(rowTop);
+
+      const titleEl = document.createElement("strong");
+      titleEl.className = "session-title";
+      titleEl.textContent = descriptor.title;
+
+      const pathRow = document.createElement("div");
+      pathRow.className = "session-path-row";
+      pathRow.innerHTML = workspaceHtml + `<p class="session-path">${escapeHtml(descriptor.primaryPath)}</p>`;
+
+      button.append(titleEl, pathRow);
+
+      // 1. Create and append actions via DOM elements for full compatibility with mock testing harness
+      const actionsContainer = document.createElement("div");
+      actionsContainer.className = "session-item-actions";
+
+      const pinBtn = document.createElement("button");
+      pinBtn.type = "button";
+      pinBtn.className = `session-action-btn pin-btn${isPinned ? " active" : ""}`;
+      pinBtn.title = isPinned ? "Unpin session" : "Pin session";
+      pinBtn.innerHTML = pinIconMini();
+      pinBtn.addEventListener("click", (e) => {
+        e?.stopPropagation();
+        options.onTogglePinSession(descriptor.key);
+      });
+
+      const favBtn = document.createElement("button");
+      favBtn.type = "button";
+      favBtn.className = `session-action-btn favorite-btn${isFavorited ? " active" : ""}`;
+      favBtn.title = isFavorited ? "Remove from Favorites" : "Add to Favorites";
+      favBtn.innerHTML = starIconMini();
+      favBtn.addEventListener("click", (e) => {
+        e?.stopPropagation();
+        options.onToggleFavoriteSession(descriptor.key);
+      });
+
+      actionsContainer.append(pinBtn, favBtn);
+      rowTop.append(actionsContainer);
+
+      // 2. Create and append tags capsules
+      if (meta && meta.tags && meta.tags.length > 0) {
+        const tagsContainer = document.createElement("div");
+        tagsContainer.className = "session-row-tags";
+        for (const t of meta.tags) {
+          const pill = document.createElement("span");
+          pill.className = "tag-pill";
+          pill.textContent = t;
+          tagsContainer.append(pill);
+        }
+        button.append(tagsContainer);
+      }
+
+      // 3. Create and append private notes
+      if (meta && meta.notes && meta.notes.trim()) {
+        const notesEl = document.createElement("p");
+        notesEl.className = "session-row-note";
+        notesEl.title = meta.notes;
+        notesEl.textContent = `📝 ${meta.notes}`;
+        button.append(notesEl);
+      }
 
       list.append(button);
     }
@@ -282,6 +475,22 @@ function pinIcon(): string {
   return `
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path d="M5.25 1.75A.75.75 0 0 1 6 1h4a.75.75 0 0 1 .53 1.28l-.78.78v3.38l2.28 2.28A.75.75 0 0 1 11.5 10H8.75v4.25a.75.75 0 0 1-1.5 0V10H4.5a.75.75 0 0 1-.53-1.28l2.28-2.28V3.06l-.78-.78a.75.75 0 0 1-.22-.53Zm2.03.75.25.25a.75.75 0 0 1 .22.53v3.47a.75.75 0 0 1-.22.53L6.31 8.5h3.38L8.47 7.28a.75.75 0 0 1-.22-.53V3.28a.75.75 0 0 1 .22-.53l.25-.25H7.28Z"/>
+    </svg>
+  `;
+}
+
+function pinIconMini(): string {
+  return `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" width="13" height="13">
+      <path d="M10.25 1a.75.75 0 0 1 .75.75v3.38l1.78 1.78a.75.75 0 0 1-.53 1.28H9.5v4.25a.75.75 0 0 1-1.5 0V8.19H5.25a.75.75 0 0 1-.53-1.28l1.78-1.78V1.75a.75.75 0 0 1 .75-.75h3Z"/>
+    </svg>
+  `;
+}
+
+function starIconMini(): string {
+  return `
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" width="13" height="13">
+      <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97 1.053 4.208a.75.75 0 0 1-1.087.79L8 12.257l-3.751 1.973a.75.75 0 0 1-1.087-.79l1.053-4.208-3.046-2.97a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/>
     </svg>
   `;
 }

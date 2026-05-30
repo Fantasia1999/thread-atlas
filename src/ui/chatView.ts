@@ -18,10 +18,16 @@ interface ChatViewOptions {
   messageFilter: MessageViewFilter;
   timelinePinned: boolean;
   timelineOpen: boolean;
+  pinnedKeys: Set<string>;
+  favoriteKeys: Set<string>;
+  favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
   onFilterChange: (filter: MessageViewFilter) => void;
   onTimelineToggleOpen: () => void;
   onTimelineTogglePin: () => void;
   onExport: (session: Session) => void;
+  onTogglePinSession: (key: string) => void;
+  onToggleFavoriteSession: (key: string) => void;
+  onUpdateMetadata: (key: string, tags: string[], notes: string) => void;
   onRenderComplete?: () => void;
 }
 
@@ -53,8 +59,14 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
       session,
       filteredCount: filteredMessages.length,
       filter: options.messageFilter,
+      pinnedKeys: options.pinnedKeys,
+      favoriteKeys: options.favoriteKeys,
+      favoriteMetadata: options.favoriteMetadata,
       onFilterChange: options.onFilterChange,
-      onExport: options.onExport
+      onExport: options.onExport,
+      onTogglePinSession: options.onTogglePinSession,
+      onToggleFavoriteSession: options.onToggleFavoriteSession,
+      onUpdateMetadata: options.onUpdateMetadata
     })
   );
 
@@ -88,14 +100,24 @@ function renderSessionHeader(options: {
   session: Session | undefined;
   filteredCount: number;
   filter: MessageViewFilter;
+  pinnedKeys: Set<string>;
+  favoriteKeys: Set<string>;
+  favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
   onFilterChange: (filter: MessageViewFilter) => void;
   onExport: (session: Session) => void;
+  onTogglePinSession: (key: string) => void;
+  onToggleFavoriteSession: (key: string) => void;
+  onUpdateMetadata: (key: string, tags: string[], notes: string) => void;
 }): HTMLElement {
   const header = document.createElement("div");
   header.className = "chat-header";
 
   const descriptor = options.descriptor;
   const session = options.session;
+
+  const isPinned = options.pinnedKeys.has(descriptor.key);
+  const isFavorited = options.favoriteKeys.has(descriptor.key);
+  const favMeta = options.favoriteMetadata.get(descriptor.key) || { tags: [], notes: "" };
 
   const main = document.createElement("div");
   main.className = "chat-header-main";
@@ -105,12 +127,69 @@ function renderSessionHeader(options: {
 
   const heading = document.createElement("div");
   heading.className = "chat-heading";
+
+  let titleBadges = "";
+  if (isPinned) {
+    titleBadges += `<span class="header-badge pin-badge" title="Pinned session">📌</span>`;
+  }
+  if (isFavorited) {
+    titleBadges += `<span class="header-badge star-badge" title="Favorited session">⭐</span>`;
+  }
+
   heading.innerHTML = `
     <div class="eyebrow">Session Detail</div>
-    <h1>${escapeHtml(session?.title ?? descriptor.title)}</h1>
+    <div class="chat-title-container">
+      <h1 title="${escapeHtml(session?.title ?? descriptor.title)}">${escapeHtml(session?.title ?? descriptor.title)}</h1>
+      ${titleBadges ? `<div class="chat-header-badges">${titleBadges}</div>` : ""}
+    </div>
   `;
 
   titleRow.append(heading);
+
+  const favActions = document.createElement("div");
+  favActions.className = "chat-fav-actions";
+
+  const pinToggleBtn = document.createElement("button");
+  pinToggleBtn.type = "button";
+  pinToggleBtn.className = `button header-fav-btn pin-btn${isPinned ? " active" : ""}`;
+  pinToggleBtn.innerHTML = `📌 ${isPinned ? "Pinned" : "Pin"}`;
+  pinToggleBtn.title = isPinned ? "Unpin from top" : "Pin to top";
+  pinToggleBtn.addEventListener("click", () => {
+    options.onTogglePinSession(descriptor.key);
+  });
+
+  const favToggleBtn = document.createElement("button");
+  favToggleBtn.type = "button";
+  favToggleBtn.className = `button header-fav-btn favorite-btn${isFavorited ? " active" : ""}`;
+  favToggleBtn.innerHTML = `⭐ ${isFavorited ? "Favorited" : "Favorite"}`;
+  favToggleBtn.title = isFavorited ? "Remove from Favorites" : "Add to Favorites";
+  favToggleBtn.addEventListener("click", () => {
+    options.onToggleFavoriteSession(descriptor.key);
+  });
+
+  favActions.append(pinToggleBtn, favToggleBtn);
+
+  if (isFavorited) {
+    const editTagsBtn = document.createElement("button");
+    editTagsBtn.type = "button";
+    editTagsBtn.className = "button header-fav-btn edit-tags-btn secondary";
+    editTagsBtn.innerHTML = `🏷️ Tags`;
+    editTagsBtn.title = "Edit tags and custom notes";
+    editTagsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const panel = header.querySelector<HTMLElement>(".tags-edit-panel");
+      if (panel) {
+        const isHidden = panel.style.display === "none";
+        panel.style.display = isHidden ? "block" : "none";
+        if (isHidden) {
+          panel.querySelector<HTMLInputElement>(".tags-input")?.focus();
+        }
+      }
+    });
+    favActions.append(editTagsBtn);
+  }
+
+  titleRow.append(favActions);
 
   if (session) {
     const actions = document.createElement("div");
@@ -146,6 +225,60 @@ function renderSessionHeader(options: {
     actions.append(exportButton);
 
     titleRow.append(actions);
+  }
+
+  // Tags & Notes glassmorphic edit panel
+  const tagsPanel = document.createElement("div");
+  tagsPanel.className = "tags-edit-panel card glassmorphic";
+  tagsPanel.style.display = "none";
+  tagsPanel.innerHTML = `
+    <div class="tags-panel-inner">
+      <h3>🏷️ Edit Session Tags & Annotations</h3>
+      <div class="tags-form-field">
+        <label for="tags-input-field">Tags (comma separated)</label>
+        <input type="text" id="tags-input-field" class="text-input tags-input" placeholder="e.g. bugfix, auth, template" value="${escapeHtml(favMeta.tags.join(", "))}">
+      </div>
+      <div class="tags-form-field">
+        <label for="notes-input-field">Private Notes / Annotations</label>
+        <textarea id="notes-input-field" class="text-input textarea-input notes-input" placeholder="Enter private summary, context or annotations here...">${escapeHtml(favMeta.notes)}</textarea>
+      </div>
+      <div class="tags-panel-actions">
+        <button type="button" class="button btn-save-tags">Save Changes</button>
+        <button type="button" class="button link btn-cancel-tags">Cancel</button>
+      </div>
+    </div>
+  `;
+
+  tagsPanel.querySelector(".btn-cancel-tags")?.addEventListener("click", () => {
+    tagsPanel.style.display = "none";
+  });
+
+  tagsPanel.querySelector(".btn-save-tags")?.addEventListener("click", () => {
+    const tagsInput = tagsPanel.querySelector<HTMLInputElement>(".tags-input");
+    const notesInput = tagsPanel.querySelector<HTMLTextAreaElement>(".notes-input");
+    const parsedTags = (tagsInput?.value || "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+    options.onUpdateMetadata(descriptor.key, parsedTags, notesInput?.value || "");
+    tagsPanel.style.display = "none";
+  });
+
+  main.append(titleRow, tagsPanel);
+
+  // Render tag pills and notes in header if favorited
+  if (isFavorited && (favMeta.tags.length > 0 || favMeta.notes.trim())) {
+    const summaryWrapper = document.createElement("div");
+    summaryWrapper.className = "header-bookmark-summary";
+
+    const tagPills = favMeta.tags.map((t) => `<span class="tag-pill">${escapeHtml(t)}</span>`).join("");
+    const notesContent = favMeta.notes.trim() ? `<span class="note-text">📝 ${escapeHtml(favMeta.notes)}</span>` : "";
+
+    summaryWrapper.innerHTML = `
+      ${tagPills ? `<div class="summary-tags">${tagPills}</div>` : ""}
+      ${notesContent ? `<div class="summary-notes">${notesContent}</div>` : ""}
+    `;
+    main.append(summaryWrapper);
   }
 
 

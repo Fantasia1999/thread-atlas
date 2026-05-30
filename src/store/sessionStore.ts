@@ -15,6 +15,9 @@ export interface StoreState {
   loadingScan: boolean;
   loadingSession: boolean;
   status: string;
+  pinnedKeys: Set<string>;
+  favoriteKeys: Set<string>;
+  favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
 }
 
 type Listener = (state: StoreState) => void;
@@ -45,7 +48,39 @@ export class SessionStore {
     search: "",
     loadingScan: false,
     loadingSession: false,
-    status: "Ready."
+    status: "Ready.",
+    pinnedKeys: (() => {
+      try {
+        const val = localStorage.getItem("thread-atlas-pinned-sessions");
+        return val ? new Set<string>(JSON.parse(val)) : new Set<string>();
+      } catch {
+        return new Set<string>();
+      }
+    })(),
+    favoriteKeys: (() => {
+      try {
+        const val = localStorage.getItem("thread-atlas-favorite-sessions");
+        return val ? new Set<string>(JSON.parse(val)) : new Set<string>();
+      } catch {
+        return new Set<string>();
+      }
+    })(),
+    favoriteMetadata: (() => {
+      try {
+        const val = localStorage.getItem("thread-atlas-favorite-metadata");
+        if (val) {
+          const parsed = JSON.parse(val) as Record<string, { tags: string[]; notes: string }>;
+          const map = new Map<string, { tags: string[]; notes: string }>();
+          for (const [k, v] of Object.entries(parsed)) {
+            map.set(k, v);
+          }
+          return map;
+        }
+      } catch {
+        // ignore
+      }
+      return new Map<string, { tags: string[]; notes: string }>();
+    })()
   };
 
   subscribe(listener: Listener): () => void {
@@ -60,27 +95,90 @@ export class SessionStore {
     return {
       ...this.state,
       descriptors: [...this.state.descriptors],
-      sessions: new Map(this.state.sessions)
+      sessions: new Map(this.state.sessions),
+      pinnedKeys: new Set(this.state.pinnedKeys),
+      favoriteKeys: new Set(this.state.favoriteKeys),
+      favoriteMetadata: new Map(this.state.favoriteMetadata)
     };
   }
 
   getVisibleDescriptors(): SessionDescriptor[] {
     const query = this.state.search.trim().toLowerCase();
 
-    return this.state.descriptors.filter((descriptor) => {
+    // Parse special filters
+    const showOnlyStarred = query.includes("is:starred") || query.includes("is:favorite");
+    
+    let cleanQuery = query
+      .replace(/\bis:starred\b/gi, "")
+      .replace(/\bis:favorite\b/gi, "")
+      .trim();
+
+    // Extract tags like "#tag1" or "#tag2"
+    const tagMatches = cleanQuery.match(/#\S+/g) || [];
+    const targetTags = tagMatches.map(t => t.slice(1).toLowerCase());
+
+    // Strip out the tags from the text search query
+    for (const match of tagMatches) {
+      cleanQuery = cleanQuery.replace(match, "");
+    }
+    cleanQuery = cleanQuery.trim().replace(/\s+/g, " ");
+
+    const filtered = this.state.descriptors.filter((descriptor) => {
       if (this.state.sourceFilter !== "all" && descriptor.source !== this.state.sourceFilter) {
         return false;
       }
 
-      if (!query) {
+      // Check favorites-only filter
+      if (showOnlyStarred && !this.state.favoriteKeys.has(descriptor.key)) {
+        return false;
+      }
+
+      // Check hashtag filters
+      if (targetTags.length > 0) {
+        const meta = this.state.favoriteMetadata.get(descriptor.key);
+        if (!meta) {
+          return false;
+        }
+        const sessionTags = meta.tags.map(t => t.toLowerCase());
+        const hasAllTags = targetTags.every(t => sessionTags.includes(t));
+        if (!hasAllTags) {
+          return false;
+        }
+      }
+
+      if (!cleanQuery) {
         return true;
       }
 
+      // Fetch metadata to match notes and tags in plain text search
+      const meta = this.state.favoriteMetadata.get(descriptor.key);
+      const notesMatch = meta?.notes?.toLowerCase().includes(cleanQuery) || false;
+      const tagsMatch = meta?.tags?.some(t => t.toLowerCase().includes(cleanQuery)) || false;
+
       return (
-        descriptor.title.toLowerCase().includes(query) ||
-        descriptor.primaryPath.toLowerCase().includes(query)
+        descriptor.title.toLowerCase().includes(cleanQuery) ||
+        descriptor.primaryPath.toLowerCase().includes(cleanQuery) ||
+        notesMatch ||
+        tagsMatch
       );
     });
+
+    // Pinned sorting logic
+    const pinnedGroup: SessionDescriptor[] = [];
+    const normalGroup: SessionDescriptor[] = [];
+
+    for (const desc of filtered) {
+      if (this.state.pinnedKeys.has(desc.key)) {
+        pinnedGroup.push(desc);
+      } else {
+        normalGroup.push(desc);
+      }
+    }
+
+    pinnedGroup.sort(compareDescriptors);
+    normalGroup.sort(compareDescriptors);
+
+    return [...pinnedGroup, ...normalGroup];
   }
 
   setSearch(search: string): void {
@@ -90,6 +188,42 @@ export class SessionStore {
   setSourceFilter(sourceFilter: SessionSource | "all"): void {
     localStorage.setItem("thread-atlas-source-filter", sourceFilter);
     this.updateState({ sourceFilter });
+  }
+
+  togglePin(key: string): void {
+    const nextPinned = new Set(this.state.pinnedKeys);
+    if (nextPinned.has(key)) {
+      nextPinned.delete(key);
+    } else {
+      nextPinned.add(key);
+    }
+    localStorage.setItem("thread-atlas-pinned-sessions", JSON.stringify([...nextPinned]));
+    this.updateState({ pinnedKeys: nextPinned });
+  }
+
+  toggleFavorite(key: string): void {
+    const nextFavorite = new Set(this.state.favoriteKeys);
+    if (nextFavorite.has(key)) {
+      nextFavorite.delete(key);
+    } else {
+      nextFavorite.add(key);
+    }
+    localStorage.setItem("thread-atlas-favorite-sessions", JSON.stringify([...nextFavorite]));
+    this.updateState({ favoriteKeys: nextFavorite });
+  }
+
+  updateFavoriteMetadata(key: string, metadata: { tags: string[]; notes: string }): void {
+    const nextMeta = new Map(this.state.favoriteMetadata);
+    nextMeta.set(key, metadata);
+
+    // Save to localStorage
+    const obj: Record<string, { tags: string[]; notes: string }> = {};
+    for (const [k, v] of nextMeta.entries()) {
+      obj[k] = v;
+    }
+    localStorage.setItem("thread-atlas-favorite-metadata", JSON.stringify(obj));
+
+    this.updateState({ favoriteMetadata: nextMeta });
   }
 
   async refreshLocalScan(): Promise<void> {
