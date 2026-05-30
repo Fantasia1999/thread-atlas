@@ -36,7 +36,9 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
 
   container.addEventListener("mouseleave", () => {
     clearAllTimeouts();
-    if (options.open && !options.pinned) {
+    const isOpen = container.classList.contains("open");
+    const isPinned = container.classList.contains("pinned");
+    if (isOpen && !isPinned) {
       leaveTimeout = window.setTimeout(() => {
         options.onToggleOpen();
       }, 150);
@@ -66,7 +68,8 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   });
 
   openButton.addEventListener("mouseenter", () => {
-    if (!options.open) {
+    const isOpen = container.classList.contains("open");
+    if (!isOpen) {
       hoverTimeout = window.setTimeout(() => {
         options.onToggleOpen();
       }, 120);

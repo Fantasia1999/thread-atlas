@@ -194,15 +194,10 @@ export class ThreadAtlasApp {
         pinned: sidebarPinned,
         open: sidebarOpen,
         onToggleOpen: () => {
-          this.sidebarOpen = !sidebarOpen;
-          this.render(this.store.getState());
+          this.toggleSidebarOpen();
         },
         onTogglePin: () => {
-          const nextPinned = !this.sidebarPinned;
-          this.sidebarPinned = nextPinned;
-          this.sidebarOpen = !nextPinned;
-          localStorage.setItem(SIDEBAR_PIN_STORAGE_KEY, String(this.sidebarPinned));
-          this.render(this.store.getState());
+          this.toggleSidebarPin();
         },
         onSearch: (value) => {
           this.store.setSearch(value);
@@ -213,8 +208,7 @@ export class ThreadAtlasApp {
         onSelect: async (key) => {
           await this.store.selectSession(key);
           if (!this.isSidebarPinned()) {
-            this.sidebarOpen = false;
-            this.render(this.store.getState());
+            this.toggleSidebarOpen(false);
           }
         }
       })
@@ -304,6 +298,67 @@ export class ThreadAtlasApp {
     list.addEventListener("scroll", () => {
       this.chatMessagesScrollTop = list.scrollTop;
     });
+  }
+
+  private toggleSidebarOpen(force?: boolean): void {
+    this.sidebarOpen = force !== undefined ? force : !this.sidebarOpen;
+    const isPinned = this.isSidebarPinned();
+    const open = isPinned || this.sidebarOpen;
+
+    // 1. Toggle class on shell
+    this.shell.classList.toggle("sidebar-open", this.sidebarOpen);
+
+    // 2. Toggle class on sidebar-dock
+    const dock = this.sidebarMount.querySelector(".sidebar-dock");
+    if (dock) {
+      dock.classList.toggle("open", open);
+    }
+
+    // 3. Update sidebar rail button title / aria-label
+    const toggleBtn = this.sidebarMount.querySelector(".sidebar-rail .rail-button") as HTMLButtonElement | null;
+    if (toggleBtn) {
+      const nextTitle = open ? "Collapse sessions" : "Open sessions";
+      toggleBtn.title = nextTitle;
+      toggleBtn.setAttribute("aria-label", nextTitle);
+    }
+  }
+
+  private toggleSidebarPin(): void {
+    const nextPinned = !this.sidebarPinned;
+    this.sidebarPinned = nextPinned;
+    this.sidebarOpen = !nextPinned;
+    localStorage.setItem(SIDEBAR_PIN_STORAGE_KEY, String(this.sidebarPinned));
+
+    const isPinned = this.isSidebarPinned();
+    const open = isPinned || this.sidebarOpen;
+
+    // 1. Toggle classes on shell
+    this.shell.classList.toggle("sidebar-pinned", isPinned);
+    this.shell.classList.toggle("sidebar-open", this.sidebarOpen);
+
+    // 2. Toggle classes on sidebar-dock
+    const dock = this.sidebarMount.querySelector(".sidebar-dock");
+    if (dock) {
+      dock.classList.toggle("pinned", isPinned);
+      dock.classList.toggle("open", open);
+    }
+
+    // 3. Update pin button active class & title / aria-label
+    const pinBtn = this.sidebarMount.querySelector(".panel-header-actions .panel-icon-button") as HTMLButtonElement | null;
+    if (pinBtn) {
+      pinBtn.classList.toggle("active", isPinned);
+      const nextTitle = isPinned ? "Unpin sessions" : "Pin sessions";
+      pinBtn.title = nextTitle;
+      pinBtn.setAttribute("aria-label", nextTitle);
+    }
+
+    // 4. Update sidebar rail button title / aria-label
+    const toggleBtn = this.sidebarMount.querySelector(".sidebar-rail .rail-button") as HTMLButtonElement | null;
+    if (toggleBtn) {
+      const nextTitle = open ? "Collapse sessions" : "Open sessions";
+      toggleBtn.title = nextTitle;
+      toggleBtn.setAttribute("aria-label", nextTitle);
+    }
   }
 
   private toggleTimelineOpen(force?: boolean): void {
