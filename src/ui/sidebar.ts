@@ -41,7 +41,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     if (isOpen && !isPinned) {
       leaveTimeout = window.setTimeout(() => {
         options.onToggleOpen();
-      }, 150);
+      }, 80);
     }
   });
 

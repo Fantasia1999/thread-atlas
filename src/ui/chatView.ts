@@ -362,7 +362,7 @@ function renderChatLayout(options: {
     if (isOpen && !isPinned) {
       leaveTimeout = window.setTimeout(() => {
         options.onTimelineToggleOpen();
-      }, 150);
+      }, 80);
     }
   });
 
