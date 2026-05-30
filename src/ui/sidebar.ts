@@ -181,43 +181,10 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
 
   const renderChips = () => {
     chipsContainer.innerHTML = "";
-    const hasFavorites = options.favoriteKeys.size > 0;
-    if (chipsContainer.style) {
-      chipsContainer.style.display = hasFavorites ? "flex" : "none";
-    }
-    chipsContainer.classList.toggle("hidden", !hasFavorites);
-    if (!hasFavorites) {
-      return;
-    }
 
-    // 1. Favorites overall chip
-    const allFavChip = document.createElement("button");
-    allFavChip.type = "button";
-    const isFavSearchActive =
-      options.search.toLowerCase().includes("is:starred") ||
-      options.search.toLowerCase().includes("is:favorite");
-    allFavChip.className = `chip-btn star-chip${isFavSearchActive ? " active" : ""}`;
-    allFavChip.textContent = `⭐ Favorites`;
-    allFavChip.addEventListener("click", (e) => {
-      e?.stopPropagation();
-      if (isFavSearchActive) {
-        const nextSearch = options.search
-          .replace(/\bis:starred\b/gi, "")
-          .replace(/\bis:favorite\b/gi, "")
-          .trim()
-          .replace(/\s+/g, " ");
-        options.onSearch(nextSearch);
-      } else {
-        const nextSearch = (options.search ? options.search + " " : "") + "is:starred";
-        options.onSearch(nextSearch.trim());
-      }
-    });
-    chipsContainer.append(allFavChip);
-
-    // 2. Extract unique tags and Usage Counts
+    // 1. Extract unique tags and Usage Counts from all annotated metadata (starred or not)
     const tagCounts = new Map<string, number>();
-    for (const key of options.favoriteKeys) {
-      const meta = options.favoriteMetadata.get(key);
+    for (const [_, meta] of options.favoriteMetadata.entries()) {
       if (meta && meta.tags) {
         for (const t of meta.tags) {
           const cleanT = t.trim();
@@ -228,8 +195,46 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       }
     }
 
-    // Render custom tag filter dropdown if any tags exist
-    if (tagCounts.size > 0) {
+    const hasFavorites = options.favoriteKeys.size > 0;
+    const hasTags = tagCounts.size > 0;
+    const showChips = hasFavorites || hasTags;
+
+    if (chipsContainer.style) {
+      chipsContainer.style.display = showChips ? "flex" : "none";
+    }
+    chipsContainer.classList.toggle("hidden", !showChips);
+    if (!showChips) {
+      return;
+    }
+
+    // 2. Favorites overall chip
+    if (hasFavorites) {
+      const allFavChip = document.createElement("button");
+      allFavChip.type = "button";
+      const isFavSearchActive =
+        options.search.toLowerCase().includes("is:starred") ||
+        options.search.toLowerCase().includes("is:favorite");
+      allFavChip.className = `chip-btn star-chip${isFavSearchActive ? " active" : ""}`;
+      allFavChip.textContent = `⭐ Favorites`;
+      allFavChip.addEventListener("click", (e) => {
+        e?.stopPropagation();
+        if (isFavSearchActive) {
+          const nextSearch = options.search
+            .replace(/\bis:starred\b/gi, "")
+            .replace(/\bis:favorite\b/gi, "")
+            .trim()
+            .replace(/\s+/g, " ");
+          options.onSearch(nextSearch);
+        } else {
+          const nextSearch = (options.search ? options.search + " " : "") + "is:starred";
+          options.onSearch(nextSearch.trim());
+        }
+      });
+      chipsContainer.append(allFavChip);
+    }
+
+    // 3. Render custom tag filter dropdown if any tags exist
+    if (hasTags) {
       const tagItems: DropdownItem[] = [];
       let activeTagValue = "";
       const searchLower = options.search.toLowerCase();
@@ -242,6 +247,11 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
             activeTagValue = tag;
           }
         });
+
+      // Prepend "Clear Filter" option if a tag filter is active
+      if (activeTagValue) {
+        tagItems.unshift({ value: "", label: "❌ Clear Tag Filter" });
+      }
 
       const tagSelect = createCustomDropdown({
         items: tagItems,
