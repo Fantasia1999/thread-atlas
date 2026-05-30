@@ -154,31 +154,50 @@ function getMockBundle(key: string): any {
 async function main() {
   // Parse command line arguments
   const args = process.argv.slice(2);
-  let resKey = "960p";
-  let zoomFactor = "1.25";
+  let resKey = "";
+  let zoomFactor = "";
+
+  const RESOLUTIONS: Record<string, { width: number; height: number; defaultZoom: number }> = {
+    "960p": { width: 1440, height: 960, defaultZoom: 1.25 },
+    "1080p": { width: 1920, height: 1080, defaultZoom: 1.25 },
+    "2k": { width: 2560, height: 1440, defaultZoom: 1.75 },
+    "4k": { width: 3840, height: 2160, defaultZoom: 2.5 },
+  };
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg.startsWith("--resolution=")) {
-      resKey = arg.split("=")[1];
+      resKey = arg.split("=")[1].toLowerCase();
     } else if (arg === "-r" && i + 1 < args.length) {
-      resKey = args[++i];
+      resKey = args[++i].toLowerCase();
     } else if (arg.startsWith("--zoom=")) {
       zoomFactor = arg.split("=")[1];
     } else if (arg === "-z" && i + 1 < args.length) {
       zoomFactor = args[++i];
+    } else {
+      // Fallback for positional arguments
+      const lowerArg = arg.toLowerCase();
+      if (lowerArg in RESOLUTIONS) {
+        resKey = lowerArg;
+      } else if (!isNaN(parseFloat(arg)) && parseFloat(arg) > 0.1 && parseFloat(arg) < 10) {
+        zoomFactor = arg;
+      }
     }
   }
 
-  const RESOLUTIONS: Record<string, { width: number; height: number }> = {
-    "960p": { width: 1440, height: 960 },
-    "1080p": { width: 1920, height: 1080 },
-    "2k": { width: 2560, height: 1440 },
-    "4k": { width: 3840, height: 2160 },
-  };
+  // Fallback to default resolution
+  if (!resKey) {
+    resKey = "960p";
+  }
 
-  const config = RESOLUTIONS[resKey.toLowerCase()] || RESOLUTIONS["960p"];
-  console.log(`[Screenshot Orchestrator] Resolution: ${resKey.toLowerCase()} (${config.width}x${config.height}), Zoom: ${zoomFactor}`);
+  const config = RESOLUTIONS[resKey] || RESOLUTIONS["960p"];
+
+  // Fallback to default zoom for the chosen resolution
+  if (!zoomFactor) {
+    zoomFactor = config.defaultZoom.toString();
+  }
+
+  console.log(`[Screenshot Orchestrator] Selected Resolution: ${resKey.toUpperCase()} (${config.width}x${config.height}), Zoom: ${zoomFactor}`);
 
   console.log("Starting ThreadAtlas Express server...");
   const server = spawn("node", ["dist/server/server/index.js"], {

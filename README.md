@@ -134,6 +134,35 @@ To regenerate the application screenshot stored in `docs/screenshot.png` using a
 npm run screenshot
 ```
 
+By default, the script captures at `960p` (1440x960) with `125%` zoom. You can specify a custom resolution and page zoom factor as parameters (supporting `960p`, `1080p`, `2k`, and `4k` resolutions).
+
+#### Custom Resolution
+- **Standard Flag**:
+  ```bash
+  npm run screenshot -- --resolution=1080p
+  # or
+  npm run screenshot -- -r 2k
+  ```
+- **Positional Argument Shortcut**:
+  ```bash
+  npm run screenshot -- 1080p
+  npm run screenshot -- 2k
+  npm run screenshot -- 4k
+  ```
+
+#### Custom Page Zoom
+To change the page scale zoom (smart defaults are: `960p` = 1.25, `1080p` = 1.25, `2k` = 1.75, `4k` = 2.5):
+- **Standard Flag**:
+  ```bash
+  npm run screenshot -- --zoom=1.5
+  # or
+  npm run screenshot -- -z 1.75
+  ```
+- **Positional Argument Shortcut**:
+  ```bash
+  npm run screenshot -- 1080p 1.5
+  ```
+
 ## Common Workflows
 
 ### Browse local sessions

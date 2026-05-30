@@ -81,9 +81,16 @@ def get_geometry(key, fallback_box, W, H, fallback_marker=None):
                 cy = min(cy, 250)
             return box, (cx, cy)
 
-    bx = fallback_box
+    scale_x = W / 1920.0
+    scale_y = H / 1080.0
+    bx = (
+        int(fallback_box[0] * scale_x),
+        int(fallback_box[1] * scale_y),
+        int(fallback_box[2] * scale_x),
+        int(fallback_box[3] * scale_y)
+    )
     if fallback_marker:
-        mk = fallback_marker
+        mk = (int(fallback_marker[0] * scale_x), int(fallback_marker[1] * scale_y))
     else:
         mk = (bx[0] + (bx[2] - bx[0]) // 2, bx[1] + (bx[3] - bx[1]) // 2)
     return bx, mk
