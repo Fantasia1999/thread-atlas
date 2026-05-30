@@ -630,7 +630,6 @@ input[type="checkbox"] {
 
 /* Form Inputs styling */
 .text-input,
-.select-input,
 .text-area {
   width: 100%;
   min-height: 28px;
@@ -644,10 +643,54 @@ input[type="checkbox"] {
 }
 
 .text-input:focus,
-.select-input:focus,
 .text-area:focus {
   border-color: var(--border-strong);
   background: var(--bg-surface-hover);
+}
+
+/* Beautiful Premium Custom Select Dropdowns */
+.select-input {
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 24px 4px 8px; /* Extra padding-right for arrow alignment */
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  
+  /* Disable crude raw system arrow */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  
+  /* Embedded refined high-res SVG micro-arrow */
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px 10px;
+  
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+
+.select-input:hover {
+  border-color: var(--border-strong);
+  background-color: var(--bg-surface-hover);
+}
+
+.select-input:focus {
+  border-color: var(--border-strong);
+  background-color: var(--bg-surface);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.15); /* Delicate glowing focus aura */
+}
+
+/* Stylized option catalog card drop compatibility */
+.select-input option {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 6px;
 }
 
 .text-input::placeholder,
@@ -2832,15 +2875,23 @@ details[open] .tool-call-header::after {
 }
 
 .tag-filter-select {
-  padding: 3px 8px 3px 10px !important;
+  padding: 3px 20px 3px 10px !important; /* Ensure enough padding right for arrow */
   font-size: 11px !important;
   font-weight: 600 !important;
   height: auto !important;
   border-radius: var(--radius-full) !important;
   cursor: pointer;
+  
+  /* Drop raw system arrow */
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  
+  /* Refined gold/muted SVG arrow for tag dropdown */
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
   background-position: right 6px center !important;
-  background-size: 10px 10px !important;
-  padding-right: 20px !important;
+  background-size: 9px 9px !important;
+  
   max-width: 140px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2855,5 +2906,12 @@ details[open] .tool-call-header::after {
 .tag-filter-select:hover {
   border-color: var(--border-strong) !important;
   color: var(--text-primary) !important;
+  background-color: var(--bg-surface-hover) !important;
+}
+
+.tag-filter-select:focus {
+  border-color: var(--border-strong) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(255, 200, 59, 0.25) !important; /* Delicate glowing golden focus aura */
 }
 
