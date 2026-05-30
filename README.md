@@ -6,13 +6,22 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 
 ## Features
 
-- Browser-side import for local JSON and JSONL session files
-- Local scan through a small Express API on `127.0.0.1:3030`
-- SSH test, remote scan, and remote sync into `data/remote/<user>@<host>/...`
-- Antigravity `.pb` decode during scan-backed loads and Copilot session-directory loading
-- Tolerant parsing into a shared session model for mixed sources
-- Dense log-viewer UI with source filter, search, message filters, timeline jump, and JSON export
-- Light and dark theme toggle
+- **Tolerant Parsing & Mixed Sources**: Parses multiple raw formats (`codex`, `claude`, `opencode`, `gemini`, `antigravity`, `copilot`) into a standardized, unified `Session` model.
+- **Local Scanning & Storage**: Runs a lightweight, request-scoped Express backend on `localhost:3030` for discovering and loading raw session bundles.
+- **High-Fidelity Log Viewer**:
+  - Dense log UI optimized for reading complex agent trajectories and transcripts.
+  - Full support for **ANSI colored terminal outputs** and custom symbol fallback fonts in log rendering.
+  - Interactive, **collapsible markdown code frame headers** to streamline code block visibility.
+- **Fluid & Responsive Layout**:
+  - Smooth **hover-expandable and auto-collapsing sidebar & timeline drawers** using premium ease-out-expo transitions, smart hover intent, and mouseleave buffers to maximize screen estate.
+  - In-place sidebar and timeline pinning that dynamically adapts layout grids without jitter or unnecessary re-renders.
+- **Smart Workspaces & Navigation**:
+  - Displays primary **session workspace / CWD** next to the session path in the sidebar for quick context identification.
+  - Jump-to-timeline navigation with instant scroll alignment.
+- **State Persistence**: Remembers your preferred sidebar source filters and chat message filter selections across page reloads using `localStorage`.
+- **Browser-Side Import**: Direct file imports parsed in-browser; imported logs are never uploaded to the backend.
+- **Secure SSH Syncing**: Discovers and mirrors remote sessions into `data/remote/<user>@<host>/...` via password or private key SSH authentication.
+- **Sleek Aesthetics**: Fully responsive layout with a beautiful, unified look and a smooth light/dark theme toggle.
 
 ## Supported Sources
 
@@ -79,9 +88,32 @@ npm install
 npm run dev
 ```
 
-Then open `http://127.0.0.1:5173`.
+Then open `http://localhost:5173`.
 
-Vite serves the frontend on port `5173` and proxies `/api` requests to the Express backend on `127.0.0.1:3030`.
+Vite serves the frontend on port `5173` and proxies `/api` requests to the Express backend on `localhost:3030`.
+
+### Run production mode
+
+To compile the application and start the Express production server (which runs on `localhost:3030` and serves the compiled frontend assets directly):
+
+```bash
+npm start
+```
+
+Then open `http://localhost:3030`.
+
+#### Quick Launch Scripts
+Alternatively, you can use the wrapper startup scripts, which will automatically verify and install dependencies (`npm install`) if needed before building and launching the server:
+
+- **Linux/macOS**:
+  ```bash
+  chmod +x start.sh
+  ./start.sh
+  ```
+- **Windows**: Double-click `start.bat` or run it from the command line:
+  ```cmd
+  start.bat
+  ```
 
 ### Validate
 

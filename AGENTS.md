@@ -12,7 +12,7 @@ The app currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity
 
 ## Architecture
 
-- `server/`: Express backend on `127.0.0.1:3030` for local scan, bundle loading, SSH test / scan / sync, and static serving of `dist/`
+- `server/`: Express backend on `localhost:3030` for local scan, bundle loading, SSH test / scan / sync, and static serving of `dist/`
 - `src/parsers/`: source detection plus tolerant adapters that normalize raw bundles into one `Session` model
 - `src/store/`: in-memory app state for descriptors, parsed sessions, imported bundles, filters, and selection
 - `src/ui/`: plain TypeScript DOM UI with sidebar, session detail, import modal, and SSH modal
@@ -85,7 +85,7 @@ Imported browser files can still be source-detected from content and path hints 
   - Prefer bundled descriptors first.
   - If bundled descriptors cannot decode current `.pb` shape well enough, fall back to extracting descriptors from the local Antigravity `extension.js`.
 - SSH discovery and sync live in `server/ssh.ts`. Preserve the rule that sync downloads files first and lets local scan treat them like any other local source.
-- Dev mode depends on Vite proxying `/api` to `http://127.0.0.1:3030`; production build relies on the Express server serving `dist/`.
+- Dev mode depends on Vite proxying `/api` to `http://localhost:3030`; production build relies on the Express server serving `dist/`.
 
 ## Verification
 
