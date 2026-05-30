@@ -22,6 +22,7 @@ export class FakeElement extends FakeDocumentFragment {
   innerHTML = "";
   private _textContent = "";
   private listeners: Record<string, Function[]> = {};
+  readonly attributes: Record<string, string> = {};
 
   get textContent(): string {
     if (this._textContent) return this._textContent;
@@ -83,6 +84,14 @@ export class FakeElement extends FakeDocumentFragment {
       }
     }
   }
+
+  setAttribute(name: string, value: string): void {
+    this.attributes[name] = value;
+  }
+
+  getAttribute(name: string): string | null {
+    return this.attributes[name] ?? null;
+  }
 }
 
 export class FakeText {
@@ -123,3 +132,6 @@ globalThis.document = {
   createElement: (tagName: string) => new FakeElement(tagName),
   createTextNode: (text: string) => new FakeText(text)
 } as unknown as Document;
+
+(globalThis as any).window = globalThis;
+

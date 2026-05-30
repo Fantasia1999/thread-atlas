@@ -116,9 +116,24 @@ function renderSessionHeader(options: {
     const actions = document.createElement("div");
     actions.className = "chat-actions";
 
-    const resumeCommand = buildCodexResumeCommand(session);
-    if (resumeCommand) {
-      actions.append(createCopyResumeButton(resumeCommand));
+    const codexCommand = buildCodexResumeCommand(session);
+    if (codexCommand) {
+      actions.append(createCopyResumeButton(codexCommand, "Copy Codex resume command"));
+    }
+
+    const antigravityCommand = buildAntigravityResumeCommand(session);
+    if (antigravityCommand) {
+      actions.append(createCopyResumeButton(antigravityCommand, "Copy Antigravity resume command"));
+    }
+
+    const claudeCommand = buildClaudeResumeCommand(session);
+    if (claudeCommand) {
+      actions.append(createCopyResumeButton(claudeCommand, "Copy Claude resume command"));
+    }
+
+    const copilotCommand = buildCopilotResumeCommand(session);
+    if (copilotCommand) {
+      actions.append(createCopyResumeButton(copilotCommand, "Copy Copilot resume command"));
     }
 
     const exportButton = document.createElement("button");
@@ -227,7 +242,7 @@ function renderSessionHeader(options: {
   return header;
 }
 
-function buildCodexResumeCommand(session: Session): string | null {
+export function buildCodexResumeCommand(session: Session): string | null {
   if (session.source !== "codex") {
     return null;
   }
@@ -240,7 +255,55 @@ function buildCodexResumeCommand(session: Session): string | null {
   return `codex resume ${sessionId}`;
 }
 
-function createCopyResumeButton(command: string): HTMLButtonElement {
+export function buildAntigravityResumeCommand(session: Session): string | null {
+  if (session.source !== "antigravity") {
+    return null;
+  }
+
+  const cascadeId = session.metadata.cascadeId;
+  if (typeof cascadeId !== "string" || !cascadeId.trim()) {
+    return null;
+  }
+
+  return `agy --conversation=${cascadeId}`;
+}
+
+export function buildClaudeResumeCommand(session: Session): string | null {
+  if (session.source !== "claude") {
+    return null;
+  }
+
+  if (!session.primaryPath) {
+    return null;
+  }
+
+  const baseName = session.primaryPath.split(/[\\/]/).pop();
+  if (!baseName) {
+    return null;
+  }
+
+  const projectId = baseName.replace(/\.jsonl$/i, "");
+  if (!projectId.trim()) {
+    return null;
+  }
+
+  return `claude --resume ${projectId}`;
+}
+
+export function buildCopilotResumeCommand(session: Session): string | null {
+  if (session.source !== "copilot") {
+    return null;
+  }
+
+  const sessionId = session.metadata.sessionId;
+  if (typeof sessionId !== "string" || !sessionId.trim()) {
+    return null;
+  }
+
+  return `copilot --session-id=${sessionId}`;
+}
+
+export function createCopyResumeButton(command: string, label: string): HTMLButtonElement {
   const button = document.createElement("button");
   let resetTimer = 0;
 
@@ -248,7 +311,7 @@ function createCopyResumeButton(command: string): HTMLButtonElement {
   button.type = "button";
   button.innerHTML = clipboardIcon();
   button.title = command;
-  button.setAttribute("aria-label", "Copy Codex resume command");
+  button.setAttribute("aria-label", label);
 
   button.addEventListener("click", async () => {
     window.clearTimeout(resetTimer);
