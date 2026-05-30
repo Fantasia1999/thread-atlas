@@ -3083,3 +3083,8 @@ details[open] .tool-call-header::after {
   right: auto;
 }
 
+/* Global Hidden Utility */
+.hidden {
+  display: none !important;
+}
+
