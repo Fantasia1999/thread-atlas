@@ -1,6 +1,7 @@
 import puppeteer from "puppeteer";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import fs from "node:fs";
 
 const mockDescriptors = [
   {
@@ -151,6 +152,34 @@ function getMockBundle(key: string): any {
 }
 
 async function main() {
+  // Parse command line arguments
+  const args = process.argv.slice(2);
+  let resKey = "960p";
+  let zoomFactor = "1.25";
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg.startsWith("--resolution=")) {
+      resKey = arg.split("=")[1];
+    } else if (arg === "-r" && i + 1 < args.length) {
+      resKey = args[++i];
+    } else if (arg.startsWith("--zoom=")) {
+      zoomFactor = arg.split("=")[1];
+    } else if (arg === "-z" && i + 1 < args.length) {
+      zoomFactor = args[++i];
+    }
+  }
+
+  const RESOLUTIONS: Record<string, { width: number; height: number }> = {
+    "960p": { width: 1440, height: 960 },
+    "1080p": { width: 1920, height: 1080 },
+    "2k": { width: 2560, height: 1440 },
+    "4k": { width: 3840, height: 2160 },
+  };
+
+  const config = RESOLUTIONS[resKey.toLowerCase()] || RESOLUTIONS["960p"];
+  console.log(`[Screenshot Orchestrator] Resolution: ${resKey.toLowerCase()} (${config.width}x${config.height}), Zoom: ${zoomFactor}`);
+
   console.log("Starting ThreadAtlas Express server...");
   const server = spawn("node", ["dist/server/server/index.js"], {
     stdio: "inherit",
@@ -180,7 +209,7 @@ async function main() {
   }
 
   const page = await browser.newPage();
-  await page.setViewport({ width: 1440, height: 960 });
+  await page.setViewport({ width: config.width, height: config.height, deviceScaleFactor: 1 });
 
   // Enable request interception to mock API calls containing sensitive local information
   await page.setRequestInterception(true);
@@ -214,6 +243,9 @@ async function main() {
 
   console.log("Navigating to http://localhost:3030...");
   await page.goto("http://localhost:3030", { waitUntil: "networkidle0" });
+  
+  console.log(`Setting page zoom to ${zoomFactor}...`);
+  await page.evaluate(`document.documentElement.style.zoom = '${zoomFactor}'`);
 
   console.log("Waiting for sessions to load...");
   await page.waitForSelector(".session-row", { timeout: 15000 });
@@ -237,13 +269,87 @@ async function main() {
   console.log(`Saving screenshot to ${screenshotPath}...`);
   await page.screenshot({ path: screenshotPath });
 
+  console.log("Extracting element positions for annotation alignment...");
+  const positions = await page.evaluate(`
+    (function() {
+      function getRect(selector) {
+        var el = document.querySelector(selector);
+        if (!el) return null;
+        var r = el.getBoundingClientRect();
+        return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), selector: selector };
+      }
+      
+      function getBtnByText(text) {
+        var btns = Array.from(document.querySelectorAll("button"));
+        var el = btns.find(function(b) {
+          return b.textContent && b.textContent.trim().includes(text);
+        });
+        if (!el) return null;
+        var r = el.getBoundingClientRect();
+        return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+      }
+      
+      function getAllRects(selector) {
+        var els = document.querySelectorAll(selector);
+        return Array.from(els).map(function(el, i) {
+          var r = el.getBoundingClientRect();
+          return { 
+            x: Math.round(r.x), y: Math.round(r.y), 
+            w: Math.round(r.width), h: Math.round(r.height),
+            text: (el.textContent || "").slice(0, 50),
+            index: i
+          };
+        });
+      }
+
+      return {
+        themeToggle: getRect(".theme-toggle"),
+        rescanBtn: getBtnByText("Rescan local"),
+        importBtn: getBtnByText("Import files"),
+        sshBtn: getBtnByText("SSH sync"),
+        pathDisplay: getRect(".status-pill"),
+        searchInput: getRect(".sidebar-controls .text-input"),
+        sourceFilter: getRect(".sidebar-controls .select-input"),
+        sidebarHeader: getRect(".sidebar .panel-header"),
+        sessionList: getRect(".session-list"),
+        sessionCount: getRect(".sidebar .panel-header .count-badge"),
+        sortToggle: getRect(".sidebar .panel-header .panel-icon-button"),
+        chatHeader: getRect(".chat-header"),
+        chatTitleRow: getRect(".chat-title-row"),
+        chatActions: getRect(".chat-actions"),
+        chatMeta: getRect(".chat-meta"),
+        filterTabs: getRect(".filter-chip-row"),
+        actionButtons: getAllRects(".chat-actions button"),
+        toolRows: getAllRects(".tool-call-block"),
+        timeline: getRect(".timeline-panel"),
+        timelineEntries: getAllRects(".timeline-item"),
+        exportBtn: getBtnByText("Export JSON"),
+        copyBtn: getRect(".chat-actions .copy-command-button"),
+        pinBtn: getRect(".timeline-header .panel-icon-button"),
+        allButtons: getAllRects("button"),
+      };
+    })()
+  `) as any;
+
+  const outPath = path.resolve(process.cwd(), "docs/element-positions.json");
+  fs.writeFileSync(outPath, JSON.stringify(positions, null, 2));
+  console.log(`Saved dynamic positions to ${outPath}`);
+
   console.log("Closing browser...");
   await browser.close();
 
   console.log("Stopping ThreadAtlas server...");
   server.kill("SIGTERM");
   await new Promise((resolve) => setTimeout(resolve, 1000));
-  console.log("Done!");
+
+  console.log("Running python annotation script...");
+  const annotateProcess = spawn("python3", ["scripts/annotate.py"], {
+    stdio: "inherit",
+    shell: true
+  });
+  await new Promise((resolve) => annotateProcess.on("exit", resolve));
+
+  console.log("All done!");
   process.exit(0);
 }
 

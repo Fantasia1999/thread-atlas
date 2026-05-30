@@ -6,6 +6,8 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 
 ![ThreadAtlas Screenshot](docs/screenshot.png)
 
+![ThreadAtlas Annotated Screenshot](docs/screenshot_annotated.png)
+
 ## Features
 
 - **Tolerant Parsing & Mixed Sources**: Parses multiple raw formats (`codex`, `claude`, `opencode`, `gemini`, `antigravity`, `copilot`) into a standardized, unified `Session` model.
