@@ -11,6 +11,7 @@ type AppTheme = "light" | "dark";
 const THEME_STORAGE_KEY = "thread-atlas-theme";
 const SIDEBAR_PIN_STORAGE_KEY = "thread-atlas-sidebar-pinned";
 const TIMELINE_PIN_STORAGE_KEY = "thread-atlas-timeline-pinned";
+const MESSAGE_FILTER_STORAGE_KEY = "thread-atlas-message-filter";
 
 export class ThreadAtlasApp {
   private readonly shell: HTMLElement;
@@ -19,7 +20,13 @@ export class ThreadAtlasApp {
   private readonly statusNode: HTMLElement;
   private readonly modalMount: HTMLElement;
   private readonly themeControls: HTMLElement;
-  private messageFilter: MessageViewFilter = "default";
+  private messageFilter: MessageViewFilter = (() => {
+    const val = localStorage.getItem(MESSAGE_FILTER_STORAGE_KEY);
+    if (val === "default" || val === "not-tool" || val === "user" || val === "answer") {
+      return val;
+    }
+    return "default";
+  })();
   private theme: AppTheme = getInitialTheme();
   private sidebarPinned = getStoredBoolean(SIDEBAR_PIN_STORAGE_KEY, true);
   private sidebarOpen = false;
@@ -224,6 +231,7 @@ export class ThreadAtlasApp {
         timelineOpen,
         onFilterChange: (filter) => {
           this.messageFilter = filter;
+          localStorage.setItem(MESSAGE_FILTER_STORAGE_KEY, filter);
           this.render(this.store.getState());
         },
         onTimelineToggleOpen: () => {

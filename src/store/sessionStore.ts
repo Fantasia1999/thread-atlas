@@ -26,7 +26,22 @@ export class SessionStore {
   private state: StoreState = {
     descriptors: [],
     sessions: new Map(),
-    sourceFilter: "all",
+    sourceFilter: (() => {
+      const val = localStorage.getItem("thread-atlas-source-filter");
+      if (
+        val === "all" ||
+        val === "codex" ||
+        val === "claude" ||
+        val === "opencode" ||
+        val === "gemini" ||
+        val === "antigravity" ||
+        val === "copilot" ||
+        val === "unknown"
+      ) {
+        return val;
+      }
+      return "all";
+    })(),
     search: "",
     loadingScan: false,
     loadingSession: false,
@@ -73,6 +88,7 @@ export class SessionStore {
   }
 
   setSourceFilter(sourceFilter: SessionSource | "all"): void {
+    localStorage.setItem("thread-atlas-source-filter", sourceFilter);
     this.updateState({ sourceFilter });
   }
 
