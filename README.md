@@ -4,6 +4,8 @@ ThreadAtlas is a lightweight browser app for browsing AI coding sessions from lo
 
 It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, and `copilot` session sources without adding a frontend framework runtime.
 
+![ThreadAtlas Screenshot](docs/screenshot.png)
+
 ## Features
 
 - **Tolerant Parsing & Mixed Sources**: Parses multiple raw formats (`codex`, `claude`, `opencode`, `gemini`, `antigravity`, `copilot`) into a standardized, unified `Session` model.
@@ -120,6 +122,14 @@ Alternatively, you can use the wrapper startup scripts, which will automatically
 ```bash
 npm run typecheck
 npm run build
+```
+
+### Take a screenshot
+
+To regenerate the application screenshot stored in `docs/screenshot.png` using a headless browser, run:
+
+```bash
+npm run screenshot
 ```
 
 ## Common Workflows
