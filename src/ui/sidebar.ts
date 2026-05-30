@@ -155,41 +155,25 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     options.onSearch(search.value);
   });
 
-  const filter = document.createElement("select");
-  filter.className = "select-input";
-  filter.innerHTML = `
-    <option value="all">All sources</option>
-    <option value="codex">Codex</option>
-    <option value="claude">Claude</option>
-    <option value="opencode">OpenCode</option>
-    <option value="gemini">Gemini</option>
-    <option value="antigravity">Antigravity</option>
-    <option value="copilot">Copilot</option>
-  `;
-  filter.value = options.sourceFilter;
+  const sourceItems: DropdownItem[] = [
+    { value: "all", label: "All sources" },
+    { value: "codex", label: "Codex" },
+    { value: "claude", label: "Claude" },
+    { value: "opencode", label: "OpenCode" },
+    { value: "gemini", label: "Gemini" },
+    { value: "antigravity", label: "Antigravity" },
+    { value: "copilot", label: "Copilot" }
+  ];
 
-  let selectClicks = 0;
-  filter.addEventListener("click", () => {
-    selectClicks++;
-    if (selectClicks % 2 === 0) {
-      filter.blur();
+  const filter = createCustomDropdown({
+    items: sourceItems,
+    selectedValue: options.sourceFilter,
+    placeholder: "All sources",
+    onChange: (value) => {
+      options.onFilter(value as SessionSource | "all");
     }
   });
-
-  filter.addEventListener("blur", () => {
-    selectClicks = 0;
-  });
-
-  filter.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      filter.blur();
-    }
-  });
-
-  filter.addEventListener("change", () => {
-    filter.blur();
-    options.onFilter(filter.value as SessionSource | "all");
-  });
+  filter.classList.add("source-filter-dropdown");
 
   // Render C.3 Quick Search Chips (Favorites Chip + Tag Select Dropdown)
   const chipsContainer = document.createElement("div");
@@ -244,53 +228,42 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       }
     }
 
-    // Render tag filter select if any tags exist
+    // Render custom tag filter dropdown if any tags exist
     if (tagCounts.size > 0) {
-      const tagSelect = document.createElement("select");
-      tagSelect.className = "select-input tag-filter-select";
-
-      // Default option
-      const defaultOpt = document.createElement("option");
-      defaultOpt.value = "";
-      defaultOpt.textContent = "🏷️ Filter by Tag";
-      tagSelect.append(defaultOpt);
-
+      const tagItems: DropdownItem[] = [];
       let activeTagValue = "";
       const searchLower = options.search.toLowerCase();
 
       [...tagCounts.entries()]
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .forEach(([tag, count]) => {
-          const opt = document.createElement("option");
-          opt.value = tag;
-          opt.textContent = `#${tag} (${count})`;
-          tagSelect.append(opt);
-
+          tagItems.push({ value: tag, label: `#${tag} (${count})` });
           if (searchLower.includes(`#${tag.toLowerCase()}`)) {
             activeTagValue = tag;
           }
         });
 
-      tagSelect.value = activeTagValue;
+      const tagSelect = createCustomDropdown({
+        items: tagItems,
+        selectedValue: activeTagValue,
+        placeholder: "🏷️ Filter by Tag",
+        onChange: (selectedTag) => {
+          // Clear existing tags from search query first
+          let nextSearch = options.search;
+          [...tagCounts.keys()].forEach((t) => {
+            const regex = new RegExp(`#${t}\\b`, "gi");
+            nextSearch = nextSearch.replace(regex, "");
+          });
+          nextSearch = nextSearch.trim().replace(/\s+/g, " ");
 
-      tagSelect.addEventListener("change", () => {
-        const selectedTag = tagSelect.value;
+          if (selectedTag) {
+            nextSearch = (nextSearch ? nextSearch + " " : "") + `#${selectedTag}`;
+          }
 
-        // Clear existing tags from search query first
-        let nextSearch = options.search;
-        [...tagCounts.keys()].forEach((t) => {
-          const regex = new RegExp(`#${t}\\b`, "gi");
-          nextSearch = nextSearch.replace(regex, "");
-        });
-        nextSearch = nextSearch.trim().replace(/\s+/g, " ");
-
-        if (selectedTag) {
-          nextSearch = (nextSearch ? nextSearch + " " : "") + `#${selectedTag}`;
+          options.onSearch(nextSearch.trim());
         }
-
-        options.onSearch(nextSearch.trim());
       });
-
+      tagSelect.classList.add("tag-filter-dropdown");
       chipsContainer.append(tagSelect);
     }
   };
@@ -493,4 +466,78 @@ function starIconMini(): string {
       <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97 1.053 4.208a.75.75 0 0 1-1.087.79L8 12.257l-3.751 1.973a.75.75 0 0 1-1.087-.79l1.053-4.208-3.046-2.97a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/>
     </svg>
   `;
+}
+
+interface DropdownItem {
+  value: string;
+  label: string;
+}
+
+function createCustomDropdown(options: {
+  items: DropdownItem[];
+  selectedValue: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}): HTMLElement {
+  const container = document.createElement("div");
+  container.className = "custom-dropdown-container";
+
+  const trigger = document.createElement("div");
+  trigger.className = "custom-dropdown-trigger";
+
+  const currentItem = options.items.find((item) => item.value === options.selectedValue);
+  trigger.innerHTML = `
+    <span class="trigger-label">${escapeHtml(currentItem ? currentItem.label : options.placeholder)}</span>
+    <span class="trigger-arrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </span>
+  `;
+  container.append(trigger);
+
+  const menu = document.createElement("div");
+  menu.className = "custom-dropdown-menu hidden";
+
+  const renderItems = () => {
+    menu.innerHTML = "";
+    for (const item of options.items) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `custom-dropdown-item${item.value === options.selectedValue ? " active" : ""}`;
+      btn.textContent = item.label;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        options.onChange(item.value);
+        menu.classList.add("hidden");
+        trigger.classList.remove("open");
+      });
+      menu.append(btn);
+    }
+  };
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isHidden = menu.classList.contains("hidden");
+
+    // Close all other dropdowns
+    document.querySelectorAll(".custom-dropdown-menu").forEach((m) => {
+      if (m !== menu) {
+        m.classList.add("hidden");
+        m.parentElement?.querySelector(".custom-dropdown-trigger")?.classList.remove("open");
+      }
+    });
+
+    menu.classList.toggle("hidden", !isHidden);
+    trigger.classList.toggle("open", isHidden);
+    if (isHidden) {
+      renderItems();
+    }
+  });
+
+  document.addEventListener("click", () => {
+    menu.classList.add("hidden");
+    trigger.classList.remove("open");
+  });
+
+  container.append(menu);
+  return container;
 }

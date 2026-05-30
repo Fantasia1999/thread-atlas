@@ -121,10 +121,16 @@ export class FakeElement extends FakeDocumentFragment {
     this.listeners[type].push(listener);
   }
 
-  dispatchEvent(type: string): void {
+  dispatchEvent(type: string, eventObj: any = {}): void {
+    const e = {
+      type,
+      stopPropagation: () => {},
+      preventDefault: () => {},
+      ...eventObj
+    };
     if (this.listeners[type]) {
       for (const listener of this.listeners[type]) {
-        listener();
+        listener(e);
       }
     }
   }
@@ -171,10 +177,54 @@ export function collectText(node: FakeNode): string {
 }
 
 // Automatically setup global document
+const documentListeners: Record<string, Function[]> = {};
+const createdElements: FakeElement[] = [];
+
 globalThis.document = {
   createDocumentFragment: () => new FakeDocumentFragment(),
-  createElement: (tagName: string) => new FakeElement(tagName),
-  createTextNode: (text: string) => new FakeText(text)
+  createElement: (tagName: string) => {
+    const el = new FakeElement(tagName);
+    createdElements.push(el);
+    return el;
+  },
+  createTextNode: (text: string) => new FakeText(text),
+  addEventListener: (type: string, listener: Function) => {
+    if (!documentListeners[type]) {
+      documentListeners[type] = [];
+    }
+    documentListeners[type].push(listener);
+  },
+  removeEventListener: (type: string, listener: Function) => {
+    if (documentListeners[type]) {
+      documentListeners[type] = documentListeners[type].filter(l => l !== listener);
+    }
+  },
+  dispatchEvent: (event: any) => {
+    const type = typeof event === "string" ? event : event.type;
+    if (documentListeners[type]) {
+      for (const listener of documentListeners[type]) {
+        listener(event);
+      }
+    }
+    return true;
+  },
+  querySelectorAll: (selector: string) => {
+    const matches: FakeElement[] = [];
+    const isClass = selector.startsWith(".");
+    const target = isClass ? selector.slice(1) : selector.toUpperCase();
+    for (const el of createdElements) {
+      if (isClass) {
+        if (el.className.split(" ").filter(Boolean).includes(target)) {
+          matches.push(el);
+        }
+      } else {
+        if (el.tagName.toUpperCase() === target) {
+          matches.push(el);
+        }
+      }
+    }
+    return matches;
+  }
 } as unknown as Document;
 
 (globalThis as any).window = globalThis;

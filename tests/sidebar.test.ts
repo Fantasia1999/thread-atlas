@@ -42,13 +42,16 @@ function createSidebarOptions(overrides?: Partial<Parameters<typeof renderSideba
   };
 }
 
-test("renderSidebar renders search input and filter dropdown", () => {
+test("renderSidebar renders search input and custom filter dropdown", () => {
   const options = createSidebarOptions();
   const sidebar = renderSidebar(options);
 
-  const select = sidebar.querySelector("select");
-  assert.ok(select);
-  assert.equal(select.className, "select-input");
+  const customDropdown = sidebar.querySelector(".source-filter-dropdown") as any;
+  assert.ok(customDropdown);
+
+  const trigger = customDropdown.querySelector(".custom-dropdown-trigger") as any;
+  assert.ok(trigger);
+  assert.ok(trigger.innerHTML?.includes("All sources"));
 
   const input = sidebar.querySelector("input");
   assert.ok(input);
@@ -84,10 +87,10 @@ test("mouseleave does NOT close sidebar if an element inside has active focus", 
   });
 
   const sidebar = renderSidebar(options) as any;
-  const select = sidebar.querySelector("select");
+  const input = sidebar.querySelector("input");
 
-  // Mock activeElement to be the select input inside the sidebar
-  (globalThis.document as any).activeElement = select;
+  // Mock activeElement to be the text input inside the sidebar
+  (globalThis.document as any).activeElement = input;
 
   sidebar.dispatchEvent("mouseleave");
 
@@ -110,7 +113,6 @@ test("focusout closes sidebar when focus moves outside and mouse is not hovering
   });
 
   const sidebar = renderSidebar(options) as any;
-  const select = sidebar.querySelector("select");
 
   // Mock focusout event where focus moves completely outside the container
   const focusoutEvent = {
@@ -141,7 +143,6 @@ test("focusout does NOT close sidebar when focus moves to another element inside
   });
 
   const sidebar = renderSidebar(options) as any;
-  const select = sidebar.querySelector("select");
   const input = sidebar.querySelector("input");
 
   // Mock focusout event where focus moves to the input inside the sidebar
@@ -162,64 +163,72 @@ test("focusout does NOT close sidebar when focus moves to another element inside
   assert.equal(toggled, false);
 });
 
-test("select-input blurs on second click (closing dropdown)", () => {
+test("custom-dropdown-container handles toggles and click expands", () => {
   const options = createSidebarOptions();
   const sidebar = renderSidebar(options) as any;
-  const select = sidebar.querySelector("select") as any;
+  
+  const customDropdown = sidebar.querySelector(".source-filter-dropdown") as any;
+  const trigger = customDropdown.querySelector(".custom-dropdown-trigger") as any;
+  const menu = customDropdown.querySelector(".custom-dropdown-menu") as any;
 
-  let blurred = false;
-  select.blur = () => {
-    blurred = true;
-  };
+  assert.ok(trigger);
+  assert.ok(menu);
+  assert.ok(menu.classList.contains("hidden"));
 
-  // First click (opens dropdown)
-  select.dispatchEvent("click");
-  assert.equal(blurred, false);
+  // 1. First click: expands dropdown menu
+  trigger.dispatchEvent("click");
+  assert.equal(menu.classList.contains("hidden"), false);
+  assert.ok(trigger.classList.contains("open"));
 
-  // Second click (closes dropdown)
-  select.dispatchEvent("click");
-  assert.equal(blurred, true);
+  // 2. Second click: collapses dropdown menu
+  trigger.dispatchEvent("click");
+  assert.ok(menu.classList.contains("hidden"));
+  assert.equal(trigger.classList.contains("open"), false);
 });
 
-test("select-input blurs on Escape keydown", () => {
-  const options = createSidebarOptions();
+test("custom-dropdown-item click triggers onChange callback and closes menu", () => {
+  let selectedValue = "";
+  const options = createSidebarOptions({
+    onFilter: (val) => {
+      selectedValue = val;
+    }
+  });
+
   const sidebar = renderSidebar(options) as any;
-  const select = sidebar.querySelector("select") as any;
+  const customDropdown = sidebar.querySelector(".source-filter-dropdown") as any;
+  const trigger = customDropdown.querySelector(".custom-dropdown-trigger") as any;
+  const menu = customDropdown.querySelector(".custom-dropdown-menu") as any;
 
-  let blurred = false;
-  select.blur = () => {
-    blurred = true;
-  };
-
-  // Non-Escape keydown
-  if (select.listeners?.["keydown"]) {
-    for (const listener of select.listeners["keydown"]) {
-      listener({ key: "Enter" });
-    }
-  }
-  assert.equal(blurred, false);
-
-  // Escape keydown
-  if (select.listeners?.["keydown"]) {
-    for (const listener of select.listeners["keydown"]) {
-      listener({ key: "Escape" });
-    }
-  }
-  assert.equal(blurred, true);
+  // Expand
+  trigger.dispatchEvent("click");
+  
+  // Get item
+  const items = menu.querySelectorAll(".custom-dropdown-item");
+  assert.ok(items.length > 0);
+  
+  // Click item 'gemini'
+  const targetItem = [...items].find(item => item.textContent === "Gemini");
+  assert.ok(targetItem);
+  
+  targetItem.dispatchEvent("click");
+  assert.equal(selectedValue, "gemini");
+  assert.ok(menu.classList.contains("hidden"));
 });
 
-test("select-input blurs on change", () => {
+test("custom-dropdown-menu closes on global document clicks", () => {
   const options = createSidebarOptions();
   const sidebar = renderSidebar(options) as any;
-  const select = sidebar.querySelector("select") as any;
+  const customDropdown = sidebar.querySelector(".source-filter-dropdown") as any;
+  const trigger = customDropdown.querySelector(".custom-dropdown-trigger") as any;
+  const menu = customDropdown.querySelector(".custom-dropdown-menu") as any;
 
-  let blurred = false;
-  select.blur = () => {
-    blurred = true;
-  };
+  // Expand
+  trigger.dispatchEvent("click");
+  assert.equal(menu.classList.contains("hidden"), false);
 
-  select.dispatchEvent("change");
-  assert.equal(blurred, true);
+  // Global document click dismiss
+  globalThis.document.dispatchEvent("click" as any);
+  assert.ok(menu.classList.contains("hidden"));
 });
 
 test("renderSidebar renders pinned/favorite row classes and custom tag pills", () => {
@@ -288,20 +297,27 @@ test("renderSidebar renders quick search chips when favorites exist", () => {
   assert.ok(chipsContainer);
   assert.equal(chipsContainer.classList.contains("hidden"), false);
 
-  // Verify only Favorites button and the select dropdown are rendered
+  // Verify only Favorites button and the custom tag select dropdown are rendered
   const chipBtn = chipsContainer.querySelector(".chip-btn") as any;
   assert.ok(chipBtn);
   assert.ok(chipBtn.textContent?.includes("Favorites"));
 
-  const selectDropdown = chipsContainer.querySelector("select") as any;
-  assert.ok(selectDropdown);
-  assert.equal(selectDropdown.className, "select-input tag-filter-select");
+  const customDropdown = chipsContainer.querySelector(".tag-filter-dropdown") as any;
+  assert.ok(customDropdown);
 
-  // Verify select options: placeholder, store, ui (3 options total)
-  const optionsList = selectDropdown.querySelectorAll("option");
-  assert.equal(optionsList.length, 3);
-  assert.equal(optionsList[0].textContent, "🏷️ Filter by Tag");
-  assert.equal(optionsList[1].textContent, "#store (1)");
-  assert.equal(optionsList[2].textContent, "#ui (1)");
+  const trigger = customDropdown.querySelector(".custom-dropdown-trigger") as any;
+  assert.ok(trigger);
+  assert.ok(trigger.innerHTML?.includes("Filter by Tag"));
+
+  const menu = customDropdown.querySelector(".custom-dropdown-menu") as any;
+  assert.ok(menu);
+
+  // Trigger expand to render option buttons
+  trigger.dispatchEvent("click");
+
+  const items = menu.querySelectorAll(".custom-dropdown-item");
+  assert.equal(items.length, 2);
+  assert.equal(items[0].textContent, "#store (1)");
+  assert.equal(items[1].textContent, "#ui (1)");
 });
 
