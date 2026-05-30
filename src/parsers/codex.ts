@@ -175,6 +175,19 @@ export function parseCodexSession(bundle: SessionBundle): Session {
   });
 }
 
+export function extractCodexCwd(content: string): string | undefined {
+  const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
+  for (const row of rows) {
+    if (row.type === "session_meta") {
+      const payload = row.payload as Record<string, unknown> | undefined;
+      if (typeof payload?.cwd === "string") {
+        return payload.cwd;
+      }
+    }
+  }
+  return undefined;
+}
+
 export function extractCodexPreviewTitle(content: string): string | undefined {
   const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
   let threadName: string | undefined;

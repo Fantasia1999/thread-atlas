@@ -170,8 +170,16 @@ export class SessionStore {
     const nextSessions = new Map(this.state.sessions);
 
     for (const bundle of bundles) {
+      const session = parseSessionBundle(bundle);
+      bundle.source = session.source;
+      bundle.title = session.title || bundle.title;
+      bundle.metadata = {
+        ...bundle.metadata,
+        ...session.metadata
+      };
+      
       nextImported.set(bundle.key, bundle);
-      nextSessions.set(bundle.key, parseSessionBundle(bundle));
+      nextSessions.set(bundle.key, session);
 
       const index = this.cachedKeysOrder.indexOf(bundle.key);
       if (index >= 0) {

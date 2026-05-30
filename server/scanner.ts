@@ -16,7 +16,7 @@ import {
   COPILOT_BUNDLE_FILES,
   COPILOT_EVENTS_FILE
 } from "./copilot.js";
-import { extractCodexPreviewTitle } from "../src/parsers/codex.js";
+import { extractCodexPreviewTitle, extractCodexCwd } from "../src/parsers/codex.js";
 import type {
   SessionBundle,
   SessionDescriptor,
@@ -191,6 +191,28 @@ async function scanFileTree(
   );
 }
 
+async function loadAntigravityHistoryMap(): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  try {
+    const historyPath = path.join(os.homedir(), ".gemini", "antigravity-cli", "history.jsonl");
+    const content = await fs.readFile(historyPath, "utf8");
+    const lines = content.split("\n").filter(Boolean);
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (entry.conversationId && typeof entry.workspace === "string" && entry.workspace.trim()) {
+          map.set(entry.conversationId, entry.workspace.trim());
+        }
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return map;
+}
+
 async function scanAntigravitySessions(
   roots: string[],
   origin: DescriptorOrigin,
@@ -230,13 +252,25 @@ async function scanAntigravitySessions(
   }
 
   const preferredPaths = [...new Set(preferredBySession.values())].slice(0, MAX_FILES_PER_SOURCE);
+  const historyMap = await loadAntigravityHistoryMap();
+
   return await Promise.all(
     preferredPaths.map(async (absolutePath) => {
       const stats = await fs.stat(absolutePath);
       const content = isAntigravityTranscriptPath(absolutePath)
         ? await readTextFileIfPossible(absolutePath)
         : undefined;
-      return buildFileDescriptor(absolutePath, "antigravity", origin, stats, content);
+      const descriptor = buildFileDescriptor(absolutePath, "antigravity", origin, stats, content);
+      
+      const sessionId = antigravitySessionIdFromPath(absolutePath);
+      const workspace = sessionId ? historyMap.get(sessionId) : undefined;
+      if (workspace) {
+        descriptor.metadata = {
+          ...descriptor.metadata,
+          primaryWorkspace: workspace
+        };
+      }
+      return descriptor;
     })
   );
 }
@@ -493,6 +527,8 @@ function buildFileDescriptor(
   }
   const codexTitle =
     source === "codex" && content ? extractCodexPreviewTitle(content) : undefined;
+  const codexCwd =
+    source === "codex" && content ? extractCodexCwd(content) : undefined;
 
   return {
     key: `file::${absolutePath}`,
@@ -505,7 +541,7 @@ function buildFileDescriptor(
     fileCount: 1,
     size: stats.size,
     mtimeMs: stats.mtimeMs,
-    metadata: {}
+    metadata: codexCwd ? { cwd: codexCwd } : {}
   };
 }
 

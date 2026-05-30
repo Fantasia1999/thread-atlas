@@ -103,6 +103,10 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       });
 
       const dateLabel = formatLocalDateTime(descriptor.mtimeMs, "Unknown time");
+      const workspaceLabel = getWorkspaceLabel(descriptor);
+      const workspaceHtml = workspaceLabel
+        ? `<span class="session-workspace" title="${escapeHtml(getWorkspaceFullPath(descriptor))}">${escapeHtml(workspaceLabel)}</span>`
+        : "";
 
       button.innerHTML = `
         <div class="session-row-top">
@@ -110,7 +114,10 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
           <span class="session-date">${dateLabel}</span>
         </div>
         <strong class="session-title">${escapeHtml(descriptor.title)}</strong>
-        <p class="session-path">${escapeHtml(descriptor.primaryPath)}</p>
+        <div class="session-path-row">
+          ${workspaceHtml}
+          <p class="session-path">${escapeHtml(descriptor.primaryPath)}</p>
+        </div>
       `;
 
       list.append(button);
@@ -120,6 +127,38 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   panel.append(heading, controls, list);
   container.append(rail, panel);
   return container;
+}
+
+function getWorkspaceFullPath(descriptor: SessionDescriptor): string {
+  const rawWorkspace = 
+    descriptor.metadata?.primaryWorkspace || 
+    descriptor.metadata?.cwd || 
+    descriptor.metadata?.directory;
+
+  if (typeof rawWorkspace === "string" && rawWorkspace.trim()) {
+    return rawWorkspace.trim();
+  }
+
+  // Claude inference from path
+  const pathStr = descriptor.primaryPath || "";
+  const claudeMatch = pathStr.match(/[\\/]\.claude[\\/]projects[\\/]([^\\/]+)/i);
+  if (claudeMatch && claudeMatch[1]) {
+    return claudeMatch[1];
+  }
+
+  return "";
+}
+
+function getWorkspaceLabel(descriptor: SessionDescriptor): string {
+  const fullPath = getWorkspaceFullPath(descriptor);
+  if (!fullPath) {
+    return "";
+  }
+
+  // If it's a path, extract the last folder/directory name
+  const parts = fullPath.split(/[\\/]/).filter(Boolean);
+  const lastPart = parts.at(-1);
+  return lastPart ?? fullPath;
 }
 
 function emptyState(message: string): HTMLElement {
