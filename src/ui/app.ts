@@ -314,13 +314,19 @@ export class ThreadAtlasApp {
     // 1. Toggle class on shell
     this.shell.classList.toggle("timeline-open", open);
 
-    // 2. Toggle class on timeline-dock
+    // 2. Toggle class on main-panel
+    const mainPanel = this.mainMount.querySelector(".main-panel");
+    if (mainPanel) {
+      mainPanel.classList.toggle("timeline-open", open);
+    }
+
+    // 3. Toggle class on timeline-dock
     const dock = this.mainMount.querySelector(".timeline-dock");
     if (dock) {
       dock.classList.toggle("open", open);
     }
 
-    // 3. Update timelineToggle title / aria-label
+    // 4. Update timelineToggle title / aria-label
     const toggleBtn = this.mainMount.querySelector(".timeline-rail .rail-button") as HTMLButtonElement | null;
     if (toggleBtn) {
       const nextTitle = open ? "Collapse timeline" : "Open timeline";
@@ -342,14 +348,21 @@ export class ThreadAtlasApp {
     this.shell.classList.toggle("timeline-pinned", isPinned);
     this.shell.classList.toggle("timeline-open", open);
 
-    // 2. Toggle classes on timeline-dock
+    // 2. Toggle classes on main-panel
+    const mainPanel = this.mainMount.querySelector(".main-panel");
+    if (mainPanel) {
+      mainPanel.classList.toggle("timeline-pinned", isPinned);
+      mainPanel.classList.toggle("timeline-open", open);
+    }
+
+    // 3. Toggle classes on timeline-dock
     const dock = this.mainMount.querySelector(".timeline-dock");
     if (dock) {
       dock.classList.toggle("pinned", isPinned);
       dock.classList.toggle("open", open);
     }
 
-    // 3. Update pin button
+    // 4. Update pin button
     const pinBtn = this.mainMount.querySelector(".timeline-header .panel-icon-button") as HTMLButtonElement | null;
     if (pinBtn) {
       pinBtn.classList.toggle("active", isPinned);
@@ -358,7 +371,7 @@ export class ThreadAtlasApp {
       pinBtn.setAttribute("aria-label", nextTitle);
     }
 
-    // 4. Update toggle button
+    // 5. Update toggle button
     const toggleBtn = this.mainMount.querySelector(".timeline-rail .rail-button") as HTMLButtonElement | null;
     if (toggleBtn) {
       const nextTitle = open ? "Collapse timeline" : "Open timeline";
