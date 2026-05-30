@@ -162,7 +162,27 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     <option value="copilot">Copilot</option>
   `;
   filter.value = options.sourceFilter;
+
+  let selectClicks = 0;
+  filter.addEventListener("click", () => {
+    selectClicks++;
+    if (selectClicks % 2 === 0) {
+      filter.blur();
+    }
+  });
+
+  filter.addEventListener("blur", () => {
+    selectClicks = 0;
+  });
+
+  filter.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      filter.blur();
+    }
+  });
+
   filter.addEventListener("change", () => {
+    filter.blur();
     options.onFilter(filter.value as SessionSource | "all");
   });
 

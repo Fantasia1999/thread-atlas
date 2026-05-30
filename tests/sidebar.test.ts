@@ -156,3 +156,64 @@ test("focusout does NOT close sidebar when focus moves to another element inside
   await new Promise((resolve) => setTimeout(resolve, 120));
   assert.equal(toggled, false);
 });
+
+test("select-input blurs on second click (closing dropdown)", () => {
+  const options = createSidebarOptions();
+  const sidebar = renderSidebar(options) as any;
+  const select = sidebar.querySelector("select") as any;
+
+  let blurred = false;
+  select.blur = () => {
+    blurred = true;
+  };
+
+  // First click (opens dropdown)
+  select.dispatchEvent("click");
+  assert.equal(blurred, false);
+
+  // Second click (closes dropdown)
+  select.dispatchEvent("click");
+  assert.equal(blurred, true);
+});
+
+test("select-input blurs on Escape keydown", () => {
+  const options = createSidebarOptions();
+  const sidebar = renderSidebar(options) as any;
+  const select = sidebar.querySelector("select") as any;
+
+  let blurred = false;
+  select.blur = () => {
+    blurred = true;
+  };
+
+  // Non-Escape keydown
+  if (select.listeners?.["keydown"]) {
+    for (const listener of select.listeners["keydown"]) {
+      listener({ key: "Enter" });
+    }
+  }
+  assert.equal(blurred, false);
+
+  // Escape keydown
+  if (select.listeners?.["keydown"]) {
+    for (const listener of select.listeners["keydown"]) {
+      listener({ key: "Escape" });
+    }
+  }
+  assert.equal(blurred, true);
+});
+
+test("select-input blurs on change", () => {
+  const options = createSidebarOptions();
+  const sidebar = renderSidebar(options) as any;
+  const select = sidebar.querySelector("select") as any;
+
+  let blurred = false;
+  select.blur = () => {
+    blurred = true;
+  };
+
+  select.dispatchEvent("change");
+  assert.equal(blurred, true);
+});
+
