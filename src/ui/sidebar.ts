@@ -72,7 +72,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     if (!isOpen) {
       hoverTimeout = window.setTimeout(() => {
         options.onToggleOpen();
-      }, 120);
+      }, 50);
     }
   });
 

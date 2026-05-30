@@ -394,7 +394,7 @@ function renderChatLayout(options: {
     if (!isOpen && !isPinned) {
       hoverTimeout = window.setTimeout(() => {
         options.onTimelineToggleOpen();
-      }, 120);
+      }, 50);
     }
   });
 
