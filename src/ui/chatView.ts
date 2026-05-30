@@ -22,6 +22,7 @@ interface ChatViewOptions {
   onTimelineToggleOpen: () => void;
   onTimelineTogglePin: () => void;
   onExport: (session: Session) => void;
+  onRenderComplete?: () => void;
 }
 
 const FILTER_OPTIONS: Array<{ key: MessageViewFilter; label: string }> = [
@@ -74,7 +75,8 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
       timelinePinned: options.timelinePinned,
       timelineOpen: options.timelineOpen,
       onTimelineToggleOpen: options.onTimelineToggleOpen,
-      onTimelineTogglePin: options.onTimelineTogglePin
+      onTimelineTogglePin: options.onTimelineTogglePin,
+      onRenderComplete: options.onRenderComplete
     })
   );
 
@@ -328,6 +330,7 @@ function renderChatLayout(options: {
   timelineOpen: boolean;
   onTimelineToggleOpen: () => void;
   onTimelineTogglePin: () => void;
+  onRenderComplete?: () => void;
 }): HTMLElement {
   let hoverTimeout: number | undefined;
   let leaveTimeout: number | undefined;
@@ -354,7 +357,9 @@ function renderChatLayout(options: {
 
   timelineDock.addEventListener("mouseleave", () => {
     clearAllTimeouts();
-    if (options.timelineOpen && !options.timelinePinned) {
+    const isOpen = timelineDock.classList.contains("open");
+    const isPinned = timelineDock.classList.contains("pinned");
+    if (isOpen && !isPinned) {
       leaveTimeout = window.setTimeout(() => {
         options.onTimelineToggleOpen();
       }, 150);
@@ -384,7 +389,9 @@ function renderChatLayout(options: {
   });
 
   timelineToggle.addEventListener("mouseenter", () => {
-    if (!options.timelineOpen) {
+    const isOpen = timelineDock.classList.contains("open");
+    const isPinned = timelineDock.classList.contains("pinned");
+    if (!isOpen && !isPinned) {
       hoverTimeout = window.setTimeout(() => {
         options.onTimelineToggleOpen();
       }, 120);
@@ -471,6 +478,10 @@ function renderChatLayout(options: {
     currentIndex = end;
     if (currentIndex < totalMessages) {
       setTimeout(renderNextChunk, 0);
+    } else {
+      if (options.onRenderComplete) {
+        options.onRenderComplete();
+      }
     }
   }
 

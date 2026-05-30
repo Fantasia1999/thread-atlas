@@ -27,6 +27,8 @@ export class ThreadAtlasApp {
   private timelineOpen = false;
   private viewportWidth = window.innerWidth;
   private sidebarScrollTop = 0;
+  private chatMessagesScrollTop = 0;
+  private lastSelectedKey?: string;
 
   constructor(
     private readonly root: HTMLElement,
@@ -148,6 +150,9 @@ export class ThreadAtlasApp {
   }
 
   private render(state: StoreState): void {
+    this.captureSidebarScroll();
+    this.captureChatMessagesScroll(state);
+
     const sidebarPinned = this.isSidebarPinned();
     const timelinePinned = this.isTimelinePinned();
     const sidebarOpen = sidebarPinned || this.sidebarOpen;
@@ -171,7 +176,6 @@ export class ThreadAtlasApp {
 
     const visibleDescriptors = this.store.getVisibleDescriptors();
     const selectedSession = this.store.getSelectedSession();
-    this.captureSidebarScroll();
 
     this.sidebarMount.replaceChildren(
       renderSidebar({
@@ -223,18 +227,16 @@ export class ThreadAtlasApp {
           this.render(this.store.getState());
         },
         onTimelineToggleOpen: () => {
-          this.timelineOpen = !timelineOpen;
-          this.render(this.store.getState());
+          this.toggleTimelineOpen();
         },
         onTimelineTogglePin: () => {
-          const nextPinned = !this.timelinePinned;
-          this.timelinePinned = nextPinned;
-          this.timelineOpen = !nextPinned;
-          localStorage.setItem(TIMELINE_PIN_STORAGE_KEY, String(this.timelinePinned));
-          this.render(this.store.getState());
+          this.toggleTimelinePin();
         },
         onExport: (session) => {
           this.exportSession(session);
+        },
+        onRenderComplete: () => {
+          this.restoreChatMessagesScroll();
         }
       })
     );
@@ -266,6 +268,95 @@ export class ThreadAtlasApp {
     list.addEventListener("scroll", () => {
       this.sidebarScrollTop = list.scrollTop;
     });
+  }
+
+  private captureChatMessagesScroll(state: StoreState): void {
+    const list = this.mainMount.querySelector<HTMLElement>(".chat-messages");
+    if (!list) {
+      return;
+    }
+
+    if (state.selectedKey !== this.lastSelectedKey) {
+      this.chatMessagesScrollTop = 0;
+      this.lastSelectedKey = state.selectedKey;
+    } else {
+      this.chatMessagesScrollTop = list.scrollTop;
+    }
+    console.log("[Scroll] Captured:", this.chatMessagesScrollTop, "for key:", state.selectedKey);
+  }
+
+  private restoreChatMessagesScroll(): void {
+    const list = this.mainMount.querySelector<HTMLElement>(".chat-messages");
+    if (!list) {
+      return;
+    }
+
+    list.scrollTop = this.chatMessagesScrollTop;
+    console.log("[Scroll] Restoring to:", this.chatMessagesScrollTop, "actual list scrollTop:", list.scrollTop);
+    list.addEventListener("scroll", () => {
+      this.chatMessagesScrollTop = list.scrollTop;
+    });
+  }
+
+  private toggleTimelineOpen(force?: boolean): void {
+    this.timelineOpen = force !== undefined ? force : !this.timelineOpen;
+    const isPinned = this.isTimelinePinned();
+    const open = isPinned || this.timelineOpen;
+
+    // 1. Toggle class on shell
+    this.shell.classList.toggle("timeline-open", open);
+
+    // 2. Toggle class on timeline-dock
+    const dock = this.mainMount.querySelector(".timeline-dock");
+    if (dock) {
+      dock.classList.toggle("open", open);
+    }
+
+    // 3. Update timelineToggle title / aria-label
+    const toggleBtn = this.mainMount.querySelector(".timeline-rail .rail-button") as HTMLButtonElement | null;
+    if (toggleBtn) {
+      const nextTitle = open ? "Collapse timeline" : "Open timeline";
+      toggleBtn.title = nextTitle;
+      toggleBtn.setAttribute("aria-label", nextTitle);
+    }
+  }
+
+  private toggleTimelinePin(): void {
+    const nextPinned = !this.timelinePinned;
+    this.timelinePinned = nextPinned;
+    this.timelineOpen = !nextPinned;
+    localStorage.setItem(TIMELINE_PIN_STORAGE_KEY, String(this.timelinePinned));
+
+    const isPinned = this.isTimelinePinned();
+    const open = isPinned || this.timelineOpen;
+
+    // 1. Toggle classes on shell
+    this.shell.classList.toggle("timeline-pinned", isPinned);
+    this.shell.classList.toggle("timeline-open", open);
+
+    // 2. Toggle classes on timeline-dock
+    const dock = this.mainMount.querySelector(".timeline-dock");
+    if (dock) {
+      dock.classList.toggle("pinned", isPinned);
+      dock.classList.toggle("open", open);
+    }
+
+    // 3. Update pin button
+    const pinBtn = this.mainMount.querySelector(".timeline-header .panel-icon-button") as HTMLButtonElement | null;
+    if (pinBtn) {
+      pinBtn.classList.toggle("active", isPinned);
+      const nextTitle = isPinned ? "Unpin timeline" : "Pin timeline";
+      pinBtn.title = nextTitle;
+      pinBtn.setAttribute("aria-label", nextTitle);
+    }
+
+    // 4. Update toggle button
+    const toggleBtn = this.mainMount.querySelector(".timeline-rail .rail-button") as HTMLButtonElement | null;
+    if (toggleBtn) {
+      const nextTitle = open ? "Collapse timeline" : "Open timeline";
+      toggleBtn.title = nextTitle;
+      toggleBtn.setAttribute("aria-label", nextTitle);
+    }
   }
 
   private openImportModal(): void {
