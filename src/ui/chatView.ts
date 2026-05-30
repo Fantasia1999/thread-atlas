@@ -337,6 +337,11 @@ function renderChatLayout(options: {
 
   const timelineDock = document.createElement("div");
   timelineDock.className = `timeline-dock${options.timelineOpen ? " open" : ""}${options.timelinePinned ? " pinned" : ""}`;
+  timelineDock.addEventListener("mouseleave", () => {
+    if (options.timelineOpen && !options.timelinePinned) {
+      options.onTimelineToggleOpen();
+    }
+  });
 
   const timelineRail = document.createElement("div");
   timelineRail.className = "timeline-rail";
@@ -348,6 +353,11 @@ function renderChatLayout(options: {
   timelineToggle.setAttribute("aria-label", timelineToggle.title);
   timelineToggle.innerHTML = timelineIcon();
   timelineToggle.addEventListener("click", options.onTimelineToggleOpen);
+  timelineToggle.addEventListener("mouseenter", () => {
+    if (!options.timelineOpen) {
+      options.onTimelineToggleOpen();
+    }
+  });
   timelineRail.append(timelineToggle);
 
   const timeline = document.createElement("aside");

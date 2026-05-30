@@ -19,6 +19,11 @@ interface SidebarOptions {
 export function renderSidebar(options: SidebarOptions): HTMLElement {
   const container = document.createElement("div");
   container.className = `sidebar-dock${options.open ? " open" : ""}${options.pinned ? " pinned" : ""}`;
+  container.addEventListener("mouseleave", () => {
+    if (options.open && !options.pinned) {
+      options.onToggleOpen();
+    }
+  });
 
   const rail = document.createElement("div");
   rail.className = "sidebar-rail";
@@ -30,6 +35,11 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   openButton.setAttribute("aria-label", openButton.title);
   openButton.innerHTML = listIcon();
   openButton.addEventListener("click", options.onToggleOpen);
+  openButton.addEventListener("mouseenter", () => {
+    if (!options.open) {
+      options.onToggleOpen();
+    }
+  });
   rail.append(openButton);
 
   const panel = document.createElement("aside");
