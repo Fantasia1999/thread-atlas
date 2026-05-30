@@ -19,6 +19,7 @@ interface SidebarOptions {
 export function renderSidebar(options: SidebarOptions): HTMLElement {
   let hoverTimeout: number | undefined;
   let leaveTimeout: number | undefined;
+  let isMouseOver = false;
 
   const container = document.createElement("div");
   container.className = `sidebar-dock${options.open ? " open" : ""}${options.pinned ? " pinned" : ""}`;
@@ -35,9 +36,17 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   };
 
   container.addEventListener("mouseleave", () => {
+    isMouseOver = false;
     clearAllTimeouts();
     const isOpen = container.classList.contains("open");
     const isPinned = container.classList.contains("pinned");
+
+    // Do not close the sidebar if an input or select inside it has focus
+    const activeEl = document.activeElement;
+    if (activeEl && container.contains(activeEl)) {
+      return;
+    }
+
     if (isOpen && !isPinned) {
       leaveTimeout = window.setTimeout(() => {
         options.onToggleOpen();
@@ -46,9 +55,26 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   });
 
   container.addEventListener("mouseenter", () => {
+    isMouseOver = true;
     if (leaveTimeout) {
       clearTimeout(leaveTimeout);
       leaveTimeout = undefined;
+    }
+  });
+
+  container.addEventListener("focusout", (event) => {
+    const newFocus = event.relatedTarget as HTMLElement | null;
+    if (newFocus && container.contains(newFocus)) {
+      return;
+    }
+
+    const isOpen = container.classList.contains("open");
+    const isPinned = container.classList.contains("pinned");
+    if (isOpen && !isPinned && !isMouseOver) {
+      clearAllTimeouts();
+      leaveTimeout = window.setTimeout(() => {
+        options.onToggleOpen();
+      }, 80);
     }
   });
 

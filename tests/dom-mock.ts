@@ -13,6 +13,50 @@ export class FakeDocumentFragment {
       }
     }
   }
+
+  contains(node: any): boolean {
+    if (node === this) return true;
+    for (const child of this.childNodes) {
+      if (child === node) return true;
+      if (child.nodeType === 1 || child.nodeType === 11) {
+        if ((child as any).contains(node)) return true;
+      }
+    }
+    return false;
+  }
+
+  querySelector(selector: string): any {
+    const results = this.querySelectorAll(selector);
+    return results[0] ?? null;
+  }
+
+  querySelectorAll(selector: string): any[] {
+    const matches: any[] = [];
+    const isClass = selector.startsWith(".");
+    const target = isClass ? selector.slice(1) : selector.toUpperCase();
+
+    const traverse = (node: any) => {
+      if (node.nodeType === 1) {
+        if (isClass) {
+          if (node.className.split(" ").filter(Boolean).includes(target)) {
+            matches.push(node);
+          }
+        } else {
+          if (node.tagName.toUpperCase() === target) {
+            matches.push(node);
+          }
+        }
+      }
+      for (const child of node.childNodes) {
+        traverse(child);
+      }
+    };
+
+    for (const child of this.childNodes) {
+      traverse(child);
+    }
+    return matches;
+  }
 }
 
 export class FakeElement extends FakeDocumentFragment {
