@@ -1,5 +1,5 @@
 import type { SessionDescriptor, SessionSource } from "../parsers/types.js";
-import { escapeHtml, formatLocalDateTime } from "./utils.js";
+import { escapeHtml, formatLocalDateTime, formatLocalDateTimeLong } from "./utils.js";
 
 interface SidebarOptions {
   descriptors: SessionDescriptor[];
@@ -319,10 +319,16 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       });
 
       const dateLabel = formatLocalDateTime(descriptor.mtimeMs, "Unknown time");
+      const hoverDateLabel = formatLocalDateTimeLong(descriptor.mtimeMs, "");
       const workspaceLabel = getWorkspaceLabel(descriptor);
       const workspaceHtml = workspaceLabel
         ? `<span class="session-workspace" title="${escapeHtml(getWorkspaceFullPath(descriptor))}">${escapeHtml(workspaceLabel)}</span>`
         : "";
+
+      const connectionBadge =
+        descriptor.origin === "remote" && descriptor.connectionLabel
+          ? `<span class="connection-badge" title="${escapeHtml(descriptor.connectionDetail ?? descriptor.connectionLabel)}">${escapeHtml(descriptor.connectionLabel)}</span>`
+          : "";
 
       const meta = options.favoriteMetadata.get(descriptor.key);
 
@@ -332,14 +338,9 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
 
       const sourceAndDate = document.createElement("div");
       sourceAndDate.className = "source-and-date";
-      const connectionBadge =
-        descriptor.origin === "remote" && descriptor.connectionLabel
-          ? `<span class="connection-badge" title="${escapeHtml(descriptor.connectionDetail ?? descriptor.connectionLabel)}">${escapeHtml(descriptor.connectionLabel)}</span>`
-          : "";
       sourceAndDate.innerHTML = `
         <span class="source-badge ${descriptor.source}">${descriptor.source}</span>
-        ${connectionBadge}
-        <span class="session-date">${dateLabel}</span>
+        <span class="session-date" title="${escapeHtml(hoverDateLabel)}">${dateLabel}</span>
       `;
       rowTop.append(sourceAndDate);
       button.append(rowTop);
@@ -350,7 +351,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
 
       const pathRow = document.createElement("div");
       pathRow.className = "session-path-row";
-      pathRow.innerHTML = workspaceHtml + `<p class="session-path">${escapeHtml(descriptor.primaryPath)}</p>`;
+      pathRow.innerHTML = workspaceHtml + connectionBadge + `<p class="session-path">${escapeHtml(descriptor.primaryPath)}</p>`;
 
       button.append(titleEl, pathRow);
 

@@ -321,3 +321,87 @@ test("renderSidebar renders quick search chips when favorites exist", () => {
   assert.equal(items[1].textContent, "#ui (1)");
 });
 
+test("renderSidebar renders connection-badge in pathRow right after session-workspace", () => {
+  const options = createSidebarOptions({
+    descriptors: [
+      {
+        key: "file::/path/to/session.jsonl",
+        source: "claude",
+        title: "Session 1",
+        primaryPath: "/path/to/session.jsonl",
+        relatedPaths: [],
+        transport: "local-scan",
+        origin: "remote",
+        connectionLabel: "my-remote-node",
+        connectionDetail: "ssh://user@host",
+        fileCount: 1,
+        size: 100,
+        mtimeMs: Date.now(),
+        metadata: {
+          cwd: "/home/user/workspace"
+        }
+      }
+    ] as any[]
+  });
+
+  const sidebar = renderSidebar(options);
+  const row = sidebar.querySelector(".session-row");
+  assert.ok(row);
+
+  // Since mock DOM does not parse innerHTML, we assert on the innerHTML strings!
+  const sourceAndDate = row.querySelector(".source-and-date");
+  assert.ok(sourceAndDate);
+  assert.equal(sourceAndDate.innerHTML.includes("connection-badge"), false);
+
+  const pathRow = row.querySelector(".session-path-row");
+  assert.ok(pathRow);
+
+  const pathRowHtml = pathRow.innerHTML;
+  assert.ok(pathRowHtml.includes("session-workspace"));
+  assert.ok(pathRowHtml.includes("connection-badge"));
+  assert.ok(pathRowHtml.includes("session-path"));
+
+  // Verify connection badge contains correct text
+  assert.ok(pathRowHtml.includes("my-remote-node"));
+
+  // Verify the HTML structure order: workspace exists first, then connection-badge, then path
+  const workspaceIdx = pathRowHtml.indexOf("session-workspace");
+  const connBadgeIdx = pathRowHtml.indexOf("connection-badge");
+  const pathIdx = pathRowHtml.indexOf("session-path");
+
+  assert.ok(workspaceIdx < connBadgeIdx);
+  assert.ok(connBadgeIdx < pathIdx);
+});
+
+test("renderSidebar session-date has title attribute with long datetime", () => {
+  const options = createSidebarOptions({
+    descriptors: [
+      {
+        key: "file::/path/to/session.jsonl",
+        source: "claude",
+        title: "Session 1",
+        primaryPath: "/path/to/session.jsonl",
+        relatedPaths: [],
+        transport: "local-scan",
+        origin: "local",
+        fileCount: 1,
+        size: 100,
+        mtimeMs: 1773431437000,
+        metadata: {}
+      }
+    ] as any[]
+  });
+
+  const sidebar = renderSidebar(options);
+  const row = sidebar.querySelector(".session-row");
+  assert.ok(row);
+
+  const sourceAndDate = row.querySelector(".source-and-date");
+  assert.ok(sourceAndDate);
+
+  const innerHtml = sourceAndDate.innerHTML;
+  assert.ok(innerHtml.includes("title="));
+  assert.ok(innerHtml.includes("session-date"));
+});
+
+

@@ -10,6 +10,11 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
   timeStyle: "medium"
 });
 
+const DATE_TIME_LONG_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "long"
+});
+
 export function formatDisplayTime(value?: string, fallback = ""): string {
   const timestamp = parseTimestamp(value);
   if (timestamp === null) {
@@ -31,12 +36,28 @@ export function formatDateTime(value?: string, fallback = ""): string {
   return formatted || fallback;
 }
 
+export function formatDateTimeLong(value?: string, fallback = ""): string {
+  const timestamp = parseTimestamp(value);
+  if (timestamp === null) {
+    return value ?? fallback;
+  }
+  return DATE_TIME_LONG_FORMATTER.format(timestamp);
+}
+
 export function formatLocalDateTime(value?: number, fallback = ""): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
   }
 
   return DATE_TIME_FORMATTER.format(value);
+}
+
+export function formatLocalDateTimeLong(value?: number, fallback = ""): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return DATE_TIME_LONG_FORMATTER.format(value);
 }
 
 export async function copyText(value: string): Promise<void> {

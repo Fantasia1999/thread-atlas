@@ -4,6 +4,7 @@ import {
   copyText,
   escapeHtml,
   formatDateTime,
+  formatDateTimeLong,
   formatDateTimeTitle,
   formatDisplayTime,
   ansiToHtml
@@ -354,6 +355,9 @@ function renderSessionHeader(options: {
     // 6. Started At
     const timeSpan = document.createElement("span");
     timeSpan.textContent = formatDateTime(session.startedAt, "time unavailable");
+    if (session.startedAt) {
+      timeSpan.title = formatDateTimeLong(session.startedAt);
+    }
     meta.append(timeSpan);
   }
 
@@ -717,7 +721,7 @@ function renderTimelineButton(
   button.dataset.target = anchorId;
 
   const timelineTime = formatDisplayTime(message.createdAt, "unknown time");
-  const timelineTimeTitle = formatDateTimeTitle(message.createdAt);
+  const timelineTimeTitle = formatDateTimeLong(message.createdAt);
   button.innerHTML = `
     <span class="timeline-index">${String(index + 1).padStart(2, "0")}</span>
     <span class="timeline-role-emoji" title="${escapeHtml(timelineLabel(message.role))}">${timelineEmoji(message.role)}</span>
@@ -743,7 +747,7 @@ function renderMessage(
   const header = document.createElement("div");
   header.className = "log-entry-header";
   const messageTime = formatDisplayTime(message.createdAt);
-  const messageTimeTitle = formatDateTimeTitle(message.createdAt);
+  const messageTimeTitle = formatDateTimeLong(message.createdAt);
   header.innerHTML = `
     <span class="log-role-badge ${message.role}">${escapeHtml(message.role)}</span>
     <span class="message-type">${escapeHtml(message.rawType ?? "message")}</span>
