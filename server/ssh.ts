@@ -1,5 +1,7 @@
+import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { Duplex } from "node:stream";
 import { Client, type ConnectConfig, type SFTPWrapper } from "ssh2";
 
 import type { SessionSource } from "../src/parsers/types.js";
@@ -133,7 +135,104 @@ export async function syncRemoteFiles(
   }
 }
 
-async function connect(credentials: SshCredentials): Promise<Client> {
+/**
+ * Network errors that are frequently transient on machines with VPNs, TUN-mode
+ * proxies, or multiple interfaces, where a route can momentarily be missing
+ * even though the host is actually reachable. The interactive `ssh` client
+ * tolerates these via retries; we mirror that for a comparable experience.
+ */
+const TRANSIENT_SSH_ERROR_CODES = new Set([
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "ECONNREFUSED"
+]);
+
+const SSH_CONNECT_ATTEMPTS = 3;
+const SSH_RETRY_DELAY_MS = 600;
+
+/**
+ * Route errors that, on machines running a TUN-mode proxy with process-based
+ * routing (Clash/Surge/Mihomo, etc.), happen because the proxy captures this
+ * Node process and refuses a direct route to a LAN host — even though the
+ * system `ssh`/`nc` binaries are allowed through. When we see these, we fall
+ * back to tunnelling the SSH transport over an external connector (`nc`).
+ */
+const ROUTE_SSH_ERROR_CODES = new Set(["EHOSTUNREACH", "ENETUNREACH"]);
+
+function attemptConnect(config: ConnectConfig): Promise<Client> {
+  return new Promise<Client>((resolve, reject) => {
+    const client = new Client();
+    client
+      .on("ready", () => resolve(client))
+      .on("error", (error) => reject(error))
+      .connect(config);
+  });
+}
+
+/**
+ * Builds the argv for an external connector that bridges stdin/stdout to the
+ * target host:port (OpenSSH "ProxyCommand" style). Operators can override the
+ * command via ATLAS_SSH_PROXY_COMMAND using %h / %p placeholders; otherwise we
+ * default to netcat. Arguments are passed to spawn() without a shell, so the
+ * untrusted host/port are never interpreted by a shell.
+ */
+function buildProxyArgv(host: string, port: number): { command: string; args: string[] } {
+  const template = process.env.ATLAS_SSH_PROXY_COMMAND?.trim();
+  if (template) {
+    const parts = template
+      .replace(/%h/g, host)
+      .replace(/%p/g, String(port))
+      .split(/\s+/)
+      .filter(Boolean);
+    return { command: parts[0] ?? "nc", args: parts.slice(1) };
+  }
+  return { command: "nc", args: [host, String(port)] };
+}
+
+function connectViaProxyCommand(config: ConnectConfig): Promise<Client> {
+  const host = config.host ?? "";
+  const port = config.port ?? 22;
+  const { command, args } = buildProxyArgv(host, port);
+
+  return new Promise<Client>((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ["pipe", "pipe", "ignore"] });
+    const sock = Duplex.from({ readable: child.stdout!, writable: child.stdin! });
+
+    let settled = false;
+    const cleanupChild = (): void => {
+      if (!child.killed) {
+        child.kill();
+      }
+    };
+
+    child.on("error", (error) => {
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    });
+
+    const client = new Client();
+    client
+      .on("ready", () => {
+        settled = true;
+        client.once("close", cleanupChild);
+        resolve(client);
+      })
+      .on("error", (error) => {
+        if (!settled) {
+          settled = true;
+          cleanupChild();
+          reject(error);
+        }
+      })
+      .connect({ ...config, host: undefined, port: undefined, sock });
+  });
+}
+
+export async function connect(credentials: SshCredentials): Promise<Client> {
   const config: ConnectConfig = {
     host: credentials.host,
     port: credentials.port ?? 22,
@@ -150,13 +249,94 @@ async function connect(credentials: SshCredentials): Promise<Client> {
     config.password = credentials.password;
   }
 
-  return await new Promise<Client>((resolve, reject) => {
-    const client = new Client();
-    client
-      .on("ready", () => resolve(client))
-      .on("error", (error) => reject(error))
-      .connect(config);
-  });
+  // Explicit operator override: always tunnel through the configured connector.
+  if (process.env.ATLAS_SSH_PROXY_COMMAND?.trim()) {
+    try {
+      return await connectViaProxyCommand(config);
+    } catch (error) {
+      throw describeSshError(error, config.host ?? "", config.port ?? 22);
+    }
+  }
+
+  let lastError: unknown;
+  let sawRouteError = false;
+  for (let attempt = 1; attempt <= SSH_CONNECT_ATTEMPTS; attempt++) {
+    try {
+      return await attemptConnect(config);
+    } catch (error) {
+      lastError = error;
+      const code = (error as NodeJS.ErrnoException | undefined)?.code;
+      if (code !== undefined && ROUTE_SSH_ERROR_CODES.has(code)) {
+        sawRouteError = true;
+        break;
+      }
+      const transient = code !== undefined && TRANSIENT_SSH_ERROR_CODES.has(code);
+      if (!transient || attempt === SSH_CONNECT_ATTEMPTS) {
+        break;
+      }
+      await delay(SSH_RETRY_DELAY_MS);
+    }
+  }
+
+  // A direct route is unavailable (commonly a TUN proxy capturing this process).
+  // Fall back to an external connector that the proxy lets reach the host.
+  if (sawRouteError) {
+    try {
+      return await connectViaProxyCommand(config);
+    } catch (proxyError) {
+      const proxyCode = (proxyError as NodeJS.ErrnoException | undefined)?.code;
+      if (proxyCode !== "ENOENT") {
+        lastError = proxyError;
+      }
+    }
+  }
+
+  throw describeSshError(lastError, config.host ?? "", config.port ?? 22);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Translates low-level socket / ssh2 errors into actionable messages so the UI
+ * can tell users whether the problem is the network, the SSH service, or auth.
+ */
+export function describeSshError(error: unknown, host: string, port: number): Error {
+  const target = `${host}:${port}`;
+  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+  const level = (error as { level?: string } | undefined)?.level;
+  const message = error instanceof Error ? error.message : String(error);
+
+  const friendly = ((): string | undefined => {
+    switch (code) {
+      case "EHOSTUNREACH":
+        return `Host ${target} is unreachable (no route to host). A TUN-mode proxy/VPN (Clash/Surge/Mihomo/OrbStack) is likely capturing this app and blocking the LAN route. We automatically retry through the system 'nc'; if it still fails, install netcat ('nc'), set ATLAS_SSH_PROXY_COMMAND="nc %h %p" (or your own connector), or temporarily disable the proxy. Also verify the IP is correct and you are on the same network.`;
+      case "ENETUNREACH":
+        return `Network unreachable when contacting ${target}. Check your network connection, subnet, or VPN.`;
+      case "ECONNREFUSED":
+        return `Connection refused by ${target}. The host is reachable but nothing is listening on that port — verify the SSH service is running and the port is correct.`;
+      case "ETIMEDOUT":
+        return `Connection to ${target} timed out. A firewall may be blocking the port, or the host is offline.`;
+      case "ENOTFOUND":
+      case "EAI_AGAIN":
+        return `Could not resolve host "${host}". Check the hostname or DNS settings.`;
+      case "ECONNRESET":
+        return `Connection to ${target} was reset. The remote SSH service may have dropped the connection.`;
+      default:
+        break;
+    }
+
+    if (level === "client-authentication" || /authentication methods failed/i.test(message)) {
+      return "SSH authentication failed. Check the username, password, private key, or passphrase.";
+    }
+    if (level === "client-timeout" || /timed out while waiting for handshake/i.test(message)) {
+      return `Timed out during the SSH handshake with ${target}. The host may not be an SSH server or is overloaded.`;
+    }
+    return undefined;
+  })();
+
+  return new Error(friendly ?? `Failed to connect to ${target}: ${message}`);
 }
 
 async function collectRemotePaths(
@@ -294,7 +474,7 @@ function preferAntigravityRemotePath(candidate: string, current: string): boolea
   return candidate.localeCompare(current) < 0;
 }
 
-async function execRemote(client: Client, command: string): Promise<string> {
+export async function execRemote(client: Client, command: string): Promise<string> {
   return await new Promise<string>((resolve, reject) => {
     client.exec(command, (error, stream) => {
       if (error) {
@@ -322,7 +502,7 @@ async function execRemote(client: Client, command: string): Promise<string> {
   });
 }
 
-async function openSftp(client: Client): Promise<SFTPWrapper> {
+export async function openSftp(client: Client): Promise<SFTPWrapper> {
   return await new Promise<SFTPWrapper>((resolve, reject) => {
     client.sftp((error, sftp) => {
       if (error) {

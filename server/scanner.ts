@@ -1,5 +1,4 @@
 import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -16,6 +15,7 @@ import {
   COPILOT_BUNDLE_FILES,
   COPILOT_EVENTS_FILE
 } from "./copilot.js";
+import { resolveLocalScanRoots } from "./platformRoots.js";
 import { extractCodexPreviewTitle, extractCodexCwd } from "../src/parsers/codex.js";
 import type {
   SessionBundle,
@@ -28,23 +28,7 @@ const MAX_FILES_PER_SOURCE = 120;
 const MAX_OPENCODE_SESSIONS = 80;
 const COPILOT_DIR_KEY_PREFIX = "copilot-dir::";
 
-const LOCAL_FILE_SCAN_TARGETS = [
-  {
-    segments: [".codex", "sessions"],
-    source: "codex"
-  },
-  {
-    segments: [".claude", "projects"],
-    source: "claude"
-  },
-  {
-    segments: [".gemini", "tmp"],
-    source: "gemini"
-  }
-] as const satisfies ReadonlyArray<{
-  segments: readonly string[];
-  source: Exclude<SessionSource, "opencode" | "unknown">;
-}>;
+type FileScanSource = Exclude<SessionSource, "opencode" | "unknown">;
 
 type DescriptorOrigin = "local" | "remote";
 
@@ -74,12 +58,15 @@ interface OpenCodePartRow {
 }
 
 export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
-  const home = os.homedir();
-  const localOpenCodePath = path.join(home, ".local", "share", "opencode", "opencode.db");
-  const localCopilotRoot = path.join(home, ".copilot", "session-state");
-  const localAntigravityRoots = [
-    path.join(home, ".gemini", "antigravity"),
-    path.join(home, ".gemini", "antigravity-cli")
+  const roots = resolveLocalScanRoots();
+  const localOpenCodePath = roots.openCodeDb;
+  const localCopilotRoot = roots.copilotSessionState;
+  const localAntigravityRoots = roots.antigravityRoots;
+
+  const localFileScanTargets: ReadonlyArray<{ root: string; source: FileScanSource }> = [
+    { root: roots.codexSessions, source: "codex" },
+    { root: roots.claudeProjects, source: "claude" },
+    { root: roots.geminiTmp, source: "gemini" }
   ];
 
   const remoteFiles = (await exists(REMOTE_SYNC_ROOT))
@@ -98,9 +85,7 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
   ] =
     await Promise.all([
       Promise.all(
-        LOCAL_FILE_SCAN_TARGETS.map((target) =>
-          scanFileTree(path.join(home, ...target.segments), target.source)
-        )
+        localFileScanTargets.map((target) => scanFileTree(target.root, target.source))
       ),
       scanAntigravitySessions(localAntigravityRoots, "local"),
       scanOpenCodeDatabase(localOpenCodePath, "local"),
@@ -194,7 +179,7 @@ async function scanFileTree(
 async function loadAntigravityHistoryMap(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   try {
-    const historyPath = path.join(os.homedir(), ".gemini", "antigravity-cli", "history.jsonl");
+    const historyPath = resolveLocalScanRoots().antigravityCliHistory;
     const content = await fs.readFile(historyPath, "utf8");
     const lines = content.split("\n").filter(Boolean);
     for (const line of lines) {

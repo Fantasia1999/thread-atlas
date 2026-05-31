@@ -150,3 +150,107 @@ test("SessionStore getVisibleDescriptors returns pinned items first and supports
   assert.equal(visible.length, 1);
   assert.equal(visible[0].key, "file::/s2.jsonl");
 });
+
+test("SessionStore aggregates sessions across local and remote connections", async () => {
+  mockLocalStorage.clear();
+
+  const { ConnectionManager } = await import("../src/store/connection.ts");
+  const connection = new ConnectionManager();
+  connection.upsertRemote({
+    id: "abc123",
+    label: "build-box",
+    host: "10.0.0.5",
+    username: "dev"
+  });
+
+  const calls: string[] = [];
+  (connection as any).fetch = async (input: string): Promise<Response> => {
+    calls.push(input);
+    let files: any[] = [];
+    if (input.startsWith("/api/local/scan")) {
+      files = [
+        {
+          key: "file::/local/a.jsonl",
+          source: "claude",
+          title: "Local Session",
+          primaryPath: "/local/a.jsonl",
+          mtimeMs: 1000,
+          metadata: {}
+        }
+      ];
+    } else if (input.startsWith("/api/remote/abc123/scan")) {
+      files = [
+        {
+          key: "file::/remote/b.jsonl",
+          source: "codex",
+          title: "Remote Session",
+          primaryPath: "/remote/b.jsonl",
+          mtimeMs: 2000,
+          metadata: {}
+        }
+      ];
+    }
+    return { ok: true, json: async () => ({ ok: true, files }) } as unknown as Response;
+  };
+
+  const store = new (SessionStore as any)(connection);
+  await store.refreshLocalScan();
+
+  const descriptors = store.getState().descriptors as any[];
+  assert.equal(descriptors.length, 2);
+
+  const local = descriptors.find((d) => d.key === "file::/local/a.jsonl");
+  assert.ok(local);
+  assert.equal(local.connectionLabel, "Local");
+  assert.notEqual(local.origin, "remote");
+
+  const remote = descriptors.find((d) => d.key === "remote:abc123::file::/remote/b.jsonl");
+  assert.ok(remote, "remote descriptor key should be namespaced");
+  assert.equal(remote.origin, "remote");
+  assert.equal(remote.connectionLabel, "build-box");
+
+  assert.ok(calls.some((c) => c.startsWith("/api/local/scan")));
+  assert.ok(calls.some((c) => c.startsWith("/api/remote/abc123/scan")));
+});
+
+test("SessionStore tolerates a failing connection during aggregation", async () => {
+  mockLocalStorage.clear();
+
+  const { ConnectionManager } = await import("../src/store/connection.ts");
+  const connection = new ConnectionManager();
+  connection.upsertRemote({
+    id: "dead1",
+    label: "offline-box",
+    host: "10.0.0.9",
+    username: "dev"
+  });
+
+  (connection as any).fetch = async (input: string): Promise<Response> => {
+    if (input.startsWith("/api/remote/dead1/scan")) {
+      throw new Error("network down");
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        ok: true,
+        files: [
+          {
+            key: "file::/local/ok.jsonl",
+            source: "claude",
+            title: "Local OK",
+            primaryPath: "/local/ok.jsonl",
+            mtimeMs: 1,
+            metadata: {}
+          }
+        ]
+      })
+    } as unknown as Response;
+  };
+
+  const store = new (SessionStore as any)(connection);
+  await store.refreshLocalScan();
+
+  const descriptors = store.getState().descriptors as any[];
+  assert.equal(descriptors.length, 1);
+  assert.equal(descriptors[0].key, "file::/local/ok.jsonl");
+});

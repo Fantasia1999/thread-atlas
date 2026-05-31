@@ -1,8 +1,16 @@
-import express, { type Request, type Response } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import os from "node:os";
 import path from "node:path";
 
+import { resolveAgentConfig } from "./agentConfig.js";
+import { resolveLocalScanRoots } from "./platformRoots.js";
 import { loadLocalSessionBundle, scanLocalSessions } from "./scanner.js";
+import {
+  connectRemoteAgent,
+  disconnectRemoteAgent,
+  listRemoteAgents,
+  proxyToRemoteAgent
+} from "./remote.js";
 import {
   scanRemoteSessions,
   syncRemoteFiles,
@@ -11,10 +19,36 @@ import {
   type SshCredentials
 } from "./ssh.js";
 
+const AGENT_NAME = "thread-atlas-agent";
+const AGENT_VERSION = "0.1.0";
+
+const config = resolveAgentConfig();
 const app = express();
-const port = 3030;
 
 app.use(express.json({ limit: "5mb" }));
+
+app.use("/api", createTokenGuard(config.token));
+
+app.get(
+  "/api/agent/info",
+  handleJsonRoute(500, async () => {
+    const roots = resolveLocalScanRoots();
+    return {
+      ok: true,
+      info: {
+        name: AGENT_NAME,
+        version: AGENT_VERSION,
+        platform: process.platform,
+        arch: process.arch,
+        nodeVersion: process.version,
+        tokenRequired: config.tokenRequired,
+        capabilities: ["local-scan", "session-bundle", "ssh-sync", "ssh-scan"],
+        roots
+      }
+    };
+  })
+);
+
 
 app.post(
   "/api/ssh/test",
@@ -64,23 +98,58 @@ app.get(
   })
 );
 
+app.post(
+  "/api/remote/connect",
+  handleJsonRoute(500, async (request) => {
+    const credentials = readCredentials(request.body);
+    const agent = await connectRemoteAgent(credentials);
+    return { ok: true, agent };
+  })
+);
+
+app.get(
+  "/api/remote/list",
+  handleJsonRoute(500, async () => {
+    return { ok: true, agents: listRemoteAgents() };
+  })
+);
+
+app.delete(
+  "/api/remote/:id",
+  handleJsonRoute(500, async (request) => {
+    await disconnectRemoteAgent(String(request.params.id));
+    return { ok: true };
+  })
+);
+
+app.get("/api/remote/:id/scan", relayRemoteRoute("/api/local/scan"));
+app.get("/api/remote/:id/session", relayRemoteRoute("/api/local/session"));
+
 const clientRoot = path.resolve(process.cwd(), "dist");
 app.use(express.static(clientRoot));
 
-app.listen(port, () => {
-  console.log(`ThreadAtlas backend listening on:`);
-  console.log(`  - Local:   http://localhost:${port}`);
-  try {
-    const interfaces = os.networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
-      for (const iface of interfaces[name] ?? []) {
-        if (iface.family === "IPv4" && !iface.internal) {
-          console.log(`  - Network: http://${iface.address}:${port}`);
+app.listen(config.port, config.host, () => {
+  console.log(`ThreadAtlas agent (${AGENT_NAME} v${AGENT_VERSION}) listening on:`);
+  console.log(`  - Bind:    http://${config.host}:${config.port}`);
+  console.log(`  - Local:   http://localhost:${config.port}`);
+  if (config.tokenRequired) {
+    console.log(`  - Token:   ${config.token}`);
+  } else {
+    console.log("  - Token:   (none; API is unauthenticated)");
+  }
+  if (config.host === "0.0.0.0" || config.host === "::") {
+    try {
+      const interfaces = os.networkInterfaces();
+      for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name] ?? []) {
+          if (iface.family === "IPv4" && !iface.internal) {
+            console.log(`  - Network: http://${iface.address}:${config.port}`);
+          }
         }
       }
+    } catch {
+      // Gracefully ignore network interface query errors
     }
-  } catch {
-    // Gracefully ignore network interface query errors
   }
 });
 
@@ -91,6 +160,26 @@ class HttpError extends Error {
   ) {
     super(message);
   }
+}
+
+function createTokenGuard(token: string | undefined) {
+  return (request: Request, response: Response, next: NextFunction): void => {
+    if (!token) {
+      next();
+      return;
+    }
+
+    const header = request.header("authorization") ?? "";
+    const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+    const provided = match?.[1] ?? (request.query.token as string | undefined);
+
+    if (provided !== token) {
+      response.status(401).json({ ok: false, error: "Unauthorized." });
+      return;
+    }
+
+    next();
+  };
 }
 
 function handleJsonRoute(
@@ -105,6 +194,23 @@ function handleJsonRoute(
         ok: false,
         error: toErrorMessage(error)
       });
+    }
+  };
+}
+
+function relayRemoteRoute(upstreamPath: string) {
+  return async (request: Request, response: Response): Promise<void> => {
+    try {
+      const queryIndex = request.originalUrl.indexOf("?");
+      const query = queryIndex >= 0 ? request.originalUrl.slice(queryIndex) : "";
+      const relayed = await proxyToRemoteAgent(
+        String(request.params.id),
+        request.method,
+        `${upstreamPath}${query}`
+      );
+      response.status(relayed.status).type("application/json").send(relayed.body);
+    } catch (error) {
+      response.status(502).json({ ok: false, error: toErrorMessage(error) });
     }
   };
 }

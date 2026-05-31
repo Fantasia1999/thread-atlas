@@ -823,6 +823,29 @@ input[type="checkbox"] {
   border: 1px solid var(--border-default);
 }
 
+.connection-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  max-width: 160px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent-base);
+  background: color-mix(in srgb, var(--accent-base) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-base) 45%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-meta-connection.is-remote {
+  color: var(--accent-base);
+  font-weight: 600;
+}
+
 .source-badge.codex,
 .log-role-badge.assistant,
 .log-role-badge.developer {
@@ -3088,3 +3111,106 @@ details[open] .tool-call-header::after {
   display: none !important;
 }
 
+
+/* Connection manager modal */
+.modal-body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+.connection-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.connection-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.connection-section h3 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.connection-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-remote-label {
+  flex: 1 1 auto;
+  font-size: 13px;
+}
+
+.connection-empty,
+.connection-feedback {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.connection-feedback {
+  width: 100%;
+}
+
+.connection-feedback.info {
+  color: var(--text-secondary);
+}
+
+.connection-feedback.success {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.connection-feedback.error {
+  color: var(--danger);
+  font-weight: 600;
+  padding: 8px 10px;
+  border: 1px solid var(--danger);
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.connection-saved .connection-remote-label {
+  font-weight: 600;
+}
+
+.connection-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.connection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.input {
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+}

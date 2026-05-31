@@ -5,6 +5,7 @@ import type {
   SessionDescriptor,
   SessionSource
 } from "../parsers/types.js";
+import { ConnectionManager, type ScanTarget } from "./connection.js";
 
 export interface StoreState {
   descriptors: SessionDescriptor[];
@@ -89,6 +90,12 @@ export class SessionStore {
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  constructor(private readonly connection: ConnectionManager = new ConnectionManager()) {}
+
+  getConnection(): ConnectionManager {
+    return this.connection;
   }
 
   getState(): StoreState {
@@ -229,39 +236,54 @@ export class SessionStore {
   async refreshLocalScan(): Promise<void> {
     this.updateState({
       loadingScan: true,
-      status: "Scanning local session directories..."
+      status: "Scanning session directories across connections..."
     });
 
-    try {
-      const response = await fetch("/api/local/scan");
-      const payload = (await response.json()) as {
-        ok: boolean;
-        files?: SessionDescriptor[];
-        error?: string;
-      };
+    const targets = this.connection.getScanTargets();
+    const collected: SessionDescriptor[] = [];
+    const errors: string[] = [];
 
-      if (!response.ok || !payload.ok || !payload.files) {
-        throw new Error(payload.error ?? "Local scan failed.");
-      }
+    await Promise.all(
+      targets.map(async (target) => {
+        try {
+          const response = await this.connection.fetch(`${target.base}/scan`);
+          const payload = (await response.json()) as {
+            ok: boolean;
+            files?: SessionDescriptor[];
+            error?: string;
+          };
 
-      const merged = mergeDescriptors(this.importedBundles, payload.files);
-      const selectedKey = resolveSelectedKey(merged, this.state.selectedKey);
+          if (!response.ok || !payload.ok || !payload.files) {
+            throw new Error(payload.error ?? "Scan failed.");
+          }
 
-      this.updateState({
-        descriptors: merged,
-        selectedKey,
-        loadingScan: false,
-        status: `Loaded ${merged.length} sessions.`
-      });
+          for (const descriptor of payload.files) {
+            collected.push(tagDescriptor(descriptor, target));
+          }
+        } catch (error) {
+          errors.push(`${target.label}: ${error instanceof Error ? error.message : "scan failed"}`);
+        }
+      })
+    );
 
-      if (selectedKey && !this.state.sessions.has(selectedKey)) {
-        await this.selectSession(selectedKey);
-      }
-    } catch (error) {
-      this.updateState({
-        loadingScan: false,
-        status: error instanceof Error ? error.message : "Local scan failed."
-      });
+    const merged = mergeDescriptors(this.importedBundles, collected);
+    const selectedKey = resolveSelectedKey(merged, this.state.selectedKey);
+
+    const machineCount = targets.length;
+    const status =
+      errors.length > 0
+        ? `Loaded ${merged.length} sessions from ${machineCount - errors.length}/${machineCount} connections. ${errors.join("; ")}`
+        : `Loaded ${merged.length} sessions from ${machineCount} connection${machineCount === 1 ? "" : "s"}.`;
+
+    this.updateState({
+      descriptors: merged,
+      selectedKey,
+      loadingScan: false,
+      status
+    });
+
+    if (selectedKey && !this.state.sessions.has(selectedKey)) {
+      await this.selectSession(selectedKey);
     }
   }
 
@@ -372,7 +394,10 @@ export class SessionStore {
   }
 
   private async fetchBundle(key: string): Promise<SessionBundle> {
-    const response = await fetch(`/api/local/session?key=${encodeURIComponent(key)}`);
+    const { base, backendKey } = this.connection.routeForKey(key);
+    const response = await this.connection.fetch(
+      `${base}/session?key=${encodeURIComponent(backendKey)}`
+    );
     const payload = (await response.json()) as {
       ok: boolean;
       bundle?: SessionBundle;
@@ -401,6 +426,30 @@ export class SessionStore {
 function toDescriptor(bundle: SessionBundle): SessionDescriptor {
   const { files: _files, ...descriptor } = bundle;
   return descriptor;
+}
+
+/**
+ * Stamps a scanned descriptor with its originating connection so sessions from
+ * multiple machines can coexist in one list. Remote descriptors get a
+ * namespaced key (to avoid path collisions across hosts), a "remote" origin,
+ * and the connection label for display.
+ */
+function tagDescriptor(descriptor: SessionDescriptor, target: ScanTarget): SessionDescriptor {
+  if (target.mode === "local") {
+    return {
+      ...descriptor,
+      connectionId: target.id,
+      connectionLabel: target.label
+    };
+  }
+  return {
+    ...descriptor,
+    key: ConnectionManager.namespaceKey(target, descriptor.key),
+    origin: "remote",
+    connectionId: target.id,
+    connectionLabel: target.label,
+    connectionDetail: target.detail
+  };
 }
 
 function mergeDescriptors(

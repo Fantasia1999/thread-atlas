@@ -4,6 +4,7 @@ import { createImportModal } from "./importModal.js";
 import { renderSidebar } from "./sidebar.js";
 import { type MessageViewFilter, renderChatView } from "./chatView.js";
 import { createSshModal } from "./sshModal.js";
+import { createConnectionModal } from "./connectionModal.js";
 import { showToast, copyText } from "./utils.js";
 
 type AppTheme = "light" | "dark";
@@ -70,7 +71,10 @@ export class ThreadAtlasApp {
     const sshButton = this.makeButton("SSH sync", () => {
       this.openSshModal();
     });
-    actions.append(scanButton, importButton, sshButton);
+    const connectionsButton = this.makeButton("Connections", () => {
+      this.openConnectionModal();
+    });
+    actions.append(scanButton, importButton, sshButton, connectionsButton);
 
     this.statusNode = document.createElement("div");
     this.statusNode.className = "status-pill";
@@ -153,6 +157,7 @@ export class ThreadAtlasApp {
   }
 
   async init(): Promise<void> {
+    await this.store.getConnection().reconcileRemotes();
     await this.store.refreshLocalScan();
   }
 
@@ -489,10 +494,25 @@ export class ThreadAtlasApp {
   private openSshModal(): void {
     this.modalMount.replaceChildren(
       createSshModal({
+        authHeaders: this.store.getConnection().authHeaders(),
         onClose: () => {
           this.modalMount.replaceChildren();
         },
         onSynced: async () => {
+          await this.store.refreshLocalScan();
+        }
+      })
+    );
+  }
+
+  private openConnectionModal(): void {
+    this.modalMount.replaceChildren(
+      createConnectionModal({
+        connection: this.store.getConnection(),
+        onClose: () => {
+          this.modalMount.replaceChildren();
+        },
+        onChanged: async () => {
           await this.store.refreshLocalScan();
         }
       })

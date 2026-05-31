@@ -45,7 +45,7 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 - `~/.gemini/antigravity/brain`
 - `~/.gemini/antigravity-cli`
 - `~/.copilot/session-state`
-- `~/.local/share/opencode/opencode.db`
+- `~/.local/share/opencode/opencode.db` (Linux/macOS; Windows uses `%LOCALAPPDATA%\opencode\opencode.db`, and `XDG_DATA_HOME` is honored when set)
 - `data/remote/` for previously synced remote files
 
 ### Remote scan roots
@@ -119,11 +119,72 @@ Alternatively, you can use the wrapper startup scripts, which will automatically
   start.bat
   ```
 
+## Cross-platform & remote agents
+
+ThreadAtlas runs on Linux, macOS, and Windows and follows a VS Code-style split
+between a thin client (the browser UI) and an **agent** (the backend that owns
+filesystem access). The same agent can run locally or be deployed to a remote
+Linux machine, and the UI talks to whichever agent is active.
+
+### Local agent (default)
+
+`npm start` builds the app and runs the full local agent (`dist/server/...`),
+which serves the UI and the `/api` endpoints. The agent is configurable:
+
+| Flag / env | Default | Purpose |
+| --- | --- | --- |
+| `--host` / `ATLAS_AGENT_HOST` | `127.0.0.1` | Bind address |
+| `--port` / `ATLAS_AGENT_PORT` | `3030` | Listen port |
+| `--token` / `ATLAS_AGENT_TOKEN` | none | Require a Bearer token on `/api/*` (`--token auto` generates one) |
+| `--no-token` | — | Disable token auth even if the env var is set |
+
+`GET /api/agent/info` reports the agent platform, version, capabilities, and the
+resolved per-OS scan roots.
+
+### Thin-client desktop launcher
+
+```bash
+npm run desktop
+```
+
+Builds if needed, starts the local agent, and opens the system browser. This is
+a zero-extra-dependency thin client that works on all three platforms. (A Tauri
+or Electron shell can wrap the same UI + agent if a native window is desired.)
+
+### Connect to a remote agent
+
+Use the **Connections** button in the UI to deploy and connect to a remote
+agent over SSH:
+
+1. The local agent verifies Node.js 22+ on the remote host.
+2. It uploads the self-contained agent bundle (`dist/agent/atlas-agent.mjs`) to
+   `~/.thread-atlas/agent/` and starts it bound to the remote loopback.
+3. It opens an SSH local port-forward to that agent and proxies
+   `/api/remote/<id>/*` requests to it.
+
+Scanning then happens *in place* on the remote machine — no session files are
+mirrored locally. The legacy **SSH sync** workflow (mirroring into
+`data/remote/`) remains available as a fallback.
+
+Build the deployable agent bundle (also part of `npm run build`):
+
+```bash
+npm run build:agent
+```
+
+To ship the agent to machines without Node.js, build a Single Executable
+Application (requires `postject`):
+
+```bash
+npm run build:agent-sea
+```
+
 ### Validate
 
 ```bash
 npm run typecheck
 npm run build
+npm run test
 ```
 
 ### Take a screenshot

@@ -296,10 +296,24 @@ function renderSessionHeader(options: {
   originSpan.textContent = descriptor.origin;
   meta.append(originSpan);
 
-  // 3. Transport
+  // 3. Transport (prefixed with "remote-" for sessions from a remote agent)
   const transportSpan = document.createElement("span");
-  transportSpan.textContent = descriptor.transport;
+  transportSpan.textContent =
+    descriptor.origin === "remote" ? `remote-${descriptor.transport}` : descriptor.transport;
   meta.append(transportSpan);
+
+  // 3b. Connection name (which machine this session came from)
+  if (descriptor.connectionLabel) {
+    const connectionSpan = document.createElement("span");
+    connectionSpan.className = `chat-meta-connection${
+      descriptor.origin === "remote" ? " is-remote" : ""
+    }`;
+    connectionSpan.textContent = descriptor.connectionLabel;
+    connectionSpan.title = descriptor.connectionDetail
+      ? `Connection: ${descriptor.connectionLabel} (${descriptor.connectionDetail})`
+      : `Connection: ${descriptor.connectionLabel}`;
+    meta.append(connectionSpan);
+  }
 
   if (session) {
     // 4. Messages count

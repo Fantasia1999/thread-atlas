@@ -28,6 +28,9 @@ export interface SessionDescriptor {
   size: number;
   mtimeMs: number;
   metadata: Record<string, MetadataValue>;
+  connectionId?: string;
+  connectionLabel?: string;
+  connectionDetail?: string;
 }
 
 export interface SessionBundle extends SessionDescriptor {

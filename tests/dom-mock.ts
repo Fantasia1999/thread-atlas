@@ -14,6 +14,11 @@ export class FakeDocumentFragment {
     }
   }
 
+  replaceChildren(...nodes: FakeNode[]): void {
+    this.childNodes.length = 0;
+    this.append(...nodes);
+  }
+
   contains(node: any): boolean {
     if (node === this) return true;
     for (const child of this.childNodes) {

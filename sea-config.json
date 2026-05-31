@@ -1,0 +1,7 @@
+{
+  "main": "dist/agent/atlas-agent.mjs",
+  "output": "dist/agent/atlas-agent.blob",
+  "disableExperimentalSEAWarning": true,
+  "useSnapshot": false,
+  "useCodeCache": false
+}

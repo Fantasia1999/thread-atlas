@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { MetadataValue, SessionBundle, SessionDescriptor } from "../src/parsers/types.js";
 import { BUNDLED_ANTIGRAVITY_DESCRIPTORS } from "./antigravityDescriptors.js";
+import { resolveLocalScanRoots } from "./platformRoots.js";
 import { extractAntigravityPreviewTitle } from "../src/parsers/antigravity.js";
 
 const ANTIGRAVITY_KEY = Buffer.from("safeCodeiumworldKeYsecretBalloon", "utf8");
@@ -248,7 +249,7 @@ async function decodeAntigravityTrajectory(
 
 async function findWorkspaceFromHistory(cascadeId: string): Promise<string | undefined> {
   try {
-    const historyPath = path.join(os.homedir(), ".gemini", "antigravity-cli", "history.jsonl");
+    const historyPath = resolveLocalScanRoots().antigravityCliHistory;
     const content = await fs.readFile(historyPath, "utf8");
     const lines = content.split("\n").filter(Boolean);
     for (let i = lines.length - 1; i >= 0; i--) {

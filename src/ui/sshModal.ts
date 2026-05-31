@@ -28,9 +28,11 @@ interface SavedSshServer extends SshFormValues {
 interface SshModalOptions {
   onClose: () => void;
   onSynced: () => Promise<void> | void;
+  authHeaders?: Record<string, string>;
 }
 
 export function createSshModal(options: SshModalOptions): HTMLElement {
+  const authHeaders = options.authHeaders ?? {};
   let savedServers = loadSavedServers();
   const selectedSavedIds = new Set(savedServers.map((server) => server.id));
 
@@ -424,7 +426,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
       savedStatus.textContent = `Syncing saved server ${checkedServers}/${servers.length}: ${formatServerLabel(server)}...`;
 
       try {
-        const scanPayload = await postJson("/api/ssh/scan", server);
+        const scanPayload = await postJson("/api/ssh/scan", server, authHeaders);
         if (!scanPayload.ok || !Array.isArray(scanPayload.files)) {
           throw new Error(asErrorMessage(scanPayload.error, "Remote scan failed."));
         }
@@ -439,7 +441,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
         const syncPayload = await postJson("/api/ssh/sync", {
           ...server,
           files: remoteFiles
-        });
+        }, authHeaders);
         if (!syncPayload.ok) {
           throw new Error(asErrorMessage(syncPayload.error, "Remote sync failed."));
         }
@@ -493,7 +495,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
     try {
       const credentials = readCredentialsForm();
       assertCredentials(credentials);
-      const payload = await postJson("/api/ssh/test", credentials);
+      const payload = await postJson("/api/ssh/test", credentials, authHeaders);
       if (!payload.ok) {
         throw new Error(asErrorMessage(payload.error, "Connection test failed."));
       }
@@ -516,7 +518,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
     try {
       const credentials = readCredentialsForm();
       assertCredentials(credentials);
-      const payload = await postJson("/api/ssh/scan", credentials);
+      const payload = await postJson("/api/ssh/scan", credentials, authHeaders);
       if (!payload.ok || !Array.isArray(payload.files)) {
         throw new Error(asErrorMessage(payload.error, "Remote scan failed."));
       }
@@ -566,7 +568,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
       const payload = await postJson("/api/ssh/sync", {
         ...credentials,
         files: selectedFiles
-      });
+      }, authHeaders);
 
       if (!payload.ok) {
         throw new Error(asErrorMessage(payload.error, "Remote sync failed."));
@@ -771,11 +773,16 @@ function valueOf(container: HTMLElement, name: string): string {
   return field?.value ?? "";
 }
 
-async function postJson(url: string, body: unknown): Promise<Record<string, unknown>> {
+async function postJson(
+  url: string,
+  body: unknown,
+  authHeaders: Record<string, string> = {}
+): Promise<Record<string, unknown>> {
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...authHeaders
     },
     body: JSON.stringify(body)
   });

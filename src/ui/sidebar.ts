@@ -332,8 +332,13 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
 
       const sourceAndDate = document.createElement("div");
       sourceAndDate.className = "source-and-date";
+      const connectionBadge =
+        descriptor.origin === "remote" && descriptor.connectionLabel
+          ? `<span class="connection-badge" title="${escapeHtml(descriptor.connectionDetail ?? descriptor.connectionLabel)}">${escapeHtml(descriptor.connectionLabel)}</span>`
+          : "";
       sourceAndDate.innerHTML = `
         <span class="source-badge ${descriptor.source}">${descriptor.source}</span>
+        ${connectionBadge}
         <span class="session-date">${dateLabel}</span>
       `;
       rowTop.append(sourceAndDate);
