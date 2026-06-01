@@ -3594,4 +3594,15 @@ html[data-theme="dark"] .scroll-helper-hub {
   color: var(--text-primary);
 }
 
+/* Immerse diagram lightbox by lifting it above all app components */
+.mermaid-lightbox {
+  z-index: 9999 !important;
+}
+
+/* Hide scroll-helper-hub when diagram lightbox is active */
+body:has(.mermaid-lightbox) .scroll-helper-hub {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 
