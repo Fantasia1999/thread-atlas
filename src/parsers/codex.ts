@@ -1,4 +1,4 @@
-import type { Message, Session, SessionBundle, ToolCall } from "./types.js";
+import type { Message, Session, SessionBundle, ToolCall, SessionRole } from "./types.js";
 import {
   addToolCall,
   basenameTitle,
@@ -56,9 +56,13 @@ export function parseCodexSession(bundle: SessionBundle): Session {
         if (!text.trim()) {
           continue;
         }
+        let role: SessionRole = eventType === "user_message" ? "user" : "assistant";
+        if (role === "user" && isSystemInstructionText(text)) {
+          role = "system";
+        }
         messages.push({
           id: `${bundle.key}:${messages.length}`,
-          role: eventType === "user_message" ? "user" : "assistant",
+          role,
           text,
           createdAt: timestamp,
           rawType: eventType
@@ -75,9 +79,13 @@ export function parseCodexSession(bundle: SessionBundle): Session {
 
     if (responseType === "message") {
       const text = collectText(payload.content);
+      let role = normalizeRole(payload.role);
+      if (role === "user" && isSystemInstructionText(text)) {
+        role = "system";
+      }
       messages.push({
         id: `${bundle.key}:${messages.length}`,
-        role: normalizeRole(payload.role),
+        role,
         text,
         createdAt: timestamp,
         rawType: responseType
@@ -328,4 +336,17 @@ function parseTimestamp(value?: string): number | null {
   }
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function isSystemInstructionText(text: string): boolean {
+  const trimmed = text.trim();
+  return (
+    trimmed.includes("<permissions instructions>") ||
+    trimmed.includes("<INSTRUCTIONS>") ||
+    trimmed.includes("# AGENTS.md instructions") ||
+    trimmed.includes("<collaboration_mode>") ||
+    trimmed.includes("<apps_instructions>") ||
+    trimmed.includes("<skills_instructions>") ||
+    trimmed.includes("<plugins_instructions>")
+  );
 }

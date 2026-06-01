@@ -974,13 +974,16 @@ function createEmpty(message: string): HTMLElement {
 export function filterMessagesForView(messages: Message[], filter: MessageViewFilter): Message[] {
   switch (filter) {
     case "not-tool":
-      return messages.filter((message) => !isToolOnlyMessage(message));
+      return messages.filter(
+        (message) =>
+          !isToolOnlyMessage(message) &&
+          message.role !== "system" &&
+          message.role !== "developer"
+      );
     case "user":
       return messages.filter((message) => message.role === "user");
     case "answer":
-      return messages.filter(
-        (message) => message.role === "assistant" || message.role === "developer"
-      );
+      return messages.filter((message) => message.role === "assistant");
     default:
       return messages;
   }

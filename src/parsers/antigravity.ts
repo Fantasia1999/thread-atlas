@@ -109,11 +109,11 @@ export function parseAntigravitySession(bundle: SessionBundle): Session {
   const cascadeId =
     typeof sessionMeta?.cascade_id === "string"
       ? sessionMeta.cascade_id
-      : typeof bundle.metadata.cascadeId === "string"
+      : typeof bundle.metadata?.cascadeId === "string"
         ? bundle.metadata.cascadeId
         : undefined;
   const primaryWorkspace = extractPrimaryWorkspace(
-    sessionMeta?.workspaces ?? bundle.metadata.primaryWorkspace
+    sessionMeta?.workspaces ?? bundle.metadata?.primaryWorkspace
   );
   const firstUserMessage = messages.find((message) => message.role === "user");
   const firstUserTitle = firstUserMessage ? previewText(firstUserMessage.text, 80) : undefined;
@@ -136,32 +136,32 @@ export function parseAntigravitySession(bundle: SessionBundle): Session {
       trajectoryId:
         typeof sessionMeta?.trajectory_id === "string"
           ? sessionMeta.trajectory_id
-          : typeof bundle.metadata.trajectoryId === "string"
+          : typeof bundle.metadata?.trajectoryId === "string"
             ? bundle.metadata.trajectoryId
             : null,
       status:
         typeof sessionMeta?.status === "string"
           ? sessionMeta.status
-          : typeof bundle.metadata.status === "string"
+          : typeof bundle.metadata?.status === "string"
             ? bundle.metadata.status
             : null,
       stepCount:
         typeof sessionMeta?.step_count === "number"
           ? sessionMeta.step_count
-          : typeof bundle.metadata.stepCount === "number"
+          : typeof bundle.metadata?.stepCount === "number"
             ? bundle.metadata.stepCount
             : null,
       workspaces:
         sessionMeta?.workspaces != null
           ? stringifyMetadataValue(sessionMeta.workspaces)
-          : typeof bundle.metadata.workspaces === "string"
+          : typeof bundle.metadata?.workspaces === "string"
             ? bundle.metadata.workspaces
             : null,
       descriptorSource:
-        typeof bundle.metadata.descriptorSource === "string" ? bundle.metadata.descriptorSource : null,
+        typeof bundle.metadata?.descriptorSource === "string" ? bundle.metadata.descriptorSource : null,
       primaryWorkspace: primaryWorkspace ?? null,
       loaderBackend:
-        typeof bundle.metadata.loaderBackend === "string" ? bundle.metadata.loaderBackend : null
+        typeof bundle.metadata?.loaderBackend === "string" ? bundle.metadata.loaderBackend : null
     }
   });
 }

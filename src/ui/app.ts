@@ -283,7 +283,7 @@ export class ThreadAtlasApp {
           }
         },
         onRenderComplete: () => {
-          this.restoreChatMessagesScroll();
+          setTimeout(() => this.restoreChatMessagesScroll(), 0);
         }
       })
     );
@@ -319,7 +319,10 @@ export class ThreadAtlasApp {
 
   private restoreChatMessagesScroll(): void {
     const list = this.mainMount.querySelector<HTMLElement>(".chat-messages");
-    if (!list) {
+    if (!list || !list.isConnected) {
+      // If the list is not in the DOM yet or not fully connected (e.g. synchronous render before mount finishes),
+      // defer scroll restoration to the next tick when mainMount has been updated.
+      setTimeout(() => this.restoreChatMessagesScroll(), 0);
       return;
     }
 
