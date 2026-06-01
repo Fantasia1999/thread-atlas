@@ -67,6 +67,7 @@ export class FakeDocumentFragment {
 export class FakeElement extends FakeDocumentFragment {
   override readonly nodeType = 1;
   readonly dataset: Record<string, string> = {};
+  readonly style: Record<string, string> = {};
   className = "";
   innerHTML = "";
   private _textContent = "";

@@ -288,6 +288,11 @@ export class SessionStore {
   }
 
   async selectSession(key: string): Promise<void> {
+    try {
+      localStorage.setItem("thread-atlas-selected-session-key", key);
+    } catch (e) {
+      // Ignore storage errors in restricted environments
+    }
     this.updateState({
       selectedKey: key,
       loadingSession: true,
@@ -475,6 +480,15 @@ function resolveSelectedKey(
 ): string | undefined {
   if (currentSelectedKey && descriptors.some((descriptor) => descriptor.key === currentSelectedKey)) {
     return currentSelectedKey;
+  }
+
+  try {
+    const storedKey = localStorage.getItem("thread-atlas-selected-session-key");
+    if (storedKey && descriptors.some((descriptor) => descriptor.key === storedKey)) {
+      return storedKey;
+    }
+  } catch (e) {
+    // Ignore storage errors
   }
 
   return descriptors[0]?.key;

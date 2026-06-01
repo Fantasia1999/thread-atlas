@@ -5,6 +5,7 @@ import { renderSidebar } from "./sidebar.js";
 import { type MessageViewFilter, renderChatView } from "./chatView.js";
 import { createSshModal } from "./sshModal.js";
 import { createConnectionModal } from "./connectionModal.js";
+import { createExportMdModal } from "./exportMdModal.js";
 import { showToast, copyText } from "./utils.js";
 
 type AppTheme = "light" | "dark";
@@ -35,8 +36,6 @@ export class ThreadAtlasApp {
   private timelineOpen = false;
   private viewportWidth = window.innerWidth;
   private sidebarScrollTop = 0;
-  private chatMessagesScrollTop = 0;
-  private lastSelectedKey?: string;
 
   constructor(
     private readonly root: HTMLElement,
@@ -163,7 +162,6 @@ export class ThreadAtlasApp {
 
   private render(state: StoreState): void {
     this.captureSidebarScroll();
-    this.captureChatMessagesScroll(state);
 
     const sidebarPinned = this.isSidebarPinned();
     const timelinePinned = this.isTimelinePinned();
@@ -277,8 +275,12 @@ export class ThreadAtlasApp {
         onTimelineTogglePin: () => {
           this.toggleTimelinePin();
         },
-        onExport: (session) => {
-          this.exportSession(session);
+        onExport: (session, format) => {
+          if (format === "json") {
+            this.exportSession(session);
+          } else {
+            this.openExportMdModal(session);
+          }
         },
         onRenderComplete: () => {
           this.restoreChatMessagesScroll();
@@ -315,32 +317,41 @@ export class ThreadAtlasApp {
     });
   }
 
-  private captureChatMessagesScroll(state: StoreState): void {
-    const list = this.mainMount.querySelector<HTMLElement>(".chat-messages");
-    if (!list) {
-      return;
-    }
-
-    if (state.selectedKey !== this.lastSelectedKey) {
-      this.chatMessagesScrollTop = 0;
-      this.lastSelectedKey = state.selectedKey;
-    } else {
-      this.chatMessagesScrollTop = list.scrollTop;
-    }
-    console.log("[Scroll] Captured:", this.chatMessagesScrollTop, "for key:", state.selectedKey);
-  }
-
   private restoreChatMessagesScroll(): void {
     const list = this.mainMount.querySelector<HTMLElement>(".chat-messages");
     if (!list) {
       return;
     }
 
-    list.scrollTop = this.chatMessagesScrollTop;
-    console.log("[Scroll] Restoring to:", this.chatMessagesScrollTop, "actual list scrollTop:", list.scrollTop);
-    list.addEventListener("scroll", () => {
-      this.chatMessagesScrollTop = list.scrollTop;
-    });
+    const key = this.store.getState().selectedKey;
+    if (key) {
+      const savedScrollTop = getStoredScrollPosition(key);
+      
+      // Restore scroll position synchronously before browser paint to prevent any visual jump or flash
+      list.scrollTop = savedScrollTop;
+      
+      // Reveal the container synchronously - it is now perfectly scrolled!
+      list.style.opacity = "1";
+      
+      console.log("[Scroll] Restored synchronously to:", savedScrollTop, "scrollHeight:", list.scrollHeight, "clientHeight:", list.clientHeight, "actual list scrollTop:", list.scrollTop);
+
+      let scrollTimeout: number | undefined;
+      list.addEventListener("scroll", () => {
+        if (scrollTimeout) {
+          clearTimeout(scrollTimeout);
+        }
+        
+        // Debounce writes to localStorage to prevent transient scroll events and multi-render races from saving incorrect positions
+        scrollTimeout = window.setTimeout(() => {
+          const currentKey = this.store.getState().selectedKey;
+          if (currentKey) {
+            setStoredScrollPosition(currentKey, list.scrollTop);
+          }
+        }, 150);
+      });
+    } else {
+      list.style.opacity = "1";
+    }
   }
 
   private toggleSidebarOpen(force?: boolean): void {
@@ -519,6 +530,31 @@ export class ThreadAtlasApp {
     );
   }
 
+  private openExportMdModal(session: Session): void {
+    this.modalMount.replaceChildren(
+      createExportMdModal({
+        session,
+        onClose: () => {
+          this.modalMount.replaceChildren();
+        },
+        onExport: (filename, markdownContent) => {
+          this.modalMount.replaceChildren();
+          
+          const blob = new Blob([markdownContent], {
+            type: "text/markdown"
+          });
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = filename;
+          anchor.click();
+          URL.revokeObjectURL(url);
+          showToast(`Exported to ${filename}`);
+        }
+      })
+    );
+  }
+
   private exportSession(session: Session): void {
     const blob = new Blob([JSON.stringify(session, null, 2)], {
       type: "application/json"
@@ -592,4 +628,62 @@ function getStoredBoolean(key: string, fallback: boolean): boolean {
     return false;
   }
   return fallback;
+}
+
+const SCROLL_POSITIONS_STORAGE_KEY = "thread-atlas-session-scroll-positions";
+
+interface ScrollRecord {
+  scrollTop: number;
+  lastUsed: number;
+}
+
+function getStoredScrollPosition(key: string): number {
+  try {
+    const val = localStorage.getItem(SCROLL_POSITIONS_STORAGE_KEY);
+    if (val) {
+      const parsed = JSON.parse(val) as Record<string, ScrollRecord | number>;
+      const record = parsed[key];
+      if (record !== undefined) {
+        let scrollTop = 0;
+        if (typeof record === "number") {
+          scrollTop = record;
+          parsed[key] = { scrollTop, lastUsed: Date.now() };
+        } else {
+          scrollTop = record.scrollTop;
+          record.lastUsed = Date.now();
+        }
+        localStorage.setItem(SCROLL_POSITIONS_STORAGE_KEY, JSON.stringify(parsed));
+        return scrollTop;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return 0;
+}
+
+function setStoredScrollPosition(key: string, scrollTop: number): void {
+  try {
+    const val = localStorage.getItem(SCROLL_POSITIONS_STORAGE_KEY);
+    const parsed = val ? JSON.parse(val) as Record<string, ScrollRecord | number> : {};
+    
+    parsed[key] = { scrollTop, lastUsed: Date.now() };
+    
+    // Evict least recently used entries if total keys exceed 300 to keep localStorage footprint under 20 KB
+    const entries = Object.entries(parsed);
+    if (entries.length > 300) {
+      entries.sort((a, b) => {
+        const timeA = typeof a[1] === "number" ? 0 : a[1].lastUsed;
+        const timeB = typeof b[1] === "number" ? 0 : b[1].lastUsed;
+        return timeA - timeB;
+      });
+      // Delete the oldest/least recently used entry
+      const oldestKey = entries[0][0];
+      delete parsed[oldestKey];
+    }
+    
+    localStorage.setItem(SCROLL_POSITIONS_STORAGE_KEY, JSON.stringify(parsed));
+  } catch {
+    // ignore
+  }
 }

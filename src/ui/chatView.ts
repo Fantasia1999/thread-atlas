@@ -25,7 +25,7 @@ interface ChatViewOptions {
   onFilterChange: (filter: MessageViewFilter) => void;
   onTimelineToggleOpen: () => void;
   onTimelineTogglePin: () => void;
-  onExport: (session: Session) => void;
+  onExport: (session: Session, format: "json" | "md") => void;
   onTogglePinSession: (key: string) => void;
   onToggleFavoriteSession: (key: string) => void;
   onUpdateMetadata: (key: string, tags: string[], notes: string) => void;
@@ -105,7 +105,7 @@ function renderSessionHeader(options: {
   favoriteKeys: Set<string>;
   favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
   onFilterChange: (filter: MessageViewFilter) => void;
-  onExport: (session: Session) => void;
+  onExport: (session: Session, format: "json" | "md") => void;
   onTogglePinSession: (key: string) => void;
   onToggleFavoriteSession: (key: string) => void;
   onUpdateMetadata: (key: string, tags: string[], notes: string) => void;
@@ -216,14 +216,73 @@ function renderSessionHeader(options: {
       actions.append(createCopyResumeButton(copilotCommand, "Copy Copilot resume command"));
     }
 
-    const exportButton = document.createElement("button");
-    exportButton.className = "button secondary";
-    exportButton.type = "button";
-    exportButton.textContent = "Export JSON";
-    exportButton.addEventListener("click", () => {
-      options.onExport(session);
+    const exportContainer = document.createElement("div");
+    exportContainer.className = "custom-dropdown-container";
+    exportContainer.style.width = "auto";
+
+    const exportBtn = document.createElement("button");
+    exportBtn.className = "button secondary custom-dropdown-trigger";
+    exportBtn.type = "button";
+    exportBtn.innerHTML = `
+      <span class="trigger-label">Export</span>
+      <span class="trigger-arrow" style="margin-left: 4px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </span>
+    `;
+
+    const exportMenu = document.createElement("div");
+    exportMenu.className = "custom-dropdown-menu hidden";
+    exportMenu.style.minWidth = "120px";
+    exportMenu.style.right = "0";
+    exportMenu.style.left = "auto";
+
+    const jsonBtn = document.createElement("button");
+    jsonBtn.type = "button";
+    jsonBtn.className = "custom-dropdown-item";
+    jsonBtn.textContent = "JSON";
+    jsonBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      exportMenu.classList.add("hidden");
+      exportBtn.classList.remove("open");
+      options.onExport(session, "json");
     });
-    actions.append(exportButton);
+
+    const mdBtn = document.createElement("button");
+    mdBtn.type = "button";
+    mdBtn.className = "custom-dropdown-item";
+    mdBtn.textContent = "MD";
+    mdBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      exportMenu.classList.add("hidden");
+      exportBtn.classList.remove("open");
+      options.onExport(session, "md");
+    });
+
+    exportMenu.append(jsonBtn, mdBtn);
+
+    exportBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isHidden = exportMenu.classList.contains("hidden");
+      
+      // Close other dropdowns
+      document.querySelectorAll(".custom-dropdown-menu").forEach((m) => {
+        if (m !== exportMenu) {
+          m.classList.add("hidden");
+          m.parentElement?.querySelector(".custom-dropdown-trigger")?.classList.remove("open");
+        }
+      });
+
+      exportMenu.classList.toggle("hidden", !isHidden);
+      exportBtn.classList.toggle("open", isHidden);
+    });
+
+    document.addEventListener("click", () => {
+      exportMenu.classList.add("hidden");
+      exportBtn.classList.remove("open");
+    });
+
+    exportContainer.append(exportBtn, exportMenu);
+    actions.append(exportContainer);
 
     titleRow.append(actions);
   }
@@ -699,14 +758,65 @@ function renderChatLayout(options: {
       if (options.onRenderComplete) {
         options.onRenderComplete();
       }
+      updateScrollHubState();
     }
   }
+
+  const scrollHub = document.createElement("div");
+  scrollHub.className = "scroll-helper-hub";
+
+  const btnTop = document.createElement("button");
+  btnTop.className = "scroll-btn scroll-btn-top";
+  btnTop.type = "button";
+  btnTop.title = "Scroll to top";
+  btnTop.setAttribute("aria-label", "Scroll to top");
+  btnTop.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
+
+  const btnBottom = document.createElement("button");
+  btnBottom.className = "scroll-btn scroll-btn-bottom";
+  btnBottom.type = "button";
+  btnBottom.title = "Scroll to bottom";
+  btnBottom.setAttribute("aria-label", "Scroll to bottom");
+  btnBottom.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>`;
+
+  scrollHub.append(btnTop, btnBottom);
+
+  btnTop.addEventListener("click", () => {
+    messageList.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  btnBottom.addEventListener("click", () => {
+    messageList.scrollTo({ top: messageList.scrollHeight, behavior: "smooth" });
+  });
+
+  const updateScrollHubState = () => {
+    const scrollTop = messageList.scrollTop;
+    const scrollHeight = messageList.scrollHeight;
+    const clientHeight = messageList.clientHeight;
+
+    const isScrollable = scrollHeight > clientHeight + 10;
+
+    if (!isScrollable) {
+      scrollHub.classList.remove("visible");
+      return;
+    }
+
+    scrollHub.classList.add("visible");
+    btnTop.disabled = scrollTop <= 5;
+    btnTop.classList.toggle("disabled", scrollTop <= 5);
+
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
+    btnBottom.disabled = isAtBottom;
+    btnBottom.classList.toggle("disabled", isAtBottom);
+  };
+
+  messageList.addEventListener("scroll", updateScrollHubState);
 
   renderNextChunk();
 
   timeline.append(timelineHeader, timelineList);
   timelineDock.append(timelineRail, timeline);
-  layout.append(messageList, timelineDock);
+  layout.append(messageList, timelineDock, scrollHub);
   return layout;
 }
 
