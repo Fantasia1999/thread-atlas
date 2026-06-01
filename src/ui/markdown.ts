@@ -103,6 +103,87 @@ export function renderMarkdown(text: string): DocumentFragment {
         index += 1;
       }
 
+      if (openingFence.language.trim().toLowerCase() === "mermaid") {
+        const card = document.createElement("div");
+        card.className = "mermaid-diagram-card";
+
+        // Header
+        const header = document.createElement("div");
+        header.className = "mermaid-card-header";
+
+        const title = document.createElement("span");
+        title.className = "mermaid-card-title";
+        title.innerHTML = `
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+          Mermaid Diagram
+        `;
+
+        const tabs = document.createElement("div");
+        tabs.className = "mermaid-card-tabs";
+
+        const btnPreview = document.createElement("button");
+        btnPreview.className = "mermaid-tab-btn active";
+        btnPreview.type = "button";
+        btnPreview.textContent = "Preview";
+
+        const btnCode = document.createElement("button");
+        btnCode.className = "mermaid-tab-btn";
+        btnCode.type = "button";
+        btnCode.textContent = "Code";
+
+        tabs.append(btnPreview, btnCode);
+        header.append(title, tabs);
+
+        // Body
+        const body = document.createElement("div");
+        body.className = "mermaid-card-body";
+
+        const previewContainer = document.createElement("div");
+        previewContainer.className = "mermaid-diagram-container mermaid-preview-content active";
+        
+        const preMermaid = document.createElement("pre");
+        preMermaid.className = "mermaid";
+        preMermaid.textContent = codeLines.join("\n").trimEnd();
+        previewContainer.append(preMermaid);
+
+        const codeContainer = document.createElement("div");
+        codeContainer.className = "mermaid-code-content";
+        codeContainer.style.display = "none";
+
+        const preCode = document.createElement("pre");
+        preCode.className = "code-block";
+        const codeElement = document.createElement("code");
+        codeElement.className = "md-code hljs language-mermaid";
+        codeElement.innerHTML = escapeHtml(codeLines.join("\n").trimEnd());
+        preCode.append(codeElement);
+        codeContainer.append(preCode);
+
+        body.append(previewContainer, codeContainer);
+        card.append(header, body);
+
+        // Event listeners for tabs switching
+        btnPreview.addEventListener("click", () => {
+          btnPreview.classList.add("active");
+          btnCode.classList.remove("active");
+          previewContainer.style.display = "";
+          codeContainer.style.display = "none";
+        });
+
+        btnCode.addEventListener("click", () => {
+          btnCode.classList.add("active");
+          btnPreview.classList.remove("active");
+          previewContainer.style.display = "none";
+          codeContainer.style.display = "";
+        });
+
+        fragment.append(card);
+        continue;
+      }
+
       const figure = document.createElement("figure");
       figure.className = "md-code-frame";
 

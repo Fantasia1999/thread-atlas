@@ -194,3 +194,69 @@ test("renderMarkdown interactive code frames toggle collapsed class on click", (
   caption.dispatchEvent("click");
   assert.equal(figure.classList.contains("collapsed"), false);
 });
+
+test("renderMarkdown renders mermaid code blocks as premium interactive cards with tab switching", () => {
+  const fragment = renderMarkdown(
+    [
+      "```mermaid",
+      "graph TD",
+      "  A --> B",
+      "```"
+    ].join("\n")
+  ) as any;
+
+  const card = fragment.childNodes.find((node: any) => node.className === "mermaid-diagram-card");
+  assert.ok(card);
+
+  // Validate header and tab buttons
+  const header = card.childNodes.find((node: any) => node.className === "mermaid-card-header");
+  assert.ok(header);
+  
+  const tabs = header.childNodes.find((node: any) => node.className === "mermaid-card-tabs");
+  assert.ok(tabs);
+  const btnPreview = tabs.childNodes.find((node: any) => node.textContent === "Preview");
+  const btnCode = tabs.childNodes.find((node: any) => node.textContent === "Code");
+  assert.ok(btnPreview);
+  assert.ok(btnCode);
+
+  // Validate body and tab contents
+  const body = card.childNodes.find((node: any) => node.className === "mermaid-card-body");
+  assert.ok(body);
+
+  const previewContainer = body.childNodes.find((node: any) => node.className.includes("mermaid-preview-content"));
+  const codeContainer = body.childNodes.find((node: any) => node.className.includes("mermaid-code-content"));
+  assert.ok(previewContainer);
+  assert.ok(codeContainer);
+
+  const preMermaid = previewContainer.childNodes.find((node: any) => node.tagName === "pre");
+  assert.ok(preMermaid);
+  assert.equal(preMermaid.className, "mermaid");
+  assert.equal(preMermaid.textContent, "graph TD\n  A --> B");
+
+  const preCode = codeContainer.childNodes.find((node: any) => node.tagName === "pre");
+  assert.ok(preCode);
+  const codeNode = preCode.childNodes.find((node: any) => node.tagName === "code");
+  assert.ok(codeNode);
+  assert.match(codeNode.className, /\blanguage-mermaid\b/);
+  assert.equal(codeNode.innerHTML, "graph TD\n  A --&gt; B");
+
+  // Validate tab toggle behavior on click events
+  assert.equal(btnPreview.classList.contains("active"), true);
+  assert.equal(btnCode.classList.contains("active"), false);
+  assert.ok(previewContainer.style.display === undefined || previewContainer.style.display === "");
+  assert.equal(codeContainer.style.display, "none");
+
+  // Click Code Tab
+  btnCode.dispatchEvent("click");
+  assert.equal(btnPreview.classList.contains("active"), false);
+  assert.equal(btnCode.classList.contains("active"), true);
+  assert.equal(previewContainer.style.display, "none");
+  assert.equal(codeContainer.style.display, "");
+
+  // Click Preview Tab
+  btnPreview.dispatchEvent("click");
+  assert.equal(btnPreview.classList.contains("active"), true);
+  assert.equal(btnCode.classList.contains("active"), false);
+  assert.equal(previewContainer.style.display, "");
+  assert.equal(codeContainer.style.display, "none");
+});

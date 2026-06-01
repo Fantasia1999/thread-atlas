@@ -3507,3 +3507,91 @@ html[data-theme="dark"] .scroll-helper-hub {
   color: var(--text-muted);
 }
 
+/* Premium Mermaid Diagram Card with Preview / Code Tabs */
+.mermaid-diagram-card {
+  margin: 16px 0;
+  overflow: hidden;
+  border: 1px solid var(--md-border);
+  border-radius: var(--radius-sm);
+  background: var(--md-code-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.mermaid-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--md-border);
+  background: var(--md-code-header);
+  color: var(--text-secondary);
+  font-size: 12px;
+  user-select: none;
+}
+
+.mermaid-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.mermaid-card-title svg {
+  color: var(--text-muted);
+}
+
+.mermaid-card-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-surface-secondary, rgba(0, 0, 0, 0.05));
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--md-border);
+}
+
+.mermaid-tab-btn {
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 1px);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  transition: all var(--transition, 0.15s ease);
+}
+
+.mermaid-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-hover, rgba(0, 0, 0, 0.02));
+}
+
+.mermaid-tab-btn.active {
+  background: var(--bg-surface-default, #fff);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+
+/* Ensure premium preview styling inside container */
+.mermaid-diagram-container {
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+  background: var(--bg-surface-default, #fff);
+  overflow-x: auto;
+}
+
+/* Custom dark theme adjustments for tabs active state */
+[data-theme="dark"] .mermaid-tab-btn.active {
+  background: var(--bg-surface-tertiary, #2e2e2e);
+  color: var(--text-primary);
+}
+
+

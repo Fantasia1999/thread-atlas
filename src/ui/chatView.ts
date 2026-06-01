@@ -1,5 +1,6 @@
 import type { Message, Session, SessionDescriptor, ToolCall } from "../parsers/types.js";
 import { renderMarkdown } from "./markdown.js";
+import { renderMermaidDiagrams } from "./mermaidRender.js";
 import {
   copyText,
   escapeHtml,
@@ -755,9 +756,11 @@ function renderChatLayout(options: {
     if (currentIndex < totalMessages) {
       setTimeout(renderNextChunk, 0);
     } else {
-      if (options.onRenderComplete) {
-        options.onRenderComplete();
-      }
+      renderMermaidDiagrams(messageList).then(() => {
+        if (options.onRenderComplete) {
+          options.onRenderComplete();
+        }
+      });
       updateScrollHubState();
     }
   }
