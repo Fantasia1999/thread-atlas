@@ -109,7 +109,10 @@ app.get("/api/local/file", async (req, res): Promise<void> => {
 
     const normalizedPath = path.resolve(filePathQuery);
     if (!isPathAllowed(normalizedPath)) {
-      res.status(403).json({ ok: false, error: "Access denied. Path is not inside allowed session roots." });
+      res.status(403).json({
+        ok: false,
+        error: `Access denied. Path is not inside allowed session roots: ${normalizedPath}`
+      });
       return;
     }
 
