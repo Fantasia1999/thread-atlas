@@ -6,6 +6,7 @@ import { type MessageViewFilter, renderChatView } from "./chatView.js";
 import { createSshModal } from "./sshModal.js";
 import { createConnectionModal } from "./connectionModal.js";
 import { createExportMdModal } from "./exportMdModal.js";
+import { createFilePreviewModal } from "./filePreviewModal.js";
 import { showToast, copyText } from "./utils.js";
 
 type AppTheme = "light" | "dark";
@@ -131,6 +132,19 @@ export class ThreadAtlasApp {
         return;
       }
 
+      // Check if any modal is open in the mount, and trigger its close flow gracefully
+      if (this.modalMount.childNodes.length > 0) {
+        const topModal = this.modalMount.lastChild as HTMLElement | null;
+        if (topModal) {
+          const closeBtn = topModal.querySelector(".ghost, .button") as HTMLButtonElement | null;
+          if (closeBtn) {
+            closeBtn.click();
+            event.preventDefault();
+            return;
+          }
+        }
+      }
+
       let changed = false;
       if (!this.isSidebarPinned() && this.sidebarOpen) {
         this.sidebarOpen = false;
@@ -152,6 +166,20 @@ export class ThreadAtlasApp {
       }
       this.viewportWidth = nextWidth;
       this.render(this.store.getState());
+    });
+
+    this.root.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement;
+      const link = target.closest("a.md-link") as HTMLAnchorElement | null;
+      if (link) {
+        const href = link.getAttribute("href") || "";
+        if (href.startsWith("file:///")) {
+          event.preventDefault();
+          const modalOverlay = target.closest(".modal-overlay") as HTMLElement | null;
+          const inheritedApiBase = modalOverlay?.getAttribute("data-api-base") || undefined;
+          this.openFilePreviewModal(href, inheritedApiBase);
+        }
+      }
     });
   }
 
@@ -492,12 +520,48 @@ export class ThreadAtlasApp {
     }
   }
 
+  private pushModal(createModalFn: (onClose: () => void) => HTMLElement): void {
+    const existingCount = this.modalMount.children.length;
+    if (existingCount > 0) {
+      const topModal = this.modalMount.children[existingCount - 1] as HTMLElement;
+      topModal.classList.add("stacked-under");
+    }
+
+    const modalElement = createModalFn(() => {
+      modalElement.remove();
+
+      const newCount = this.modalMount.children.length;
+      if (newCount > 0) {
+        const newTopModal = this.modalMount.children[newCount - 1] as HTMLElement;
+        newTopModal.classList.remove("stacked-under");
+      }
+    });
+
+    this.modalMount.append(modalElement);
+  }
+
+  private openFilePreviewModal(filePath: string, apiBase?: string): void {
+    const resolvedApiBase = apiBase || (() => {
+      const selectedKey = this.store.getState().selectedKey;
+      return selectedKey
+        ? this.store.getConnection().routeForKey(selectedKey).base
+        : undefined;
+    })();
+
+    this.pushModal((onClose) =>
+      createFilePreviewModal({
+        filePath,
+        connection: this.store.getConnection(),
+        apiBase: resolvedApiBase,
+        onClose
+      })
+    );
+  }
+
   private openImportModal(): void {
-    this.modalMount.replaceChildren(
+    this.pushModal((onClose) =>
       createImportModal({
-        onClose: () => {
-          this.modalMount.replaceChildren();
-        },
+        onClose,
         onImport: (bundles) => {
           this.store.importBundles(bundles);
         }
@@ -506,12 +570,10 @@ export class ThreadAtlasApp {
   }
 
   private openSshModal(): void {
-    this.modalMount.replaceChildren(
+    this.pushModal((onClose) =>
       createSshModal({
         authHeaders: this.store.getConnection().authHeaders(),
-        onClose: () => {
-          this.modalMount.replaceChildren();
-        },
+        onClose,
         onSynced: async () => {
           await this.store.refreshLocalScan();
         }
@@ -520,12 +582,10 @@ export class ThreadAtlasApp {
   }
 
   private openConnectionModal(): void {
-    this.modalMount.replaceChildren(
+    this.pushModal((onClose) =>
       createConnectionModal({
         connection: this.store.getConnection(),
-        onClose: () => {
-          this.modalMount.replaceChildren();
-        },
+        onClose,
         onChanged: async () => {
           await this.store.refreshLocalScan();
         }
@@ -534,14 +594,12 @@ export class ThreadAtlasApp {
   }
 
   private openExportMdModal(session: Session): void {
-    this.modalMount.replaceChildren(
+    this.pushModal((onClose) =>
       createExportMdModal({
         session,
-        onClose: () => {
-          this.modalMount.replaceChildren();
-        },
+        onClose,
         onExport: (filename, markdownContent) => {
-          this.modalMount.replaceChildren();
+          onClose();
           
           const blob = new Blob([markdownContent], {
             type: "text/markdown"

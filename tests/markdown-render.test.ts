@@ -260,3 +260,15 @@ test("renderMarkdown renders mermaid code blocks as premium interactive cards wi
   assert.equal(previewContainer.style.display, "");
   assert.equal(codeContainer.style.display, "none");
 });
+
+test("renderMarkdown renders local file:// links as anchor elements", () => {
+  const fragment = renderMarkdown(
+    "Check the [artifact report](file:///home/example-user/.gemini/antigravity-cli/brain/session/report.md) for details."
+  ) as unknown as FakeDocumentFragment;
+
+  const links = findElementsByTag(fragment, "a");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].className, "md-link");
+  assert.equal(links[0].getAttribute("href"), "file:///home/example-user/.gemini/antigravity-cli/brain/session/report.md");
+  assert.equal(links[0].textContent, "artifact report");
+});

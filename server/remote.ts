@@ -136,7 +136,8 @@ export async function disconnectRemoteAgent(id: string): Promise<void> {
 
 export interface ProxyResponse {
   status: number;
-  body: string;
+  contentType?: string;
+  body: Buffer;
 }
 
 export async function proxyToRemoteAgent(
@@ -312,7 +313,7 @@ async function waitForRemoteAgent(
     try {
       const response = await httpRequest(localPort, token, "GET", "/api/agent/info");
       if (response.status === 200) {
-        const parsed = JSON.parse(response.body) as { info?: RemoteAgentInfo };
+        const parsed = JSON.parse(response.body.toString("utf8")) as { info?: RemoteAgentInfo };
         return parsed.info ?? {};
       }
       lastError = `agent responded with status ${response.status}`;
@@ -360,7 +361,8 @@ function httpRequest(
         response.on("end", () => {
           resolve({
             status: response.statusCode ?? 502,
-            body: Buffer.concat(chunks).toString("utf8")
+            contentType: response.headers["content-type"],
+            body: Buffer.concat(chunks)
           });
         });
       }

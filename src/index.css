@@ -1841,6 +1841,10 @@ details[open] .tool-call-header::after {
   animation: fadeIn 150ms ease-out;
 }
 
+.modal-overlay.stacked-under {
+  display: none !important;
+}
+
 .modal-card {
   width: 100%;
   max-width: 500px;
@@ -3624,4 +3628,62 @@ body:has(.mermaid-lightbox) .scroll-helper-hub {
   right: 0.5rem !important;
 }
 
+/* File Preview Modal Styles */
+.modal-preview-card {
+  max-width: 1000px;
+  width: 90vw;
+  height: 85vh;
+}
 
+.modal-preview-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+  background: var(--bg-app);
+}
+
+.preview-title {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 600px;
+}
+
+.preview-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  background: var(--bg-code);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  overflow: auto;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-sm);
+  background: repeating-conic-gradient(var(--bg-panel) 0% 25%, var(--bg-panel-muted) 0% 50%) 50% / 20px 20px;
+}
+
+.preview-markdown-content {
+  flex: 1;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-sm);
+}
+
+.preview-text-block {
+  margin: 0;
+  flex: 1;
+  overflow: auto;
+}

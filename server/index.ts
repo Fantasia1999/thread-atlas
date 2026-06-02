@@ -1,4 +1,5 @@
 import express, { type NextFunction, type Request, type Response } from "express";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -98,6 +99,75 @@ app.get(
   })
 );
 
+app.get("/api/local/file", async (req, res): Promise<void> => {
+  try {
+    const filePathQuery = req.query.path;
+    if (typeof filePathQuery !== "string") {
+      res.status(400).json({ ok: false, error: "Missing path query parameter." });
+      return;
+    }
+
+    const normalizedPath = path.resolve(filePathQuery);
+    if (!isPathAllowed(normalizedPath)) {
+      res.status(403).json({ ok: false, error: "Access denied. Path is not inside allowed session roots." });
+      return;
+    }
+
+    try {
+      const stats = await fs.promises.stat(normalizedPath);
+      if (!stats.isFile()) {
+        res.status(400).json({ ok: false, error: "Target path is not a file." });
+        return;
+      }
+    } catch {
+      res.status(404).json({ ok: false, error: "File not found." });
+      return;
+    }
+
+    res.sendFile(normalizedPath, { dotfiles: "allow" });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: toErrorMessage(error) });
+  }
+});
+
+function isPathAllowed(filePath: string): boolean {
+  try {
+    const resolvedPath = fs.realpathSync(path.resolve(filePath));
+    const home = os.homedir();
+    const allowedBases = [
+      path.join(home, ".codex"),
+      path.join(home, ".claude"),
+      path.join(home, ".gemini"),
+      path.join(home, ".copilot"),
+      process.cwd()
+    ];
+
+    try {
+      const roots = resolveLocalScanRoots();
+      if (roots.openCodeDb) {
+        allowedBases.push(path.dirname(roots.openCodeDb));
+      }
+    } catch {
+      // ignore
+    }
+
+    const resolvedBases = allowedBases.map((base) => {
+      try {
+        return fs.realpathSync(base);
+      } catch {
+        return path.resolve(base);
+      }
+    });
+
+    return resolvedBases.some((base) => {
+      const relative = path.relative(base, resolvedPath);
+      return !relative.startsWith("..") && !path.isAbsolute(relative);
+    });
+  } catch {
+    return false;
+  }
+}
+
 app.post(
   "/api/remote/connect",
   handleJsonRoute(500, async (request) => {
@@ -117,13 +187,15 @@ app.get(
 app.delete(
   "/api/remote/:id",
   handleJsonRoute(500, async (request) => {
-    await disconnectRemoteAgent(String(request.params.id));
+    const id = String(request.params.id);
+    disconnectRemoteAgent(id);
     return { ok: true };
   })
 );
 
 app.get("/api/remote/:id/scan", relayRemoteRoute("/api/local/scan"));
 app.get("/api/remote/:id/session", relayRemoteRoute("/api/local/session"));
+app.get("/api/remote/:id/file", relayRemoteRoute("/api/local/file"));
 
 const clientRoot = path.resolve(process.cwd(), "dist");
 app.use(express.static(clientRoot));
@@ -208,7 +280,12 @@ function relayRemoteRoute(upstreamPath: string) {
         request.method,
         `${upstreamPath}${query}`
       );
-      response.status(relayed.status).type("application/json").send(relayed.body);
+      if (relayed.contentType) {
+        response.type(relayed.contentType);
+      } else {
+        response.type("application/json");
+      }
+      response.status(relayed.status).send(relayed.body);
     } catch (error) {
       response.status(502).json({ ok: false, error: toErrorMessage(error) });
     }

@@ -12,10 +12,10 @@ function getMockSession(): Session {
     source: "claude",
     title: "Test Session",
     summary: "A beautiful test session summary.",
-    cwd: "/home/wcl/workspace/my-project",
+    cwd: "/home/example-user/workspace/my-project",
     startedAt: "2026-06-01T10:00:00Z",
     updatedAt: "2026-06-01T10:05:00Z",
-    primaryPath: "/home/wcl/.claude/projects/cd7d2767-7c09-4e74-8c2f-227efe147a35.jsonl",
+    primaryPath: "/home/example-user/.claude/projects/cd7d2767-7c09-4e74-8c2f-227efe147a35.jsonl",
     messageCount: 3,
     messages: [
       {

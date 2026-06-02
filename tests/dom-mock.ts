@@ -74,6 +74,27 @@ export class FakeElement extends FakeDocumentFragment {
   private listeners: Record<string, Function[]> = {};
   readonly attributes: Record<string, string> = {};
 
+  get href(): string {
+    return this.getAttribute("href") || "";
+  }
+  set href(value: string) {
+    this.setAttribute("href", value);
+  }
+
+  get src(): string {
+    return this.getAttribute("src") || "";
+  }
+  set src(value: string) {
+    this.setAttribute("src", value);
+  }
+
+  get title(): string {
+    return this.getAttribute("title") || "";
+  }
+  set title(value: string) {
+    this.setAttribute("title", value);
+  }
+
   get textContent(): string {
     if (this._textContent) return this._textContent;
     return this.childNodes.map(node => {
@@ -118,6 +139,10 @@ export class FakeElement extends FakeDocumentFragment {
 
   constructor(readonly tagName: string) {
     super();
+  }
+
+  click(): void {
+    this.dispatchEvent("click");
   }
 
   addEventListener(type: string, listener: Function): void {

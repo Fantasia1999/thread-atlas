@@ -114,3 +114,17 @@ export async function renderMermaidDiagrams(root: HTMLElement): Promise<void> {
     console.error("Failed to apply mermaid enhancements", e);
   }
 }
+
+export async function cleanupMermaid(): Promise<void> {
+  try {
+    const isNode = typeof process !== "undefined" && process.versions && process.versions.node;
+    if (isNode) return;
+
+    const { cleanupMermaidEnhancements, enhanceMermaidDiagrams } = await import("@mostlylucid/mermaid-enhancements/min");
+    cleanupMermaidEnhancements();
+    // Re-enhance all remaining visible diagrams in the document to prevent main session widgets from losing interactive states
+    enhanceMermaidDiagrams();
+  } catch (e) {
+    console.error("Failed to cleanup mermaid enhancements", e);
+  }
+}
