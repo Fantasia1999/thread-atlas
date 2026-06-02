@@ -6,7 +6,7 @@ import { type MessageViewFilter, renderChatView } from "./chatView.js";
 import { createSshModal } from "./sshModal.js";
 import { createConnectionModal } from "./connectionModal.js";
 import { createExportMdModal } from "./exportMdModal.js";
-import { createFilePreviewModal } from "./filePreviewModal.js";
+import { createFilePreviewModal, parseFileLink, isSupportedPreview } from "./filePreviewModal.js";
 import { showToast, copyText } from "./utils.js";
 
 type AppTheme = "light" | "dark";
@@ -168,16 +168,84 @@ export class ThreadAtlasApp {
       this.render(this.store.getState());
     });
 
+    let clickTimeout: any = null;
+
     this.root.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
       const link = target.closest("a.md-link") as HTMLAnchorElement | null;
       if (link) {
         const href = link.getAttribute("href") || "";
-        if (href.startsWith("file:///")) {
-          event.preventDefault();
-          const modalOverlay = target.closest(".modal-overlay") as HTMLElement | null;
-          const inheritedApiBase = modalOverlay?.getAttribute("data-api-base") || undefined;
-          this.openFilePreviewModal(href, inheritedApiBase);
+        const isWebLink = href.startsWith("http://") || href.startsWith("https://");
+        const isAnchorOnly = href.startsWith("#");
+        if (href && !isWebLink && !isAnchorOnly) {
+          const { filePath, lineNumber } = parseFileLink(href);
+          if (isSupportedPreview(filePath, lineNumber)) {
+            event.preventDefault();
+            const modalOverlay = target.closest(".modal-overlay") as HTMLElement | null;
+            const inheritedApiBase = modalOverlay?.getAttribute("data-api-base") || undefined;
+            this.openFilePreviewModal(href, inheritedApiBase);
+          } else {
+            event.preventDefault();
+            if (clickTimeout) {
+              clearTimeout(clickTimeout);
+              clickTimeout = null;
+            }
+            clickTimeout = setTimeout(() => {
+              const textToCopy = link.textContent || "";
+              copyText(textToCopy)
+                .then(() => {
+                  showToast(`Copied text: "${textToCopy}"`, "success");
+                })
+                .catch(() => {
+                  showToast("Failed to copy text.", "error");
+                });
+              clickTimeout = null;
+            }, 250);
+          }
+        }
+      }
+    });
+
+    this.root.addEventListener("dblclick", (event) => {
+      const target = event.target as HTMLElement;
+      const link = target.closest("a.md-link") as HTMLAnchorElement | null;
+      if (link) {
+        const href = link.getAttribute("href") || "";
+        const isWebLink = href.startsWith("http://") || href.startsWith("https://");
+        const isAnchorOnly = href.startsWith("#");
+        if (href && !isWebLink && !isAnchorOnly) {
+          const { filePath, lineNumber } = parseFileLink(href);
+          if (!isSupportedPreview(filePath, lineNumber)) {
+            event.preventDefault();
+            if (clickTimeout) {
+              clearTimeout(clickTimeout);
+              clickTimeout = null;
+            }
+            let cleanPath = filePath;
+            if (cleanPath.startsWith("file:///")) {
+              try {
+                const url = new URL(cleanPath);
+                cleanPath = decodeURIComponent(url.pathname);
+                if (/^\/[a-zA-Z]:[/\\]/.test(cleanPath)) {
+                  cleanPath = cleanPath.slice(1);
+                }
+              } catch {
+                cleanPath = decodeURIComponent(cleanPath.slice(8));
+              }
+            } else if (cleanPath.startsWith("file://")) {
+              cleanPath = decodeURIComponent(cleanPath.slice(7));
+            } else {
+              cleanPath = decodeURIComponent(cleanPath);
+            }
+            const displayAddress = lineNumber !== undefined ? `${cleanPath}:${lineNumber}` : cleanPath;
+            copyText(displayAddress)
+              .then(() => {
+                showToast(`Copied address: "${displayAddress}"`, "success");
+              })
+              .catch(() => {
+                showToast("Failed to copy address.", "error");
+              });
+          }
         }
       }
     });
@@ -540,9 +608,10 @@ export class ThreadAtlasApp {
     this.modalMount.append(modalElement);
   }
 
-  private openFilePreviewModal(filePath: string, apiBase?: string): void {
+  private openFilePreviewModal(fileUrlOrPath: string, apiBase?: string): void {
+    const { filePath, lineNumber } = parseFileLink(fileUrlOrPath);
+    const selectedKey = this.store.getState().selectedKey || undefined;
     const resolvedApiBase = apiBase || (() => {
-      const selectedKey = this.store.getState().selectedKey;
       return selectedKey
         ? this.store.getConnection().routeForKey(selectedKey).base
         : undefined;
@@ -551,8 +620,10 @@ export class ThreadAtlasApp {
     this.pushModal((onClose) =>
       createFilePreviewModal({
         filePath,
+        lineNumber,
         connection: this.store.getConnection(),
         apiBase: resolvedApiBase,
+        sessionKey: selectedKey,
         onClose
       })
     );

@@ -102,13 +102,18 @@ app.get(
 app.get("/api/local/file", async (req, res): Promise<void> => {
   try {
     const filePathQuery = req.query.path;
+    const sessionKeyQuery = req.query.sessionKey;
     if (typeof filePathQuery !== "string") {
       res.status(400).json({ ok: false, error: "Missing path query parameter." });
       return;
     }
 
     const normalizedPath = path.resolve(filePathQuery);
-    if (!isPathAllowed(normalizedPath)) {
+    const isAllowed = await isPathAllowed(
+      normalizedPath,
+      typeof sessionKeyQuery === "string" ? sessionKeyQuery : undefined
+    );
+    if (!isAllowed) {
       res.status(403).json({
         ok: false,
         error: `Access denied. Path is not inside allowed session roots: ${normalizedPath}`
@@ -133,7 +138,7 @@ app.get("/api/local/file", async (req, res): Promise<void> => {
   }
 });
 
-function isPathAllowed(filePath: string): boolean {
+async function isPathAllowed(filePath: string, sessionKey?: string): Promise<boolean> {
   try {
     const resolvedPath = fs.realpathSync(path.resolve(filePath));
     const home = os.homedir();
@@ -144,6 +149,17 @@ function isPathAllowed(filePath: string): boolean {
       path.join(home, ".copilot"),
       process.cwd()
     ];
+
+    if (sessionKey) {
+      try {
+        const bundle = await loadLocalSessionBundle(sessionKey);
+        if (bundle && bundle.metadata && typeof bundle.metadata.cwd === "string" && bundle.metadata.cwd.trim()) {
+          allowedBases.push(bundle.metadata.cwd.trim());
+        }
+      } catch {
+        // ignore
+      }
+    }
 
     try {
       const roots = resolveLocalScanRoots();

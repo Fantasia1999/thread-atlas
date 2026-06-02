@@ -566,7 +566,7 @@ function renderMath(text: string, displayMode: boolean): HTMLElement {
 function renderInline(text: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const tokenPattern =
-    /(\[([^\]]+)\]\(((?:https?|file):\/\/[^\s)]+)\)|`([^`]+)`|(?<![\\\w])\$(?![\s$])([^$\n]*?\S)(?<!\\)\$(?!\w)|\*\*([^*]+)\*\*|(?<![\\/.\w])__([^_]+)__(?![\w\\/]|[.][A-Za-z0-9])|\*([^*]+)\*|(?<![\\/.\w])_([^_\s](?:[^_]*[^_\s])?)_(?![\w\\/]|[.][A-Za-z0-9]))/g;
+    /(\[([^\]]+)\]\(((?:https?|file):\/\/[^\s)]+|[^\s)]+)\)|`([^`]+)`|(?<![\\\w])\$(?![\s$])([^$\n]*?\S)(?<!\\)\$(?!\w)|\*\*([^*]+)\*\*|(?<![\\/.\w])__([^_]+)__(?![\w\\/]|[.][A-Za-z0-9])|\*([^*]+)\*|(?<![\\/.\w])_([^_\s](?:[^_]*[^_\s])?)_(?![\w\\/]|[.][A-Za-z0-9]))/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
 

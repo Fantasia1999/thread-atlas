@@ -4,6 +4,10 @@ export class FakeDocumentFragment {
   readonly nodeType = 11;
   readonly childNodes: FakeNode[] = [];
 
+  get children(): FakeElement[] {
+    return this.childNodes.filter(node => node.nodeType === 1) as FakeElement[];
+  }
+
   append(...nodes: FakeNode[]): void {
     for (const node of nodes) {
       if (node.nodeType === 11) {
@@ -17,6 +21,10 @@ export class FakeDocumentFragment {
   replaceChildren(...nodes: FakeNode[]): void {
     this.childNodes.length = 0;
     this.append(...nodes);
+  }
+
+  remove(): void {
+    // no-op
   }
 
   contains(node: any): boolean {
@@ -173,6 +181,37 @@ export class FakeElement extends FakeDocumentFragment {
   getAttribute(name: string): string | null {
     return this.attributes[name] ?? null;
   }
+
+  closest(selector: string): any {
+    const isClass = selector.startsWith(".");
+    const target = isClass ? selector.slice(1) : selector.toUpperCase();
+    if (isClass) {
+      if (this.className.split(" ").filter(Boolean).includes(target)) {
+        return this;
+      }
+    } else {
+      if (this.tagName.toUpperCase() === target) {
+        return this;
+      }
+    }
+    if (selector === "a.md-link") {
+      if (this.tagName.toUpperCase() === "A" && this.className.split(" ").filter(Boolean).includes("md-link")) {
+        return this;
+      }
+    }
+    return null;
+  }
+
+  getBoundingClientRect(): any {
+    return {
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+      width: 0,
+      height: 0
+    };
+  }
 }
 
 export class FakeText {
@@ -238,6 +277,10 @@ globalThis.document = {
       }
     }
     return true;
+  },
+  querySelector: (selector: string) => {
+    const results = (globalThis.document as any).querySelectorAll(selector);
+    return results[0] ?? null;
   },
   querySelectorAll: (selector: string) => {
     const matches: FakeElement[] = [];

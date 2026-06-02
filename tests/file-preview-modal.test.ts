@@ -30,7 +30,7 @@ globalThis.URL.revokeObjectURL = (url: string) => {
 };
 
 const { ConnectionManager } = await import("../src/store/connection.ts");
-const { createFilePreviewModal } = await import("../src/ui/filePreviewModal.ts");
+const { createFilePreviewModal, parseFileLink, isSupportedPreview } = await import("../src/ui/filePreviewModal.ts");
 
 function freshManager() {
   for (const key of Object.keys(store)) {
@@ -244,3 +244,210 @@ test("clicking on the backdrop overlay closes the modal", () => {
   overlay.dispatchEvent("click", { target: overlay });
   assert.equal(closed, true);
 });
+
+test("parseFileLink extracts clean path and line number correctly", () => {
+  const result1 = parseFileLink("file:///home/user/main.cpp:111");
+  assert.equal(result1.filePath, "file:///home/user/main.cpp");
+  assert.equal(result1.lineNumber, 111);
+
+  const result2 = parseFileLink("file:///C:/project/index.ts#L42");
+  assert.equal(result2.filePath, "file:///C:/project/index.ts");
+  assert.equal(result2.lineNumber, 42);
+
+  const result3 = parseFileLink("file:///home/user/report.md");
+  assert.equal(result3.filePath, "file:///home/user/report.md");
+  assert.equal(result3.lineNumber, undefined);
+});
+
+test("isSupportedPreview correctly identifies previewable files", () => {
+  // markdown files are always previewable
+  assert.ok(isSupportedPreview("/path/to/readme.md"));
+  assert.ok(isSupportedPreview("/path/to/doc.markdown"));
+
+  // images are always previewable
+  assert.ok(isSupportedPreview("/path/to/logo.png"));
+  assert.ok(isSupportedPreview("/path/to/diagram.svg"));
+
+  // other code files are NOT previewable normally
+  assert.ok(!isSupportedPreview("/path/to/main.cpp"));
+  assert.ok(!isSupportedPreview("/path/to/script.js"));
+
+  // other code files are previewable IF a line number is specified
+  assert.ok(isSupportedPreview("/path/to/main.cpp", 111));
+  assert.ok(isSupportedPreview("/path/to/script.js", 42));
+});
+
+test("file preview modal slices content when lineNumber is provided", async () => {
+  const manager = freshManager();
+  
+  // Construct a file content with 50 lines
+  const linesContent = Array.from({ length: 50 }, (_, i) => `line ${i + 1}`).join("\n");
+
+  (manager as unknown as { fetch: unknown }).fetch = async (url: string) => {
+    return {
+      ok: true,
+      text: async () => linesContent
+    } as unknown as Response;
+  };
+
+  // We request line 30, which should slice from line 15 to 45 (0-indexed 14 to 44, 1-indexed)
+  const overlay = createFilePreviewModal({
+    filePath: "/home/example-user/project/main.cpp",
+    lineNumber: 30,
+    connection: manager,
+    onClose: () => {}
+  });
+
+  // Wait for promise resolution ticks
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const codeNode = overlay.querySelector("code");
+  assert.ok(codeNode);
+  
+  const content = codeNode.textContent;
+  // Should start with line 15 prefixed with '15 | line 15'
+  assert.ok(content.includes("15 | line 15"));
+  // Should end with line 45 prefixed with '45 | line 45'
+  assert.ok(content.includes("45 | line 45"));
+  // Should NOT contain line 14
+  assert.ok(!content.includes("line 14"));
+  // Should NOT contain line 46
+  assert.ok(!content.includes("line 46"));
+
+  // Header title should include line number
+  const headerNode = overlay.querySelector(".modal-header");
+  assert.ok(headerNode);
+  assert.ok(headerNode.innerHTML.includes("main.cpp:30"));
+});
+
+test("ThreadAtlasApp link click and dblclick triggers copy on unsupported links", async () => {
+  globalThis.matchMedia = globalThis.matchMedia || (() => ({
+    matches: false,
+    addEventListener: () => {},
+    removeEventListener: () => {}
+  } as any));
+
+  globalThis.addEventListener = globalThis.addEventListener || (() => {});
+  globalThis.removeEventListener = globalThis.removeEventListener || (() => {});
+
+  (globalThis.document as any).documentElement = {
+    dataset: {}
+  };
+
+  let copiedText = "";
+  Object.defineProperty(globalThis, "navigator", {
+    value: {
+      clipboard: {
+        writeText: async (text: string) => {
+          copiedText = text;
+        }
+      }
+    },
+    configurable: true,
+    writable: true
+  });
+
+  const root = document.createElement("div");
+
+  const { SessionStore } = await import("../src/store/sessionStore.ts");
+  const store = new SessionStore();
+
+  const { ThreadAtlasApp } = await import("../src/ui/app.ts");
+  const app = new ThreadAtlasApp(root, store);
+
+  // Add an unsupported file link inside root
+  const link = document.createElement("a");
+  link.className = "md-link";
+  link.setAttribute("href", "file:///home/user/project/button.tsx");
+  link.textContent = "my-button";
+  root.append(link);
+
+  // Dispatch click
+  root.dispatchEvent("click", { target: link });
+
+  // Wait 300ms for click timer
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(copiedText, "my-button");
+
+  // Reset
+  copiedText = "";
+
+  // Dispatch double click
+  root.dispatchEvent("click", { target: link });
+  root.dispatchEvent("click", { target: link });
+  root.dispatchEvent("dblclick", { target: link });
+
+  // Wait 300ms
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(copiedText, "/home/user/project/button.tsx");
+});
+
+test("ThreadAtlasApp link click handles absolute path links without file:/// protocol", async () => {
+  let copiedText = "";
+  Object.defineProperty(globalThis, "navigator", {
+    value: {
+      clipboard: {
+        writeText: async (text: string) => {
+          copiedText = text;
+        }
+      }
+    },
+    configurable: true,
+    writable: true
+  });
+
+  const root = document.createElement("div");
+
+  const { SessionStore } = await import("../src/store/sessionStore.ts");
+  const store = new SessionStore();
+
+  // Mock connection fetch to return a resolved response
+  (store.getConnection() as any).fetch = async () => {
+    return {
+      ok: true,
+      text: async () => "some content line 846\n"
+    } as any;
+  };
+
+  const { ThreadAtlasApp } = await import("../src/ui/app.ts");
+  const app = new ThreadAtlasApp(root, store);
+
+  // 1. Test supported absolute path with line number (index.rs:846)
+  const linkSupported = document.createElement("a");
+  linkSupported.className = "md-link";
+  linkSupported.setAttribute("href", "/home/wcl/workspace/sourceCode/lance/rust/lance/src/index.rs:846");
+  linkSupported.textContent = "rust/lance/src/index.rs";
+  root.append(linkSupported);
+
+  root.dispatchEvent("click", { target: linkSupported });
+
+  // Pushed modal should be created
+  const overlay = root.querySelector(".modal-overlay");
+  assert.ok(overlay);
+  
+  // Clean up modal
+  overlay.remove();
+
+  // 2. Test unsupported absolute path without line number (index.rs)
+  const linkUnsupported = document.createElement("a");
+  linkUnsupported.className = "md-link";
+  linkUnsupported.setAttribute("href", "/home/wcl/workspace/sourceCode/lance/rust/lance/src/index.rs");
+  linkUnsupported.textContent = "rust/lance/src/index.rs";
+  root.append(linkUnsupported);
+
+  // Single click
+  root.dispatchEvent("click", { target: linkUnsupported });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(copiedText, "rust/lance/src/index.rs");
+
+  // Reset
+  copiedText = "";
+
+  // Double click
+  root.dispatchEvent("click", { target: linkUnsupported });
+  root.dispatchEvent("click", { target: linkUnsupported });
+  root.dispatchEvent("dblclick", { target: linkUnsupported });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(copiedText, "/home/wcl/workspace/sourceCode/lance/rust/lance/src/index.rs");
+});
+
