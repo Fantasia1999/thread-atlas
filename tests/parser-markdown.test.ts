@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { parseClaudeSession } from "../src/parsers/claude.ts";
+import { parseClaudeSession, extractClaudePreviewTitle, extractClaudeCwd } from "../src/parsers/claude.ts";
 import { parseGeminiSession } from "../src/parsers/gemini.ts";
 import { parseAntigravitySession } from "../src/parsers/antigravity.ts";
 import type { SessionBundle } from "../src/parsers/types.ts";
@@ -343,3 +343,92 @@ test("parseAntigravitySession extracts actual user request from <USER_REQUEST> t
 
   assert.equal(message?.text, "Hello world! Help me code.");
 });
+
+test("extractClaudePreviewTitle and parseClaudeSession titles fallback to first user request", () => {
+  const fileContent = [
+    JSON.stringify({
+      type: "user",
+      message: {
+        role: "user",
+        content: [{ type: "text", text: "Please help me implement a custom parser." }]
+      }
+    }),
+    JSON.stringify({
+      type: "assistant",
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "Sure! Let's get started." }]
+      }
+    })
+  ].join("\n");
+
+  // Verify extractClaudePreviewTitle extracts first user request
+  const extractedTitle = extractClaudePreviewTitle(fileContent);
+  assert.equal(extractedTitle, "Please help me implement a custom parser.");
+
+  // Verify parseClaudeSession prefers first user request when cwd is absent
+  const bundle: SessionBundle = {
+    key: "file::/tmp/claude-session.jsonl",
+    source: "claude",
+    title: "claude-session.jsonl",
+    primaryPath: "/tmp/claude-session.jsonl",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 1,
+    size: 1,
+    mtimeMs: 1,
+    metadata: {},
+    files: [
+      {
+        path: "/tmp/claude-session.jsonl",
+        content: fileContent
+      }
+    ]
+  };
+
+  const session = parseClaudeSession(bundle);
+  assert.equal(session.title, "Please help me implement a custom parser.");
+});
+
+test("extractClaudeCwd correctly extracts cwd from Claude session content", () => {
+  const fileContent = [
+    JSON.stringify({
+      cwd: "/home/wcl/workspace/my-awesome-project",
+      type: "message",
+      message: {
+        role: "user",
+        content: [{ type: "text", text: "hello" }]
+      }
+    })
+  ].join("\n");
+
+  const cwd = extractClaudeCwd(fileContent);
+  assert.equal(cwd, "/home/wcl/workspace/my-awesome-project");
+
+  const bundle: SessionBundle = {
+    key: "file::/tmp/claude-session.jsonl",
+    source: "claude",
+    title: "claude-session.jsonl",
+    primaryPath: "/tmp/claude-session.jsonl",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 1,
+    size: 1,
+    mtimeMs: 1,
+    metadata: {},
+    files: [
+      {
+        path: "/tmp/claude-session.jsonl",
+        content: fileContent
+      }
+    ]
+  };
+
+  const session = parseClaudeSession(bundle);
+  assert.equal(session.cwd, "/home/wcl/workspace/my-awesome-project");
+  assert.equal(session.title, "my-awesome-project · Claude");
+});
+
+

@@ -427,7 +427,11 @@ function getWorkspaceFullPath(descriptor: SessionDescriptor): string {
   const pathStr = descriptor.primaryPath || "";
   const claudeMatch = pathStr.match(/[\\/]\.claude[\\/]projects[\\/]([^\\/]+)/i);
   if (claudeMatch && claudeMatch[1]) {
-    return claudeMatch[1];
+    const rawFolder = claudeMatch[1];
+    if (rawFolder.includes("-")) {
+      return "/" + rawFolder.replace(/-/g, "/");
+    }
+    return rawFolder;
   }
 
   return "";

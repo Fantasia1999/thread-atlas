@@ -8,6 +8,7 @@ import {
   formatCodeFence,
   normalizeRole,
   parseJsonLines,
+  previewText,
   stringifyValue,
   toIsoTimestamp
 } from "./utils.js";
@@ -157,8 +158,11 @@ export function parseClaudeSession(bundle: SessionBundle): Session {
     }
   });
 
+  const firstUserMessage = messages.find((message) => message.role === "user");
+  const firstUserTitle = firstUserMessage ? previewText(firstUserMessage.text, 80) : undefined;
+
   return buildSession(bundle, "claude", {
-    title: cwd ? `${basenameTitle(cwd) || "project"} · Claude` : bundle.title,
+    title: (cwd ? `${basenameTitle(cwd) || "project"} · Claude` : undefined) ?? firstUserTitle ?? bundle.title,
     cwd,
     messages,
     metadata: {
@@ -381,4 +385,34 @@ function buildQueueOperationFallbackMessage(
     createdAt: timestamp,
     rawType: "queue-operation"
   };
+}
+
+export function extractClaudePreviewTitle(content: string): string | undefined {
+  const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
+  for (const row of rows) {
+    const messageRecord =
+      row.message && typeof row.message === "object"
+        ? (row.message as Record<string, unknown>)
+        : undefined;
+    const role = normalizeRole(row.role ?? row.sender ?? messageRecord?.role ?? row.type);
+    if (role === "user") {
+      const msgContent = messageRecord?.content ?? row.content ?? row.text ?? row.completion;
+      const parsedContent = parseClaudeContent(msgContent, {});
+      const text = parsedContent.textSegments.filter((segment) => segment.trim()).join("\n\n");
+      if (text.trim()) {
+        return previewText(text, 80);
+      }
+    }
+  }
+  return undefined;
+}
+
+export function extractClaudeCwd(content: string): string | undefined {
+  const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
+  for (const row of rows) {
+    if (typeof row.cwd === "string" && row.cwd.trim()) {
+      return row.cwd.trim();
+    }
+  }
+  return undefined;
 }

@@ -17,7 +17,9 @@ import {
 } from "./copilot.js";
 import { resolveLocalScanRoots } from "./platformRoots.js";
 import { extractCodexPreviewTitle, extractCodexCwd } from "../src/parsers/codex.js";
+import { extractClaudePreviewTitle, extractClaudeCwd } from "../src/parsers/claude.js";
 import type {
+  MetadataValue,
   SessionBundle,
   SessionDescriptor,
   SessionSource
@@ -170,7 +172,9 @@ async function scanFileTree(
     candidates.map(async ({ absolutePath, inferredSource }) => {
       const stats = await fs.stat(absolutePath);
       const content =
-        inferredSource === "codex" ? await readTextFileIfPossible(absolutePath) : undefined;
+        (inferredSource === "codex" || inferredSource === "claude")
+          ? await readTextFileIfPossible(absolutePath)
+          : undefined;
       return buildFileDescriptor(absolutePath, inferredSource, origin, stats, content);
     })
   );
@@ -512,13 +516,23 @@ function buildFileDescriptor(
   }
   const codexTitle =
     source === "codex" && content ? extractCodexPreviewTitle(content) : undefined;
+  const claudeTitle =
+    source === "claude" && content ? extractClaudePreviewTitle(content) : undefined;
+  const claudeCwd =
+    source === "claude" && content ? extractClaudeCwd(content) : undefined;
   const codexCwd =
     source === "codex" && content ? extractCodexCwd(content) : undefined;
+
+  const metadata: Record<string, MetadataValue> = {};
+  const cwd = claudeCwd ?? codexCwd;
+  if (cwd) {
+    metadata.cwd = cwd;
+  }
 
   return {
     key: `file::${absolutePath}`,
     source,
-    title: codexTitle ?? path.basename(absolutePath),
+    title: claudeTitle ?? codexTitle ?? path.basename(absolutePath),
     primaryPath: absolutePath,
     relatedPaths: [],
     transport: origin === "remote" ? "ssh-sync" : "local-scan",
@@ -526,7 +540,7 @@ function buildFileDescriptor(
     fileCount: 1,
     size: stats.size,
     mtimeMs: stats.mtimeMs,
-    metadata: codexCwd ? { cwd: codexCwd } : {}
+    metadata
   };
 }
 
