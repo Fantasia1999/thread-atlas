@@ -15,6 +15,18 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
 
+  const closeDropdown = () => {
+    const dropdown = overlay.querySelector(".filename-config-dropdown");
+    if (dropdown) {
+      dropdown.classList.remove("open");
+    }
+  };
+
+  const handleClose = () => {
+    document.removeEventListener("click", closeDropdown);
+    options.onClose();
+  };
+
   const card = document.createElement("div");
   card.className = "modal-card modal-wide";
 
@@ -31,7 +43,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   closeButton.className = "button ghost";
   closeButton.type = "button";
   closeButton.textContent = "Close";
-  closeButton.addEventListener("click", options.onClose);
+  closeButton.addEventListener("click", handleClose);
   header.append(closeButton);
 
   const body = document.createElement("div");
@@ -215,19 +227,54 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   };
 
   // 3. Filename row
+  let filenameConfig = loadFilenameConfig();
+
   const filenameRow = document.createElement("div");
   filenameRow.className = "export-filename-row";
+
+  // Create preview header container
+  const filenamePreviewHeader = document.createElement("div");
+  filenamePreviewHeader.className = "filename-preview-header";
 
   const filenameLabel = document.createElement("label");
   filenameLabel.textContent = "Export Filename Preview";
 
+  // Create dropdown container
+  const configContainer = document.createElement("div");
+  configContainer.className = "filename-config-container";
+
+  const configTrigger = document.createElement("button");
+  configTrigger.type = "button";
+  configTrigger.className = "button secondary xs filename-config-trigger";
+  configTrigger.textContent = "⚙️ Configure";
+
+  const configDropdown = document.createElement("div");
+  configDropdown.className = "filename-config-dropdown";
+
+  const configList = document.createElement("div");
+  configList.className = "filename-config-list";
+
+  configDropdown.append(configList);
+  configContainer.append(configTrigger, configDropdown);
+  filenamePreviewHeader.append(filenameLabel, configContainer);
+
   const filenamePreview = document.createElement("div");
   filenamePreview.className = "export-filename-preview";
 
-  const workspaceName = getWorkspaceName(session);
-  const hashId = getSessionHashId(session);
-  
-  // Format current time for filename
+  // Toggle dropdown
+  configTrigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    configDropdown.classList.toggle("open");
+  });
+
+  // Prevent dropdown closing when clicking inside it
+  configDropdown.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+
+  document.addEventListener("click", closeDropdown);
+
+  // Pre-calculate values
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -237,12 +284,112 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   const seconds = String(now.getSeconds()).padStart(2, '0');
   const timeStr = `${year}${month}${day}-${hours}${minutes}${seconds}`;
 
-  const safeWorkspaceName = workspaceName.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const filename = `${safeWorkspaceName}_${hashId}_${timeStr}.md`;
-  
-  filenamePreview.textContent = filename;
+  const resolvedValues: Record<string, string> = {
+    workspace: getWorkspaceName(session),
+    agentname: session.source || "unknown",
+    title: (session.title || "untitled").slice(0, 40),
+    "session-id": getSessionHashId(session),
+    timestamp: timeStr
+  };
 
-  filenameRow.append(filenameLabel, filenamePreview);
+  const getElementLabel = (id: string): string => {
+    switch (id) {
+      case "workspace": return "Workspace Directory";
+      case "agentname": return "Agent Name";
+      case "title": return "Title";
+      case "session-id": return "Session ID";
+      case "timestamp": return "Current Timestamp";
+      default: return id;
+    }
+  };
+
+  let activeFilename = "";
+  const updateFilenamePreview = () => {
+    const parts = filenameConfig
+      .filter(item => item.enabled)
+      .map(item => sanitizeSegment(resolvedValues[item.id]))
+      .filter(Boolean);
+    
+    if (parts.length === 0) {
+      activeFilename = "session.md";
+    } else {
+      activeFilename = `${parts.join("_")}.md`;
+    }
+    filenamePreview.textContent = activeFilename;
+  };
+
+  const renderConfigList = () => {
+    configList.replaceChildren();
+    filenameConfig.forEach((item, index) => {
+      const container = document.createElement("div");
+      container.className = "filename-config-item";
+
+      const leftSide = document.createElement("div");
+      leftSide.className = "filename-config-item-left";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = item.enabled;
+      checkbox.addEventListener("change", () => {
+        item.enabled = checkbox.checked;
+        saveFilenameConfig(filenameConfig);
+        updateFilenamePreview();
+      });
+
+      const labelText = document.createElement("span");
+      labelText.textContent = getElementLabel(item.id);
+
+      const valPreview = document.createElement("span");
+      valPreview.className = "filename-config-item-preview";
+      valPreview.textContent = sanitizeSegment(resolvedValues[item.id]) || "(empty)";
+
+      leftSide.append(checkbox, labelText, valPreview);
+
+      const rightSide = document.createElement("div");
+      rightSide.className = "filename-config-item-right";
+
+      const upBtn = document.createElement("button");
+      upBtn.type = "button";
+      upBtn.className = "filename-config-btn";
+      upBtn.textContent = "↑";
+      upBtn.disabled = index === 0;
+      upBtn.addEventListener("click", () => {
+        if (index > 0) {
+          const temp = filenameConfig[index];
+          filenameConfig[index] = filenameConfig[index - 1];
+          filenameConfig[index - 1] = temp;
+          saveFilenameConfig(filenameConfig);
+          renderConfigList();
+          updateFilenamePreview();
+        }
+      });
+
+      const downBtn = document.createElement("button");
+      downBtn.type = "button";
+      downBtn.className = "filename-config-btn";
+      downBtn.textContent = "↓";
+      downBtn.disabled = index === filenameConfig.length - 1;
+      downBtn.addEventListener("click", () => {
+        if (index < filenameConfig.length - 1) {
+          const temp = filenameConfig[index];
+          filenameConfig[index] = filenameConfig[index + 1];
+          filenameConfig[index + 1] = temp;
+          saveFilenameConfig(filenameConfig);
+          renderConfigList();
+          updateFilenamePreview();
+        }
+      });
+
+      rightSide.append(upBtn, downBtn);
+      container.append(leftSide, rightSide);
+      configList.append(container);
+    });
+  };
+
+  renderConfigList();
+  updateFilenamePreview();
+
+  filenameRow.append(filenamePreviewHeader, filenamePreview);
 
   body.append(filterRow, messageListContainer, filenameRow);
 
@@ -254,7 +401,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   cancelBtn.type = "button";
   cancelBtn.className = "button secondary";
   cancelBtn.textContent = "Cancel";
-  cancelBtn.addEventListener("click", options.onClose);
+  cancelBtn.addEventListener("click", handleClose);
 
   const exportBtn = document.createElement("button");
   exportBtn.type = "button";
@@ -269,7 +416,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
       return;
     }
     const mdContent = generateMarkdown(session, selected, currentFilter);
-    options.onExport(filename, mdContent);
+    options.onExport(activeFilename, mdContent);
   });
 
   footer.append(cancelBtn, exportBtn);
@@ -279,7 +426,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
 
   overlay.addEventListener("click", (event) => {
     if (event.target === overlay) {
-      options.onClose();
+      handleClose();
     }
   });
 
@@ -415,3 +562,58 @@ function generateMarkdown(session: Session, selectedMessages: Message[], filter:
   
   return md;
 }
+
+interface FilenameElementConfig {
+  id: "workspace" | "agentname" | "title" | "session-id" | "timestamp";
+  enabled: boolean;
+}
+
+const STORAGE_KEY = "thread-atlas:export-filename-config";
+
+const DEFAULT_CONFIG: FilenameElementConfig[] = [
+  { id: "workspace", enabled: true },
+  { id: "agentname", enabled: true },
+  { id: "title", enabled: true },
+  { id: "session-id", enabled: true },
+  { id: "timestamp", enabled: true }
+];
+
+function sanitizeSegment(val: string): string {
+  if (!val) return "";
+  return val
+    .replace(/[^\p{L}\p{N}_-]/gu, "_")
+    .replace(/__+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function loadFilenameConfig(): FilenameElementConfig[] {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const validIds = new Set(DEFAULT_CONFIG.map(item => item.id));
+        const filtered = parsed.filter((item: any) => item && validIds.has(item.id));
+        const presentIds = new Set(filtered.map((item: any) => item.id));
+        for (const defItem of DEFAULT_CONFIG) {
+          if (!presentIds.has(defItem.id)) {
+            filtered.push(defItem);
+          }
+        }
+        return filtered;
+      }
+    }
+  } catch (e) {
+    console.error("Failed to load filename config", e);
+  }
+  return [...DEFAULT_CONFIG.map(item => ({ ...item }))];
+}
+
+function saveFilenameConfig(config: FilenameElementConfig[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  } catch (e) {
+    console.error("Failed to save filename config", e);
+  }
+}
+

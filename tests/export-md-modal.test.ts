@@ -238,4 +238,117 @@ test("export md modal under not-tool filter does not export tool calls", () => {
   assert.ok(!exportedMd.includes("run_command"), "Should not include tool calls under not-tool filter");
 });
 
+test("export md modal handles customized filename elements, order and persistence", () => {
+  // Clear localStorage before testing
+  localStorage.clear();
+
+  const session = getMockSession();
+  let exportedFilename = "";
+
+  const overlay = createExportMdModal({
+    session,
+    onClose: () => {},
+    onExport: (filename) => {
+      exportedFilename = filename;
+    }
+  });
+
+  // Verify the config list is rendered with default elements
+  const configList = overlay.querySelector(".filename-config-list");
+  assert.ok(configList);
+  
+  const configItems = configList.querySelectorAll(".filename-config-item");
+  assert.equal(configItems.length, 5);
+
+  const getPreviewText = () => {
+    const filenamePreview = overlay.querySelector(".export-filename-preview");
+    return filenamePreview?.textContent || "";
+  };
+
+  const initialPreview = getPreviewText();
+  assert.ok(initialPreview.includes("my-project_claude_Test_Session_cd7d2767-7c09-4e74-8c2f-227efe147a35_"));
+
+  // Checkbox toggle: turn off workspace (the first item)
+  const firstItemCheckbox = configItems[0].querySelector("input") as any;
+  assert.ok(firstItemCheckbox);
+  assert.equal(firstItemCheckbox.checked, true);
+  firstItemCheckbox.checked = false;
+  firstItemCheckbox.dispatchEvent("change");
+
+  // Preview should no longer have workspace
+  const updatedPreview = getPreviewText();
+  assert.ok(!updatedPreview.startsWith("my-project"));
+  assert.ok(updatedPreview.startsWith("claude_Test_Session"));
+
+  // Reorder test: move agentname (now item index 1) to the top (index 0)
+  // Let's reload overlay to read from localStorage first, confirming persistence of workspace state
+  const overlay2 = createExportMdModal({
+    session,
+    onClose: () => {},
+    onExport: (filename) => {
+      exportedFilename = filename;
+    }
+  });
+  
+  const preview2 = overlay2.querySelector(".export-filename-preview")?.textContent || "";
+  // Confirm persistence of disabled workspace from step before
+  assert.ok(!preview2.startsWith("my-project"));
+  assert.ok(preview2.startsWith("claude_Test_Session"));
+
+  // Find the list in the second overlay
+  const configList2 = overlay2.querySelector(".filename-config-list");
+  const configItems2 = configList2!.querySelectorAll(".filename-config-item");
+
+  // workspace (index 0) has 'enabled = false'. agentname (index 1) has 'enabled = true'.
+  // Let's click the "↑" button on agentname (index 1) to swap it with workspace (index 0)
+  const agentnameUpBtn = configItems2[1].querySelector(".filename-config-btn") as any; // First button is Up button
+  assert.ok(agentnameUpBtn);
+  assert.equal(agentnameUpBtn.textContent, "↑");
+  agentnameUpBtn.dispatchEvent("click");
+
+  // After reordering, agentname should be at index 0, workspace at index 1.
+  // And the new order in localStorage should be saved.
+  // Let's verify by re-enabling workspace. Since workspace is now index 1, when we enable it, it should append AFTER agentname (claude).
+  // E.g. filename should be: "claude_my-project_Test_Session_..."
+  const newConfigItems = overlay2.querySelectorAll(".filename-config-item");
+  const workspaceCheckbox = newConfigItems[1].querySelector("input") as any;
+  assert.ok(workspaceCheckbox);
+  assert.equal(workspaceCheckbox.checked, false);
+  workspaceCheckbox.checked = true;
+  workspaceCheckbox.dispatchEvent("change");
+
+  const preview3 = overlay2.querySelector(".export-filename-preview")?.textContent || "";
+  assert.ok(preview3.startsWith("claude_my-project_Test_Session"));
+
+  // Click Export MD and make sure exportedFilename matches preview3
+  const exportBtn = overlay2
+    .querySelectorAll(".button")
+    .find((node: any) => node.textContent.trim() === "Export MD") as any;
+  assert.ok(exportBtn);
+  exportBtn.dispatchEvent("click");
+
+  assert.equal(exportedFilename, preview3);
+});
+
+test("export md modal truncates long titles to 40 characters in filename", () => {
+  const session = getMockSession();
+  session.title = "This is an extremely long title that exceeds the limit of forty characters by a lot of letters";
+  
+  const overlay = createExportMdModal({
+    session,
+    onClose: () => {},
+    onExport: () => {}
+  });
+
+  const filenamePreview = overlay.querySelector(".export-filename-preview");
+  assert.ok(filenamePreview);
+  const text = filenamePreview.textContent || "";
+  
+  // Cleaned title of 40 chars: "This is an extremely long title that exc"
+  // Sanitized to: "This_is_an_extremely_long_title_that_exc"
+  assert.ok(text.includes("This_is_an_extremely_long_title_that_exc"));
+  assert.ok(!text.includes("exceeds_the_limit"));
+});
+
+
 
