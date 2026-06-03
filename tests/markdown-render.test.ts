@@ -107,6 +107,17 @@ test("renderMarkdown renders inline code inside strong text", () => {
   assert.equal(collectText(strong), "the --force flag");
 });
 
+test("renderMarkdown renders bold text containing inline code with asterisks", () => {
+  const fragment = renderMarkdown("This is **bold text with code (`*.ext`)** inside.") as unknown as FakeDocumentFragment;
+  const strong = findElementsByTag(fragment, "strong")[0];
+  const code = findElementsByTag(strong, "code")[0];
+
+  assert.ok(strong);
+  assert.equal(code.className, "inline-code");
+  assert.equal(code.textContent, "*.ext");
+  assert.match(collectText(strong), /bold text with code/);
+});
+
 test("renderMarkdown renders inline math inside strong text", () => {
   const fragment = renderMarkdown("Use **$E=mc^2$ here**.") as unknown as FakeDocumentFragment;
   const strong = findElementsByTag(fragment, "strong")[0];
