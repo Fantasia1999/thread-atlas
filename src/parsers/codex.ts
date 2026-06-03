@@ -159,8 +159,8 @@ export function parseCodexSession(bundle: SessionBundle): Session {
   const firstUserTitle = codexTitleFromMessages(dedupedMessages);
   const title =
     threadName ??
-    (cwd ? `${basenameTitle(cwd) || "project"} · Codex` : undefined) ??
     firstUserTitle ??
+    (cwd ? `${basenameTitle(cwd) || "project"} · Codex` : undefined) ??
     `${bundle.title || "Codex session"}`;
 
   return buildSession(bundle, "codex", {

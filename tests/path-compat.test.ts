@@ -232,7 +232,7 @@ test("parseClaudeSession uses Windows cwd basename in the title", () => {
           cwd: "C:\\repo\\thread-atlas",
           type: "message",
           message: {
-            role: "user",
+            role: "system",
             content: [{ type: "text", text: "hello" }]
           }
         })

@@ -397,7 +397,7 @@ test("extractClaudeCwd correctly extracts cwd from Claude session content", () =
       cwd: "/home/wcl/workspace/my-awesome-project",
       type: "message",
       message: {
-        role: "user",
+        role: "system",
         content: [{ type: "text", text: "hello" }]
       }
     })

@@ -162,7 +162,7 @@ export function parseClaudeSession(bundle: SessionBundle): Session {
   const firstUserTitle = firstUserMessage ? previewText(firstUserMessage.text, 80) : undefined;
 
   return buildSession(bundle, "claude", {
-    title: (cwd ? `${basenameTitle(cwd) || "project"} · Claude` : undefined) ?? firstUserTitle ?? bundle.title,
+    title: firstUserTitle ?? (cwd ? `${basenameTitle(cwd) || "project"} · Claude` : undefined) ?? bundle.title,
     cwd,
     messages,
     metadata: {
