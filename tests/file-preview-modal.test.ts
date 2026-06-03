@@ -362,6 +362,10 @@ test("ThreadAtlasApp link click and dblclick triggers copy on unsupported links"
   link.textContent = "my-button";
   root.append(link);
 
+  // Dispatch mouseover to verify hover tooltip
+  root.dispatchEvent("mouseover", { target: link });
+  assert.equal(link.getAttribute("title"), "Click to copy text, double-click to copy path");
+
   // Dispatch click
   root.dispatchEvent("click", { target: link });
 

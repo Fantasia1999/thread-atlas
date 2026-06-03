@@ -206,6 +206,22 @@ export class ThreadAtlasApp {
       }
     });
 
+    this.root.addEventListener("mouseover", (event) => {
+      const target = event.target as HTMLElement;
+      const link = target.closest("a.md-link") as HTMLAnchorElement | null;
+      if (link && !link.getAttribute("title")) {
+        const href = link.getAttribute("href") || "";
+        const isWebLink = href.startsWith("http://") || href.startsWith("https://");
+        const isAnchorOnly = href.startsWith("#");
+        if (href && !isWebLink && !isAnchorOnly) {
+          const { filePath, lineNumber } = parseFileLink(href);
+          if (!isSupportedPreview(filePath, lineNumber)) {
+            link.setAttribute("title", "Click to copy text, double-click to copy path");
+          }
+        }
+      }
+    });
+
     this.root.addEventListener("dblclick", (event) => {
       const target = event.target as HTMLElement;
       const link = target.closest("a.md-link") as HTMLAnchorElement | null;
