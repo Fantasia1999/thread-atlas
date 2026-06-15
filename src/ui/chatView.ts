@@ -789,7 +789,19 @@ function renderChatLayout(options: {
   });
 
   btnBottom.addEventListener("click", () => {
-    messageList.scrollTo({ top: messageList.scrollHeight, behavior: "smooth" });
+    const lastMessage = messageList.lastElementChild as HTMLElement;
+    if (lastMessage) {
+      const lastMessageScrollTop = messageList.scrollTop + (lastMessage.getBoundingClientRect().top - messageList.getBoundingClientRect().top);
+      const targetScrollTop = lastMessageScrollTop - 20;
+
+      if (messageList.scrollTop < targetScrollTop - 5) {
+        lastMessage.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        messageList.scrollTo({ top: messageList.scrollHeight, behavior: "smooth" });
+      }
+    } else {
+      messageList.scrollTo({ top: messageList.scrollHeight, behavior: "smooth" });
+    }
   });
 
   const updateScrollHubState = () => {

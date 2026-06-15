@@ -8,6 +8,16 @@ export class FakeDocumentFragment {
     return this.childNodes.filter(node => node.nodeType === 1) as FakeElement[];
   }
 
+  get firstElementChild(): FakeElement | null {
+    const kids = this.children;
+    return kids[0] ?? null;
+  }
+
+  get lastElementChild(): FakeElement | null {
+    const kids = this.children;
+    return kids[kids.length - 1] ?? null;
+  }
+
   append(...nodes: FakeNode[]): void {
     for (const node of nodes) {
       if (node.nodeType === 11) {
