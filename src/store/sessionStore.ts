@@ -19,6 +19,7 @@ export interface StoreState {
   pinnedKeys: Set<string>;
   favoriteKeys: Set<string>;
   favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
+  hiddenProjects: Set<string>;
 }
 
 type Listener = (state: StoreState) => void;
@@ -81,6 +82,14 @@ export class SessionStore {
         // ignore
       }
       return new Map<string, { tags: string[]; notes: string }>();
+    })(),
+    hiddenProjects: (() => {
+      try {
+        const val = localStorage.getItem("thread-atlas-hidden-projects");
+        return val ? new Set<string>(JSON.parse(val)) : new Set<string>();
+      } catch {
+        return new Set<string>();
+      }
     })()
   };
 
@@ -105,7 +114,8 @@ export class SessionStore {
       sessions: new Map(this.state.sessions),
       pinnedKeys: new Set(this.state.pinnedKeys),
       favoriteKeys: new Set(this.state.favoriteKeys),
-      favoriteMetadata: new Map(this.state.favoriteMetadata)
+      favoriteMetadata: new Map(this.state.favoriteMetadata),
+      hiddenProjects: new Set(this.state.hiddenProjects)
     };
   }
 
@@ -131,6 +141,11 @@ export class SessionStore {
     cleanQuery = cleanQuery.trim().replace(/\s+/g, " ");
 
     const filtered = this.state.descriptors.filter((descriptor) => {
+      const workspacePath = getWorkspaceFullPath(descriptor);
+      if (workspacePath && this.state.hiddenProjects.has(workspacePath)) {
+        return false;
+      }
+
       if (this.state.sourceFilter !== "all" && descriptor.source !== this.state.sourceFilter) {
         return false;
       }
@@ -398,6 +413,48 @@ export class SessionStore {
     return this.state.sessions.get(this.state.selectedKey);
   }
 
+  hideProject(projectPath: string): void {
+    if (!projectPath) return;
+    const nextHidden = new Set(this.state.hiddenProjects);
+    nextHidden.add(projectPath);
+    localStorage.setItem("thread-atlas-hidden-projects", JSON.stringify([...nextHidden]));
+
+    this.state = {
+      ...this.state,
+      hiddenProjects: nextHidden
+    };
+
+    let selectedKey = this.state.selectedKey;
+    if (selectedKey) {
+      const desc = this.state.descriptors.find(d => d.key === selectedKey);
+      if (desc) {
+        const wsPath = getWorkspaceFullPath(desc);
+        if (wsPath && nextHidden.has(wsPath)) {
+          const visible = this.getVisibleDescriptors();
+          selectedKey = visible[0]?.key;
+        }
+      }
+    }
+
+    this.updateState({ selectedKey });
+    if (selectedKey && !this.state.sessions.has(selectedKey)) {
+      void this.selectSession(selectedKey);
+    }
+  }
+
+  showProject(projectPath: string): void {
+    const nextHidden = new Set(this.state.hiddenProjects);
+    nextHidden.delete(projectPath);
+    localStorage.setItem("thread-atlas-hidden-projects", JSON.stringify([...nextHidden]));
+    this.updateState({ hiddenProjects: nextHidden });
+  }
+
+  clearHiddenProjects(): void {
+    const nextHidden = new Set<string>();
+    localStorage.setItem("thread-atlas-hidden-projects", JSON.stringify([]));
+    this.updateState({ hiddenProjects: nextHidden });
+  }
+
   private async fetchBundle(key: string): Promise<SessionBundle> {
     const { base, backendKey } = this.connection.routeForKey(key);
     const response = await this.connection.fetch(
@@ -501,4 +558,40 @@ function compareDescriptors(left: SessionDescriptor, right: SessionDescriptor): 
   }
 
   return left.title.localeCompare(right.title);
+}
+
+export function getWorkspaceFullPath(descriptor: SessionDescriptor): string {
+  const rawWorkspace = 
+    descriptor.metadata?.primaryWorkspace || 
+    descriptor.metadata?.cwd || 
+    descriptor.metadata?.directory;
+
+  if (typeof rawWorkspace === "string" && rawWorkspace.trim()) {
+    return rawWorkspace.trim();
+  }
+
+  // Claude inference from path
+  const pathStr = descriptor.primaryPath || "";
+  const claudeMatch = pathStr.match(/[\\/]\.claude[\\/]projects[\\/]([^\\/]+)/i);
+  if (claudeMatch && claudeMatch[1]) {
+    const rawFolder = claudeMatch[1];
+    if (rawFolder.startsWith("-")) {
+      return "/" + rawFolder.slice(1).replace(/-/g, "/");
+    }
+    return rawFolder.replace(/-/g, "/");
+  }
+
+  return "";
+}
+
+export function getWorkspaceLabel(descriptor: SessionDescriptor): string {
+  const fullPath = getWorkspaceFullPath(descriptor);
+  if (!fullPath) {
+    return "";
+  }
+
+  // If it's a path, extract the last folder/directory name
+  const parts = fullPath.split(/[\\/]/).filter(Boolean);
+  const lastPart = parts.at(-1);
+  return lastPart ?? fullPath;
 }

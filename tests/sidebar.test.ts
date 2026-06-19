@@ -31,6 +31,7 @@ function createSidebarOptions(overrides?: Partial<Parameters<typeof renderSideba
     pinnedKeys: new Set<string>(),
     favoriteKeys: new Set<string>(),
     favoriteMetadata: new Map<string, { tags: string[]; notes: string }>(),
+    hiddenProjects: new Set<string>(),
     onToggleOpen: () => {},
     onTogglePin: () => {},
     onTogglePinSession: () => {},
@@ -38,6 +39,9 @@ function createSidebarOptions(overrides?: Partial<Parameters<typeof renderSideba
     onSearch: () => {},
     onFilter: () => {},
     onSelect: () => {},
+    onHideProject: () => {},
+    onShowProject: () => {},
+    onClearHiddenProjects: () => {},
     ...overrides
   };
 }
@@ -402,6 +406,100 @@ test("renderSidebar session-date has title attribute with long datetime", () => 
   const innerHtml = sourceAndDate.innerHTML;
   assert.ok(innerHtml.includes("title="));
   assert.ok(innerHtml.includes("session-date"));
+});
+
+test("renderSidebar supports double-clicking workspace badge to hide project", () => {
+  let hiddenPath = "";
+  const key = "file::/path/to/session.jsonl";
+  const options = createSidebarOptions({
+    descriptors: [
+      {
+        key,
+        source: "claude",
+        title: "Session 1",
+        primaryPath: "/path/to/session.jsonl",
+        relatedPaths: [],
+        transport: "local-scan",
+        origin: "local",
+        fileCount: 1,
+        size: 100,
+        mtimeMs: Date.now(),
+        metadata: { primaryWorkspace: "/workspace/proj1" }
+      }
+    ] as any[],
+    onHideProject: (p) => {
+      hiddenPath = p;
+    }
+  });
+
+  const sidebar = renderSidebar(options);
+  const workspaceEl = sidebar.querySelector(".session-workspace");
+  assert.ok(workspaceEl);
+  workspaceEl.dispatchEvent("dblclick");
+  assert.equal(hiddenPath, "/workspace/proj1");
+});
+
+test("renderSidebar handles search box enter commands and renders :hidden list", () => {
+  let hiddenPath = "";
+  let cleared = false;
+  let searchedValue = "";
+  let shownPath = "";
+
+  const options = createSidebarOptions({
+    selectedKey: "file::/path/to/session.jsonl",
+    descriptors: [
+      {
+        key: "file::/path/to/session.jsonl",
+        source: "claude",
+        title: "Session 1",
+        primaryPath: "/path/to/session.jsonl",
+        relatedPaths: [],
+        transport: "local-scan",
+        origin: "local",
+        fileCount: 1,
+        size: 100,
+        mtimeMs: Date.now(),
+        metadata: { primaryWorkspace: "/workspace/proj1" }
+      }
+    ] as any[],
+    hiddenProjects: new Set(["/workspace/proj2"]),
+    search: ":hidden",
+    onHideProject: (p) => { hiddenPath = p; },
+    onClearHiddenProjects: () => { cleared = true; },
+    onSearch: (v) => { searchedValue = v; },
+    onShowProject: (p) => { shownPath = p; }
+  });
+
+  const sidebar = renderSidebar(options);
+
+  // 1. Verify rendering when search query is ':hidden'
+  const list = sidebar.querySelector(".session-list");
+  assert.ok(list);
+  const listHtml = list.innerHTML;
+  assert.ok(listHtml.includes("Hidden Workspaces"));
+  assert.ok(listHtml.includes("/workspace/proj2"));
+
+  // Click on hidden project row should trigger onShowProject
+  const hiddenRow = list.querySelector(".session-row");
+  assert.ok(hiddenRow);
+  hiddenRow.dispatchEvent("click");
+  assert.equal(shownPath, "/workspace/proj2");
+
+  // 2. Test input commands keydown logic
+  const searchInput = sidebar.querySelector("input") as HTMLInputElement | null;
+  assert.ok(searchInput);
+
+  // Simulate typing ':hide' and pressing enter
+  searchInput.value = ":hide";
+  searchInput.dispatchEvent("keydown", { key: "Enter" });
+  assert.equal(hiddenPath, "/workspace/proj1");
+  assert.equal(searchedValue, "");
+
+  // Simulate typing ':unhide-all' and pressing enter
+  searchInput.value = ":unhide-all";
+  searchInput.dispatchEvent("keydown", { key: "Enter" });
+  assert.equal(cleared, true);
+  assert.equal(searchedValue, "");
 });
 
 

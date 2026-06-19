@@ -316,6 +316,7 @@ export class ThreadAtlasApp {
         pinnedKeys: state.pinnedKeys,
         favoriteKeys: state.favoriteKeys,
         favoriteMetadata: state.favoriteMetadata,
+        hiddenProjects: state.hiddenProjects,
         onTogglePinSession: (key) => {
           this.store.togglePin(key);
         },
@@ -339,6 +340,18 @@ export class ThreadAtlasApp {
           if (!this.isSidebarPinned()) {
             this.toggleSidebarOpen(false);
           }
+        },
+        onHideProject: (wsPath) => {
+          this.store.hideProject(wsPath);
+          showToast(`Workspace hidden: ${wsPath}`, "success");
+        },
+        onShowProject: (wsPath) => {
+          this.store.showProject(wsPath);
+          showToast(`Workspace restored: ${wsPath}`, "success");
+        },
+        onClearHiddenProjects: () => {
+          this.store.clearHiddenProjects();
+          showToast("All hidden workspaces restored", "success");
         }
       })
     );

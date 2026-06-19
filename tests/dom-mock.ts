@@ -87,7 +87,23 @@ export class FakeElement extends FakeDocumentFragment {
   readonly dataset: Record<string, string> = {};
   readonly style: Record<string, string> = {};
   className = "";
-  innerHTML = "";
+  private _innerHTML = "";
+  get innerHTML(): string {
+    if (this._innerHTML) return this._innerHTML;
+    return this.childNodes.map(node => {
+      if (node.nodeType === 3) return (node as any).textContent;
+      if (node.nodeType === 1) {
+        const el = node as FakeElement;
+        const attrs = Object.entries(el.attributes).map(([k, v]) => ` ${k}="${v}"`).join("");
+        const classAttr = el.className ? ` class="${el.className}"` : "";
+        return `<${el.tagName.toLowerCase()}${classAttr}${attrs}>${el.innerHTML || el.textContent}</${el.tagName.toLowerCase()}>`;
+      }
+      return "";
+    }).join("");
+  }
+  set innerHTML(val: string) {
+    this._innerHTML = val;
+  }
   private _textContent = "";
   private listeners: Record<string, Function[]> = {};
   readonly attributes: Record<string, string> = {};

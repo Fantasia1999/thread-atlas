@@ -1,5 +1,6 @@
 import type { SessionDescriptor, SessionSource } from "../parsers/types.js";
 import { escapeHtml, formatLocalDateTime, formatLocalDateTimeLong } from "./utils.js";
+import { getWorkspaceFullPath, getWorkspaceLabel } from "../store/sessionStore.js";
 
 interface SidebarOptions {
   descriptors: SessionDescriptor[];
@@ -12,6 +13,7 @@ interface SidebarOptions {
   pinnedKeys: Set<string>;
   favoriteKeys: Set<string>;
   favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
+  hiddenProjects: Set<string>;
   onToggleOpen: () => void;
   onTogglePin: () => void;
   onTogglePinSession: (key: string) => void;
@@ -19,6 +21,9 @@ interface SidebarOptions {
   onSearch: (value: string) => void;
   onFilter: (value: SessionSource | "all") => void;
   onSelect: (key: string) => void;
+  onHideProject: (projectPath: string) => void;
+  onShowProject: (projectPath: string) => void;
+  onClearHiddenProjects: () => void;
 }
 
 export function renderSidebar(options: SidebarOptions): HTMLElement {
@@ -154,6 +159,28 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   search.addEventListener("input", () => {
     options.onSearch(search.value);
   });
+  search.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      const val = search.value.trim();
+      if (val === ":hide") {
+        event.preventDefault();
+        if (options.selectedKey) {
+          const currentDesc = options.descriptors.find(d => d.key === options.selectedKey);
+          if (currentDesc) {
+            const wsPath = getWorkspaceFullPath(currentDesc);
+            if (wsPath) {
+              options.onHideProject(wsPath);
+              options.onSearch("");
+            }
+          }
+        }
+      } else if (val === ":unhide-all") {
+        event.preventDefault();
+        options.onClearHiddenProjects();
+        options.onSearch("");
+      }
+    }
+  });
 
   const sourceItems: DropdownItem[] = [
     { value: "all", label: "All sources" },
@@ -284,7 +311,44 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   const list = document.createElement("div");
   list.className = "session-list";
 
-  if (options.loading && options.descriptors.length === 0) {
+  if (options.search.trim().toLowerCase() === ":hidden") {
+    if (options.hiddenProjects.size === 0) {
+      list.append(emptyState("No projects are currently hidden."));
+    } else {
+      const header = document.createElement("div");
+      header.className = "session-group-header";
+      header.innerHTML = `🚫 Hidden Workspaces (${options.hiddenProjects.size})`;
+      list.append(header);
+
+      for (const projectPath of options.hiddenProjects) {
+        const button = document.createElement("button");
+        button.className = "session-row";
+        button.type = "button";
+        button.title = "Click to restore workspace";
+
+        const parts = projectPath.split(/[\\/]/).filter(Boolean);
+        const label = parts.at(-1) || projectPath;
+
+        button.innerHTML = `
+          <div class="session-row-top">
+            <div class="source-and-date">
+              <span class="source-badge unknown">hidden</span>
+            </div>
+          </div>
+          <strong class="session-title">${escapeHtml(label)}</strong>
+          <div class="session-path-row">
+            <p class="session-path">${escapeHtml(projectPath)}</p>
+          </div>
+        `;
+
+        button.addEventListener("click", () => {
+          options.onShowProject(projectPath);
+        });
+
+        list.append(button);
+      }
+    }
+  } else if (options.loading && options.descriptors.length === 0) {
     list.append(emptyState("Scanning local session directories..."));
   } else if (options.descriptors.length === 0) {
     list.append(emptyState("No sessions found."));
@@ -321,14 +385,6 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       const dateLabel = formatLocalDateTime(descriptor.mtimeMs, "Unknown time");
       const hoverDateLabel = formatLocalDateTimeLong(descriptor.mtimeMs, "");
       const workspaceLabel = getWorkspaceLabel(descriptor);
-      const workspaceHtml = workspaceLabel
-        ? `<span class="session-workspace" title="${escapeHtml(getWorkspaceFullPath(descriptor))}">${escapeHtml(workspaceLabel)}</span>`
-        : "";
-
-      const connectionBadge =
-        descriptor.origin === "remote" && descriptor.connectionLabel
-          ? `<span class="connection-badge" title="${escapeHtml(descriptor.connectionDetail ?? descriptor.connectionLabel)}">${escapeHtml(descriptor.connectionLabel)}</span>`
-          : "";
 
       const meta = options.favoriteMetadata.get(descriptor.key);
 
@@ -351,7 +407,32 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
 
       const pathRow = document.createElement("div");
       pathRow.className = "session-path-row";
-      pathRow.innerHTML = workspaceHtml + connectionBadge + `<p class="session-path">${escapeHtml(descriptor.primaryPath)}</p>`;
+      
+      if (workspaceLabel) {
+        const workspaceEl = document.createElement("span");
+        workspaceEl.className = "session-workspace";
+        const wsFullPath = getWorkspaceFullPath(descriptor);
+        workspaceEl.title = `${wsFullPath} (Double-click to hide project)`;
+        workspaceEl.textContent = workspaceLabel;
+        workspaceEl.addEventListener("dblclick", (e) => {
+          e.stopPropagation();
+          options.onHideProject(wsFullPath);
+        });
+        pathRow.append(workspaceEl);
+      }
+
+      if (descriptor.origin === "remote" && descriptor.connectionLabel) {
+        const connectionBadgeEl = document.createElement("span");
+        connectionBadgeEl.className = "connection-badge";
+        connectionBadgeEl.title = descriptor.connectionDetail ?? descriptor.connectionLabel;
+        connectionBadgeEl.textContent = descriptor.connectionLabel;
+        pathRow.append(connectionBadgeEl);
+      }
+
+      const pathEl = document.createElement("p");
+      pathEl.className = "session-path";
+      pathEl.textContent = descriptor.primaryPath;
+      pathRow.append(pathEl);
 
       button.append(titleEl, pathRow);
 
@@ -413,41 +494,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   return container;
 }
 
-function getWorkspaceFullPath(descriptor: SessionDescriptor): string {
-  const rawWorkspace = 
-    descriptor.metadata?.primaryWorkspace || 
-    descriptor.metadata?.cwd || 
-    descriptor.metadata?.directory;
 
-  if (typeof rawWorkspace === "string" && rawWorkspace.trim()) {
-    return rawWorkspace.trim();
-  }
-
-  // Claude inference from path
-  const pathStr = descriptor.primaryPath || "";
-  const claudeMatch = pathStr.match(/[\\/]\.claude[\\/]projects[\\/]([^\\/]+)/i);
-  if (claudeMatch && claudeMatch[1]) {
-    const rawFolder = claudeMatch[1];
-    if (rawFolder.includes("-")) {
-      return "/" + rawFolder.replace(/-/g, "/");
-    }
-    return rawFolder;
-  }
-
-  return "";
-}
-
-function getWorkspaceLabel(descriptor: SessionDescriptor): string {
-  const fullPath = getWorkspaceFullPath(descriptor);
-  if (!fullPath) {
-    return "";
-  }
-
-  // If it's a path, extract the last folder/directory name
-  const parts = fullPath.split(/[\\/]/).filter(Boolean);
-  const lastPart = parts.at(-1);
-  return lastPart ?? fullPath;
-}
 
 function emptyState(message: string): HTMLElement {
   const element = document.createElement("div");

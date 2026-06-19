@@ -254,3 +254,59 @@ test("SessionStore tolerates a failing connection during aggregation", async () 
   assert.equal(descriptors.length, 1);
   assert.equal(descriptors[0].key, "file::/local/ok.jsonl");
 });
+
+test("SessionStore supports project hiding and automatic next-session selection", () => {
+  mockLocalStorage.clear();
+  const store = new SessionStore() as any;
+
+  const descriptors = [
+    {
+      key: "file::/proj1/s1.jsonl",
+      source: "claude" as const,
+      title: "Session 1",
+      primaryPath: "/proj1/s1.jsonl",
+      mtimeMs: 1000,
+      metadata: { primaryWorkspace: "/workspace/project1" }
+    },
+    {
+      key: "file::/proj2/s2.jsonl",
+      source: "gemini" as const,
+      title: "Session 2",
+      primaryPath: "/proj2/s2.jsonl",
+      mtimeMs: 2000,
+      metadata: { primaryWorkspace: "/workspace/project2" }
+    }
+  ];
+
+  store.state.descriptors = descriptors;
+  store.state.selectedKey = "file::/proj1/s1.jsonl";
+
+  // Initially both should be visible
+  let visible = store.getVisibleDescriptors();
+  assert.equal(visible.length, 2);
+
+  // Hide project 1
+  store.hideProject("/workspace/project1");
+  assert.ok(store.getState().hiddenProjects.has("/workspace/project1"));
+  assert.equal(mockLocalStorage.getItem("thread-atlas-hidden-projects")?.includes("/workspace/project1"), true);
+
+  // Selected key should automatically jump to the next visible descriptor (Session 2)
+  assert.equal(store.getState().selectedKey, "file::/proj2/s2.jsonl");
+
+  // Only project 2 should be visible now
+  visible = store.getVisibleDescriptors();
+  assert.equal(visible.length, 1);
+  assert.equal(visible[0].key, "file::/proj2/s2.jsonl");
+
+  // Unhide project 1
+  store.showProject("/workspace/project1");
+  assert.equal(store.getState().hiddenProjects.has("/workspace/project1"), false);
+  visible = store.getVisibleDescriptors();
+  assert.equal(visible.length, 2);
+
+  // Clear hidden projects
+  store.hideProject("/workspace/project1");
+  assert.equal(store.getVisibleDescriptors().length, 1);
+  store.clearHiddenProjects();
+  assert.equal(store.getVisibleDescriptors().length, 2);
+});
