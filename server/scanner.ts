@@ -165,12 +165,26 @@ async function scanFileTree(
     }))
     .filter(
       ({ inferredSource }) => inferredSource !== "unknown" && shouldIncludeScannedFile(inferredSource)
-    )
+    );
+
+  const candidatesWithStats = await Promise.all(
+    candidates.map(async (candidate) => {
+      try {
+        const stats = await fs.stat(candidate.absolutePath);
+        return { ...candidate, stats };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const validCandidates = candidatesWithStats
+    .filter((c): c is NonNullable<typeof c> => c !== null)
+    .sort((a, b) => b.stats.mtimeMs - a.stats.mtimeMs)
     .slice(0, MAX_FILES_PER_SOURCE);
 
   return await Promise.all(
-    candidates.map(async ({ absolutePath, inferredSource }) => {
-      const stats = await fs.stat(absolutePath);
+    validCandidates.map(async ({ absolutePath, inferredSource, stats }) => {
       const content =
         (inferredSource === "codex" || inferredSource === "claude")
           ? await readTextFileIfPossible(absolutePath)
@@ -240,12 +254,27 @@ async function scanAntigravitySessions(
     }
   }
 
-  const preferredPaths = [...new Set(preferredBySession.values())].slice(0, MAX_FILES_PER_SOURCE);
+  const preferredPaths = [...new Set(preferredBySession.values())];
+  const preferredPathsWithStats = await Promise.all(
+    preferredPaths.map(async (absolutePath) => {
+      try {
+        const stats = await fs.stat(absolutePath);
+        return { absolutePath, stats };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const validPaths = preferredPathsWithStats
+    .filter((p): p is NonNullable<typeof p> => p !== null)
+    .sort((a, b) => b.stats.mtimeMs - a.stats.mtimeMs)
+    .slice(0, MAX_FILES_PER_SOURCE);
+
   const historyMap = await loadAntigravityHistoryMap();
 
   return await Promise.all(
-    preferredPaths.map(async (absolutePath) => {
-      const stats = await fs.stat(absolutePath);
+    validPaths.map(async ({ absolutePath, stats }) => {
       const content = isAntigravityTranscriptPath(absolutePath)
         ? await readTextFileIfPossible(absolutePath)
         : undefined;
@@ -306,13 +335,28 @@ async function scanCopilotSessionDirectories(
   }
 
   const entries = await fs.readdir(root, { withFileTypes: true });
-  const sessionDirs = entries
-    .filter((entry) => entry.isDirectory())
+  const directoriesWithStats = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map(async (entry) => {
+        const absolutePath = path.join(root, entry.name);
+        try {
+          const stats = await fs.stat(absolutePath);
+          return { absolutePath, stats };
+        } catch {
+          return null;
+        }
+      })
+  );
+
+  const sortedDirs = directoriesWithStats
+    .filter((d): d is NonNullable<typeof d> => d !== null)
+    .sort((a, b) => b.stats.mtimeMs - a.stats.mtimeMs)
     .slice(0, MAX_FILES_PER_SOURCE)
-    .map((entry) => path.join(root, entry.name));
+    .map((d) => d.absolutePath);
 
   const descriptors = await Promise.all(
-    sessionDirs.map((sessionDir) => buildCopilotDescriptor(sessionDir, origin))
+    sortedDirs.map((sessionDir) => buildCopilotDescriptor(sessionDir, origin))
   );
 
   return descriptors.filter((descriptor): descriptor is SessionDescriptor => descriptor !== null);
