@@ -292,3 +292,59 @@ test("parseCopilotSession uses Windows cwd basename in the title", () => {
   const session = parseCopilotSession(bundle);
   assert.equal(session.title, "thread-atlas · Copilot");
 });
+
+test("Antigravity loader handles transcript_full.jsonl with malformed/non-JSON lines gracefully", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "thread-atlas-antigravity-malformed-"));
+  const sessionId = "session-456";
+  const conversationPath = path.join(
+    root,
+    ".gemini",
+    "antigravity-cli",
+    "conversations",
+    `${sessionId}.pb`
+  );
+  const transcriptPath = path.join(
+    root,
+    ".gemini",
+    "antigravity-cli",
+    "brain",
+    sessionId,
+    ".system_generated",
+    "logs",
+    "transcript_full.jsonl"
+  );
+  await fs.mkdir(path.dirname(conversationPath), { recursive: true });
+  await fs.mkdir(path.dirname(transcriptPath), { recursive: true });
+  await fs.writeFile(conversationPath, "not a protobuf");
+  await fs.writeFile(
+    transcriptPath,
+    [
+      JSON.stringify({
+        step_index: 0,
+        source: "USER_EXPLICIT",
+        type: "USER_INPUT",
+        status: "DONE",
+        created_at: "2026-01-01T00:00:00.000Z",
+        content: "hello"
+      }),
+      "this is a malformed line that is not json",
+      JSON.stringify({
+        step_index: 1,
+        source: "MODEL",
+        type: "PLANNER_RESPONSE",
+        status: "DONE",
+        created_at: "2026-01-01T00:00:01.000Z",
+        content: "hi"
+      })
+    ].join("\n")
+  );
+
+  assert.equal(await isScannableAntigravitySessionPath(transcriptPath), true);
+
+  const bundle = await loadAntigravityBundle(conversationPath, "local");
+  assert.equal(bundle.primaryPath, transcriptPath);
+  assert.equal(bundle.metadata.loaderBackend, "transcript");
+  assert.match(bundle.files[0]?.content ?? "", /"record_type":"message"/);
+  assert.ok(bundle.title.startsWith("⚠️ "));
+});
+

@@ -185,16 +185,22 @@ export function buildAntigravityDescriptor(
   const loaderBackend = isAntigravityTranscriptPath(absolutePath) ? "transcript" : "direct";
 
   let title: string | undefined;
-  if (content) {
+  let hasToleratedError = false;
+  if (content && isAntigravityTranscriptPath(absolutePath)) {
+    hasToleratedError = hasJsonLinesParseError(content);
     title = extractAntigravityPreviewTitle(content);
   }
+
+  const baseTitle = title ?? (isAntigravityTranscriptPath(absolutePath)
+    ? buildAntigravityTitle(cascadeId)
+    : path.basename(absolutePath));
+
+  const displayTitle = hasToleratedError ? `⚠️ ${baseTitle}` : baseTitle;
 
   return {
     key: `file::${absolutePath}`,
     source: "antigravity",
-    title: title ?? (isAntigravityTranscriptPath(absolutePath)
-      ? buildAntigravityTitle(cascadeId)
-      : path.basename(absolutePath)),
+    title: displayTitle,
     primaryPath: absolutePath,
     relatedPaths: [],
     transport: origin === "remote" ? "ssh-sync" : "local-scan",
@@ -340,7 +346,12 @@ async function loadAntigravityTranscriptBundle(
   const records = buildChatRecordsFromTranscriptRows(cascadeId, rows, absolutePath);
   const recordsContent = records.map((record) => JSON.stringify(record)).join("\n");
   const firstUserTitle = extractAntigravityPreviewTitle(recordsContent);
-  const title = firstUserTitle ?? descriptor.title;
+  let title = firstUserTitle ?? descriptor.title;
+
+  const hasToleratedError = hasJsonLinesParseError(content);
+  if (hasToleratedError && !title.startsWith("⚠️ ")) {
+    title = `⚠️ ${title}`;
+  }
 
   const historyWorkspace = await findWorkspaceFromHistory(cascadeId);
 
@@ -1595,16 +1606,42 @@ async function fileExists(absolutePath: string): Promise<boolean> {
 }
 
 function parseJsonLines(content: string): Array<Record<string, unknown>> {
-  return content
-    .split(/\r?\n/)
-    .filter((line) => line.trim())
-    .map((line) => {
-      const parsed = JSON.parse(line) as unknown;
-      if (!isRecord(parsed)) {
-        throw new Error("Expected Antigravity transcript JSONL rows to be objects.");
+  const result: Array<Record<string, unknown>> = [];
+  const lines = content.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (isRecord(parsed)) {
+        result.push(parsed);
       }
-      return parsed;
-    });
+    } catch {
+      // Keep parsing other lines in the file even if one is malformed
+    }
+  }
+  return result;
+}
+
+function hasJsonLinesParseError(content: string): boolean {
+  const lines = content.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (!isRecord(parsed)) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+  }
+  return false;
 }
 
 function stringifyJsonValue(value: unknown): string {
