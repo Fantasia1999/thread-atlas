@@ -66,6 +66,7 @@ Imported browser files can still be source-detected from content and path hints 
 
 ## UI Expectations
 
+- Refer to [DESIGN.md](file:///home/wcl/workspace/dev/thread-atlas/DESIGN.md) for all styling guidelines, color systems, fonts, and decorative mesh gradients when modifying or adding UI.
 - Keep the SPA framework-free and store-driven.
 - Preserve dense log-viewer ergonomics over chat bubbles.
 - Keep sidebar workflows centered on quick scan, search, source filtering, and session selection.

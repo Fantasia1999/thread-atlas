@@ -1,41 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   --timeline-width: 320px;
   --sidebar-width: 320px;
   --rail-width: 44px;
   
-  /* Stark Technical Light Theme (Tailwind/Vercel slate) */
-  --bg-app: #f8fafc; /* Clean solid slate background */
-  --bg-panel: #ffffff;
-  --bg-panel-muted: #f1f5f9;
-  --bg-surface: #ffffff;
-  --bg-surface-hover: #f8fafc;
-  --bg-surface-active: #e2e8f0;
-  --bg-code: #f8fafc; /* Clean solid slate light background */
-  --bg-overlay: rgba(15, 23, 42, 0.3);
+  /* Stark Vercel Light Theme */
+  --bg-app: #fafafa; /* Canvas-soft */
+  --bg-panel: #ffffff; /* Canvas */
+  --bg-panel-muted: #f5f5f5; /* Canvas-soft-2 */
+  --bg-surface: #ffffff; /* Canvas */
+  --bg-surface-hover: #fafafa; /* Canvas-soft */
+  --bg-surface-active: #f5f5f5; /* Canvas-soft-2 */
+  --bg-code: #f5f5f5; /* Canvas-soft-2 */
+  --bg-overlay: rgba(23, 23, 23, 0.4);
 
-  --border-subtle: #f1f5f9;
-  --border-default: #e2e8f0; /* Precise flat slate borders */
-  --border-strong: #cbd5e1;
-  --border-focus: #0f172a; /* High-contrast focus state */
+  --border-subtle: #fafafa; /* Hairline-soft */
+  --border-default: #ebebeb; /* Hairline */
+  --border-strong: #a1a1a1; /* Hairline-strong */
+  --border-focus: #171717; /* Ink / Primary */
 
-  --text-primary: #0f172a; /* High-contrast solid ink */
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --text-link: #2563eb;
-  --text-link-hover: #1d4ed8;
+  --text-primary: #171717; /* Ink */
+  --text-secondary: #4d4d4d; /* Body */
+  --text-muted: #888888; /* Mute */
+  --text-link: #0070f3; /* Link */
+  --text-link-hover: #0761d1; /* Link-deep */
 
-  /* Accent Brand Gradients (Flat solids for premium feel) */
-  --accent-subtle: #f1f5f9;
-  --accent-emphasis: #0f172a; /* Stark black accents */
-  --accent-base: #10b981;
-  --accent-base-hover: #059669;
+  /* Accent Brand Gradients & Polarity Solids */
+  --accent-subtle: #f5f5f5;
+  --accent-emphasis: #171717; /* Stark solid ink */
+  --accent-base: #0070f3;
   --accent-inverse: #ffffff;
 
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  --success: #0070f3; /* Success matches link in Vercel Design */
+  --warning: #f5a623;
+  --danger: #ee0000;
   
   --brand-claude: #c2410c;
   --brand-opencode: #059669;
@@ -46,124 +45,139 @@
 
   /* Markdown Specifics */
   --md-surface: #ffffff;
-  --md-surface-strong: #f8fafc;
-  --md-border: #e2e8f0;
-  --md-code-bg: #f8fafc;
-  --md-code-header: #f1f5f9;
-  --md-code-text: #0f172a; /* High contrast dark text for light mode code */
-  --md-code-comment: #6a737d; /* Clean GitHub style gray comment */
-  --md-code-keyword: #d73a49; /* Deep rose/red keyword */
-  --md-code-string: #0a3069; /* Rich navy string */
-  --md-code-number: #0550ae; /* Deep blue number */
-  --md-code-function: #6f42c1; /* Professional purple function */
-  --md-code-builtin: #e36209; /* Warm orange builtin */
-  --md-code-attr: #22863a; /* Deep green attr */
-  --md-code-property: #0052cc; /* Pure blue property */
-  --md-code-tag: #22863a;
-  --md-code-operator: #24292e; /* Dark operator text */
-  --md-code-meta: #57606a;
-  --md-code-emphasis: #f6f8fa;
-  --md-code-line-insert: rgba(16, 185, 129, 0.1);
-  --md-code-line-delete: rgba(239, 68, 68, 0.1);
-  --md-code-line-meta: rgba(59, 130, 246, 0.08);
-  --md-inline-code-bg: #f1f5f9;
-  --md-inline-code-text: #e11d48;
-  --md-link: #2563eb;
-  --md-link-hover: #1d4ed8;
-  --md-quote-border: #cbd5e1;
-  --md-quote-bg: #f8fafc;
-  --md-table-stripe: rgba(241, 245, 249, 0.5);
+  --md-surface-strong: #fafafa;
+  --md-border: #ebebeb;
+  --md-code-bg: #f5f5f5;
+  --md-code-header: #f5f5f5;
+  --md-code-text: #171717;
+  --md-code-comment: #888888;
+  --md-code-keyword: #ff0080;
+  --md-code-string: #0070f3;
+  --md-code-number: #7928ca;
+  --md-code-function: #eb367f;
+  --md-code-builtin: #f5a623;
+  --md-code-attr: #29bc9b;
+  --md-code-property: #0070f3;
+  --md-code-tag: #ff0080;
+  --md-code-operator: #171717;
+  --md-code-meta: #4d4d4d;
+  --md-code-emphasis: #fafafa;
+  --md-code-line-insert: rgba(0, 112, 243, 0.08);
+  --md-code-line-delete: rgba(238, 0, 0, 0.08);
+  --md-code-line-meta: rgba(121, 40, 202, 0.08);
+  --md-inline-code-bg: #f5f5f5;
+  --md-inline-code-text: #eb367f;
+  --md-link: #0070f3;
+  --md-link-hover: #0761d1;
+  --md-quote-border: #a1a1a1;
+  --md-quote-bg: #fafafa;
+  --md-table-stripe: rgba(245, 245, 245, 0.5);
 
   /* Modern Fonts */
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-brand: "Inter", sans-serif;
-  --font-mono: "Fira Code", "JetBrains Mono", "SF Mono", "Segoe UI Symbol", "Noto Sans Symbols", "Apple Color Emoji", "Segoe UI Emoji", monospace;
-  --font-code: "Fira Code", "JetBrains Mono", "SF Mono", "Segoe UI Symbol", "Noto Sans Symbols", "Apple Color Emoji", "Segoe UI Emoji", monospace;
+  --font-sans: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-brand: "Geist", "Inter", sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", "SF Mono", monospace;
+  --font-code: "Geist Mono", "JetBrains Mono", "SF Mono", monospace;
 
-  /* Flat drop shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  /* Stacked Shadows */
+  --shadow-sm: 0px 1px 1px rgba(0, 0, 0, 0.02), 0px 2px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0px 2px 2px rgba(0, 0, 0, 0.04), 0px 8px 8px -8px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0px 1px 1px rgba(0, 0, 0, 0.02), 0px 8px 16px -4px rgba(0, 0, 0, 0.04), 0px 24px 32px -8px rgba(0, 0, 0, 0.06);
 
-  --radius-sm: 4px; /* Slightly sharper tech radius */
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-full: 999px;
+  --radius-sm: 6px; /* Vercel base UI radius */
+  --radius-md: 8px; /* feature card / template card radius */
+  --radius-lg: 12px; /* pricing card / large card radius */
+  --radius-full: 9999px;
 
   --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Atmospheric Mesh Gradient Glow Configuration */
+  --mesh-opacity: 0.65;
+  --mesh-color-1: rgba(0, 112, 243, 0.08); /* develop blue */
+  --mesh-color-2: rgba(80, 227, 194, 0.08); /* cyan */
+  --mesh-color-3: rgba(121, 40, 202, 0.06); /* violet */
+  --mesh-color-4: rgba(255, 0, 80, 0.05);  /* preview pink */
+  --mesh-color-5: rgba(245, 166, 35, 0.04);  /* warning amber */
 }
 
 html[data-theme="dark"] {
-  /* Stark Technical Dark Theme (Premium Obsidian Charcoal/Zinc) */
-  --bg-app: #09090b; /* Deep rich zinc black */
-  --bg-panel: #141416; /* Clean solid slate dark gray */
-  --bg-panel-muted: #18181b; /* Soft dark panel backdrop */
-  --bg-surface: #141416;
-  --bg-surface-hover: #1e1e21; /* Micro-hover state */
-  --bg-surface-active: #27272a;
-  --bg-code: #09090b;
-  --bg-overlay: rgba(0, 0, 0, 0.7);
+  /* Stark Vercel Dark Theme */
+  --bg-app: #0a0a0a; /* Dark Canvas-soft */
+  --bg-panel: #121212; /* Dark Canvas */
+  --bg-panel-muted: #1a1a1a; /* Dark Canvas-soft-2 */
+  --bg-surface: #121212;
+  --bg-surface-hover: #1e1e1e;
+  --bg-surface-active: #2e2e2e;
+  --bg-code: #0a0a0a;
+  --bg-overlay: rgba(0, 0, 0, 0.75);
 
-  --border-subtle: #18181b;
-  --border-default: #27272a; /* Precise zinc borders */
-  --border-strong: #3f3f46; /* Pronounced slate/zinc borders */
-  --border-focus: #f4f4f5; /* Stark off-white focus indicators */
+  --border-subtle: #1f1f1f;
+  --border-default: #333333;
+  --border-strong: #666666;
+  --border-focus: #ffffff;
 
-  --text-primary: #f4f4f5; /* Calming off-white for superb readability */
-  --text-secondary: #a1a1aa; /* Professional soft gray */
-  --text-muted: #52525b; /* Zinc-600 */
-  --text-link: #60a5fa; /* Premium developer link blue */
-  --text-link-hover: #93c5fd;
+  --text-primary: #ffffff;
+  --text-secondary: #888888;
+  --text-muted: #666666;
+  --text-link: #0070f3;
+  --text-link-hover: #3291ff;
 
-  --accent-subtle: #27272a;
-  --accent-emphasis: #f4f4f5; /* Stark solid accent text */
-  --accent-base: #10b981;
-  --accent-base-hover: #34d399;
-  --accent-inverse: #09090b;
+  --accent-subtle: #1e1e1e;
+  --accent-emphasis: #ffffff;
+  --accent-base: #0070f3;
+  --accent-inverse: #0a0a0a;
 
-  --success: #34d399;
-  --warning: #fbbf24;
-  --danger: #f87171;
+  --success: #0070f3;
+  --warning: #f5a623;
+  --danger: #ee0000;
   
-  --brand-claude: #f97316; /* Soft natural brand colors */
+  --brand-claude: #f97316;
   --brand-opencode: #10b981;
   --brand-gemini: #eab308;
   --brand-codex: #3b82f6;
   --brand-antigravity: #06b6d4;
   --brand-copilot: #8b5cf6;
 
-  --md-surface: #141416;
-  --md-surface-strong: #18181b;
-  --md-border: #27272a;
-  --md-code-bg: #09090b;
-  --md-code-header: #141416;
-  --md-code-text: #e4e4e7; /* Soft light zinc text for code blocks */
-  --md-code-comment: #71717a; /* Clean zinc gray comments */
-  --md-code-keyword: #ff7b72; /* Premium soft red/coral */
-  --md-code-string: #7ee787; /* Gentle pastel green */
-  --md-code-number: #79c0ff; /* Muted sky blue */
-  --md-code-function: #d2a8ff; /* Soft professional purple/lavender */
-  --md-code-builtin: #ffa657; /* Warm soft orange */
-  --md-code-attr: #79c0ff;
-  --md-code-property: #a5d6ff;
-  --md-code-tag: #7ee787;
-  --md-code-operator: #ff7b72;
-  --md-code-meta: #a1a1aa;
-  --md-code-emphasis: #18181b;
-  --md-code-line-insert: rgba(16, 185, 129, 0.08);
-  --md-code-line-delete: rgba(239, 68, 68, 0.08);
-  --md-code-line-meta: rgba(59, 130, 246, 0.06);
-  --md-inline-code-bg: #27272a;
-  --md-inline-code-text: #f43f5e;
-  --md-link: #60a5fa;
-  --md-link-hover: #93c5fd;
-  --md-quote-border: #3f3f46;
-  --md-quote-bg: rgba(39, 39, 42, 0.3);
-  --md-table-stripe: rgba(255, 255, 255, 0.015);
+  --md-surface: #121212;
+  --md-surface-strong: #1a1a1a;
+  --md-border: #333333;
+  --md-code-bg: #0a0a0a;
+  --md-code-header: #121212;
+  --md-code-text: #eaeaea;
+  --md-code-comment: #666666;
+  --md-code-keyword: #ff0080;
+  --md-code-string: #3291ff;
+  --md-code-number: #d8ccf1;
+  --md-code-function: #eb367f;
+  --md-code-builtin: #f5a623;
+  --md-code-attr: #50e3c2;
+  --md-code-property: #3291ff;
+  --md-code-tag: #ff0080;
+  --md-code-operator: #ffffff;
+  --md-code-meta: #888888;
+  --md-code-emphasis: #1a1a1a;
+  --md-code-line-insert: rgba(0, 112, 243, 0.12);
+  --md-code-line-delete: rgba(238, 0, 0, 0.12);
+  --md-code-line-meta: rgba(121, 40, 202, 0.12);
+  --md-inline-code-bg: #2e2e2e;
+  --md-inline-code-text: #ff0080;
+  --md-link: #0070f3;
+  --md-link-hover: #3291ff;
+  --md-quote-border: #666666;
+  --md-quote-bg: rgba(30, 30, 30, 0.4);
+  --md-table-stripe: rgba(255, 255, 255, 0.02);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0px 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0px 4px 6px -1px rgba(0, 0, 0, 0.2), 0px 2px 4px -1px rgba(0, 0, 0, 0.1);
+  --shadow-modal: 0px 1px 1px rgba(0, 0, 0, 0.3), 0px 8px 16px -4px rgba(0, 0, 0, 0.4), 0px 24px 32px -8px rgba(0, 0, 0, 0.5);
+
+  /* Atmospheric Mesh Gradient Glow Configuration for Dark Theme */
+  --mesh-opacity: 0.45;
+  --mesh-color-1: rgba(0, 112, 243, 0.15);
+  --mesh-color-2: rgba(80, 227, 194, 0.12);
+  --mesh-color-3: rgba(121, 40, 202, 0.12);
+  --mesh-color-4: rgba(255, 0, 80, 0.10);
+  --mesh-color-5: rgba(245, 166, 35, 0.08);
 }
 
 *,
@@ -257,9 +271,9 @@ input[type="checkbox"] {
 .brand-block h1 {
   font-family: var(--font-brand);
   font-size: 18px; /* Increased from 16px */
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.3;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
   color: var(--text-primary);
 }
 
@@ -488,6 +502,25 @@ input[type="checkbox"] {
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-app);
+  position: relative;
+}
+
+.main-mount::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 400px;
+  background: radial-gradient(circle at 50% -120px, var(--mesh-color-1), transparent 50%),
+              radial-gradient(circle at 10% -50px, var(--mesh-color-2), transparent 35%),
+              radial-gradient(circle at 90% -50px, var(--mesh-color-3), transparent 35%),
+              radial-gradient(circle at 30% 180px, var(--mesh-color-4), transparent 25%),
+              radial-gradient(circle at 75% 150px, var(--mesh-color-5), transparent 25%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--mesh-opacity);
+  transition: opacity var(--transition);
 }
 
 .sidebar-dock {
@@ -1006,10 +1039,10 @@ html[data-theme="dark"] .log-role-badge.system {
 .chat-heading h1 {
   font-family: var(--font-brand);
   font-size: 18px; /* Increased from 16px for visual prominence */
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.3;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1118,6 +1151,8 @@ html[data-theme="dark"] .log-role-badge.system {
   flex-direction: column;
   gap: 16px;
   opacity: 0; /* Hidden initially during asynchronous chunk rendering to prevent flashes of top of the log */
+  position: relative;
+  z-index: 1;
 }
 
 /* Timeline Layout */
@@ -1376,7 +1411,7 @@ html[data-theme="dark"] .log-role-badge.system {
 .md-heading {
   color: var(--text-primary);
   font-family: var(--font-brand);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.3;
   margin-top: 8px;
 }
@@ -1389,18 +1424,22 @@ html[data-theme="dark"] .log-role-badge.system {
 
 .md-heading-1 {
   font-size: 1.6em;
+  letter-spacing: -0.03em;
 }
 
 .md-heading-2 {
   font-size: 1.3em;
+  letter-spacing: -0.02em;
 }
 
 .md-heading-3 {
   font-size: 1.15em;
+  letter-spacing: -0.01em;
 }
 
 .md-heading-4 {
   font-size: 1em;
+  letter-spacing: -0.01em;
 }
 
 .md-heading-5,
