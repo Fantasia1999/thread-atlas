@@ -371,13 +371,13 @@ async function collectRemotePaths(
       source: "antigravity",
       kind: "file",
       script:
-        `{ find "$HOME/.gemini/antigravity/brain" -type f -path '*/.system_generated/logs/transcript_full.jsonl' 2>/dev/null; find "$HOME/.gemini/antigravity/conversations" -type f -name '*.pb' 2>/dev/null; } | head -n ${MAX_REMOTE_RESULTS}`
+        `{ find "$HOME/.gemini/antigravity/brain" -type f -path '*/.system_generated/logs/transcript_full.jsonl' 2>/dev/null; find "$HOME/.gemini/antigravity/conversations" -type f \\( -name '*.pb' -o -name '*.db' \\) 2>/dev/null; } | head -n ${MAX_REMOTE_RESULTS}`
     },
     {
       source: "antigravity",
       kind: "file",
       script:
-        `{ find "$HOME/.gemini/antigravity-cli/brain" -type f -path '*/.system_generated/logs/transcript_full.jsonl' 2>/dev/null; find "$HOME/.gemini/antigravity-cli/conversations" -type f -name '*.pb' 2>/dev/null; find "$HOME/.gemini/antigravity-cli/implicit" -type f -name '*.pb' 2>/dev/null; } | head -n ${MAX_REMOTE_RESULTS}`
+        `{ find "$HOME/.gemini/antigravity-cli/brain" -type f -path '*/.system_generated/logs/transcript_full.jsonl' 2>/dev/null; find "$HOME/.gemini/antigravity-cli/conversations" -type f \\( -name '*.pb' -o -name '*.db' \\) 2>/dev/null; find "$HOME/.gemini/antigravity-cli/implicit" -type f \\( -name '*.pb' -o -name '*.db' \\) 2>/dev/null; } | head -n ${MAX_REMOTE_RESULTS}`
     },
     {
       source: "copilot",
@@ -454,7 +454,13 @@ function antigravityRemoteSessionId(remotePath: string): string | undefined {
     return transcriptMatch[1];
   }
 
-  return normalized.endsWith(".pb") ? path.posix.basename(normalized, ".pb") : undefined;
+  if (normalized.endsWith(".pb")) {
+    return path.posix.basename(normalized, ".pb");
+  }
+  if (normalized.endsWith(".db")) {
+    return path.posix.basename(normalized, ".db");
+  }
+  return undefined;
 }
 
 function preferAntigravityRemotePath(candidate: string, current: string): boolean {
