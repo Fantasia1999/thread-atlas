@@ -204,14 +204,14 @@ export function buildAntigravityDescriptor(
 
   let title: string | undefined;
   let hasToleratedError = false;
-  if (content && isAntigravityTranscriptPath(absolutePath)) {
-    hasToleratedError = hasJsonLinesParseError(content);
+  if (content) {
+    if (isAntigravityTranscriptPath(absolutePath)) {
+      hasToleratedError = hasJsonLinesParseError(content);
+    }
     title = extractAntigravityPreviewTitle(content);
   }
 
-  const baseTitle = title ?? (isAntigravityTranscriptPath(absolutePath)
-    ? buildAntigravityTitle(cascadeId)
-    : path.basename(absolutePath));
+  const baseTitle = title ?? buildAntigravityTitle(cascadeId);
 
   const displayTitle = hasToleratedError ? `⚠️ ${baseTitle}` : baseTitle;
 
