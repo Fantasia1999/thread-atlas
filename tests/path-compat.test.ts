@@ -348,3 +348,124 @@ test("Antigravity loader handles transcript_full.jsonl with malformed/non-JSON l
   assert.ok(bundle.title.startsWith("⚠️ "));
 });
 
+test("Antigravity loader parses task messages from sibling messages directory and matches code_action", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "thread-atlas-antigravity-tasks-"));
+  const sessionId = "session-789";
+  const conversationPath = path.join(
+    root,
+    ".gemini",
+    "antigravity-cli",
+    "conversations",
+    `${sessionId}.pb`
+  );
+  const transcriptPath = path.join(
+    root,
+    ".gemini",
+    "antigravity-cli",
+    "brain",
+    sessionId,
+    ".system_generated",
+    "logs",
+    "transcript_full.jsonl"
+  );
+  const messagesDir = path.join(
+    root,
+    ".gemini",
+    "antigravity-cli",
+    "brain",
+    sessionId,
+    ".system_generated",
+    "messages"
+  );
+
+  await fs.mkdir(path.dirname(conversationPath), { recursive: true });
+  await fs.mkdir(path.dirname(transcriptPath), { recursive: true });
+  await fs.mkdir(messagesDir, { recursive: true });
+
+  // Write transcript starting from step 252 (rolled over)
+  await fs.writeFile(
+    transcriptPath,
+    [
+      JSON.stringify({
+        step_index: 252,
+        source: "USER_EXPLICIT",
+        type: "USER_INPUT",
+        status: "DONE",
+        created_at: "2026-01-01T00:10:00.000Z",
+        content: "run next step"
+      }),
+      JSON.stringify({
+        step_index: 253,
+        source: "MODEL",
+        type: "PLANNER_RESPONSE",
+        status: "DONE",
+        created_at: "2026-01-01T00:10:01.000Z",
+        tool_calls: [{ name: "replace_file_content", args: { file: "a.txt" } }]
+      }),
+      JSON.stringify({
+        step_index: 254,
+        source: "MODEL",
+        type: "CODE_ACTION",
+        status: "DONE",
+        created_at: "2026-01-01T00:10:02.000Z",
+        content: "diff content"
+      })
+    ].join("\n")
+  );
+
+  // Write a task message under messages/ (step 106, before 252)
+  const taskMsg = {
+    id: "msg-106",
+    recipient: sessionId,
+    sender: `${sessionId}/task-106`,
+    priority: "MESSAGE_PRIORITY_HIGH",
+    timestamp: "2026-01-01T00:05:00.000Z",
+    content: "Task failed with error ...",
+    sourceMetadata: {
+      tool: {
+        conversationId: sessionId,
+        stepIndex: 106,
+        toolCall: {
+          id: "toolcall-106",
+          name: "run_command",
+          argumentsJson: "{\"CommandLine\":\"npm test\"}"
+        }
+      }
+    }
+  };
+  await fs.writeFile(
+    path.join(messagesDir, "task-106.json"),
+    JSON.stringify(taskMsg)
+  );
+
+  const bundle = await loadAntigravityBundle(conversationPath, "local");
+  const parsedRecords = bundle.files[0]?.content
+    ? bundle.files[0].content.split("\n").map((line) => JSON.parse(line))
+    : [];
+
+  // Verify that the task-106 records were successfully reconstructed and integrated
+  const toolCalls106 = parsedRecords.filter((r) => r.record_type === "tool_call" && r.step_index === 106);
+  const toolResults106 = parsedRecords.filter((r) => r.record_type === "tool_result" && r.step_index === 106);
+  assert.equal(toolCalls106.length, 1);
+  assert.equal(toolResults106.length, 1);
+  assert.equal(toolCalls106[0].tool_name, "run_command");
+  assert.equal(toolCalls106[0].tool_call.id, "toolcall-106");
+  assert.equal(toolResults106[0].tool_call.id, "toolcall-106");
+  assert.equal(toolResults106[0].content, "Task failed with error ...");
+
+  // Verify chronological ordering: step 106 records should come before step 252
+  const indexOf106 = parsedRecords.findIndex((r) => r.step_index === 106);
+  const indexOf252 = parsedRecords.findIndex((r) => r.step_index === 252);
+  assert.ok(indexOf106 < indexOf252);
+
+  // Verify code_action matching: step 254 (CODE_ACTION) should match step 253's replace_file_content tool call ID
+  const toolCall253 = parsedRecords.find((r) => r.record_type === "tool_call" && r.step_index === 253);
+  const toolResult254 = parsedRecords.find((r) => r.record_type === "tool_result" && r.step_index === 254);
+  assert.ok(toolCall253);
+  assert.ok(toolResult254);
+  assert.equal(toolCall253.tool_name, "replace_file_content");
+  assert.equal(toolResult254.tool_name, "replace_file_content"); // mapped from code_action
+  assert.equal(toolResult254.tool_call.id, toolCall253.tool_call.id); // matched successfully!
+});
+
+

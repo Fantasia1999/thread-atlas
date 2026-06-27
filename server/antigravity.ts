@@ -344,6 +344,146 @@ async function loadAntigravityTranscriptBundle(
   const cascadeId = antigravitySessionIdFromPath(absolutePath) ?? path.basename(absolutePath);
   const rows = parseJsonLines(content);
   const records = buildChatRecordsFromTranscriptRows(cascadeId, rows, absolutePath);
+
+  // Read sibling messages directory if it exists
+  const messagesDir = path.resolve(path.dirname(absolutePath), "../messages");
+  let messageFiles: string[] = [];
+  try {
+    const entries = await fs.readdir(messagesDir, { withFileTypes: true });
+    messageFiles = entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json") && entry.name !== "read.json")
+      .map((entry) => path.join(messagesDir, entry.name));
+  } catch {
+    // Sibling messages directory might not exist
+  }
+
+  const messageDataList: any[] = [];
+  if (messageFiles.length > 0) {
+    await Promise.all(
+      messageFiles.map(async (filePath) => {
+        try {
+          const fileContent = await fs.readFile(filePath, "utf8");
+          messageDataList.push(JSON.parse(fileContent));
+        } catch {
+          // Ignore parse errors for individual message files
+        }
+      })
+    );
+  }
+
+  // Sort messages by timestamp
+  messageDataList.sort((a, b) => {
+    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    return timeA - timeB;
+  });
+
+  const parsedStepIndices = new Set<number>();
+  for (const [index, row] of rows.entries()) {
+    const stepIdx = typeof row.step_index === "number" ? row.step_index : index;
+    parsedStepIndices.add(stepIdx);
+  }
+
+  for (const message of messageDataList) {
+    const stepIndex = message.sourceMetadata?.tool?.stepIndex;
+    if (typeof stepIndex === "number" && parsedStepIndices.has(stepIndex)) {
+      continue;
+    }
+
+    const createdAt = message.timestamp;
+    const msgContent = message.content;
+    const toolCall = message.sourceMetadata?.tool?.toolCall;
+
+    if (toolCall) {
+      const toolName = toolCall.name;
+      const toolCallId = toolCall.id;
+      let parsedArgs: any = {};
+      try {
+        parsedArgs = JSON.parse(toolCall.argumentsJson);
+      } catch {
+        parsedArgs = toolCall.argumentsJson;
+      }
+
+      records.push({
+        record_type: "tool_call",
+        profile: "chat",
+        role: "assistant",
+        cascade_id: cascadeId,
+        source_json: absolutePath,
+        step_index: stepIndex,
+        tool_call_index: 0,
+        created_at: createdAt,
+        tool_name: toolName,
+        tool_call: {
+          id: toolCallId,
+          name: toolName,
+          arguments: parsedArgs
+        }
+      });
+
+      records.push({
+        record_type: "tool_result",
+        profile: "chat",
+        role: "tool",
+        cascade_id: cascadeId,
+        source_json: absolutePath,
+        step_index: stepIndex,
+        created_at: createdAt,
+        completed_at: createdAt,
+        tool_name: toolName,
+        tool_call: {
+          id: toolCallId,
+          name: toolName
+        },
+        payload_key: toolName,
+        payload: message,
+        content: msgContent
+      });
+    } else {
+      records.push({
+        record_type: "message",
+        profile: "chat",
+        role: "system",
+        cascade_id: cascadeId,
+        source_json: absolutePath,
+        step_index: typeof stepIndex === "number" ? stepIndex : -1,
+        created_at: createdAt,
+        content: msgContent,
+        message_type: "system"
+      });
+    }
+  }
+
+  // Sort all records (excluding session_meta) by step index or timestamp
+  if (records.length > 1) {
+    const metaRecord = records[0];
+    const otherRecords = records.slice(1);
+    otherRecords.sort((a: any, b: any) => {
+      const idxA = typeof a.step_index === "number" ? a.step_index : -1;
+      const idxB = typeof b.step_index === "number" ? b.step_index : -1;
+      if (idxA !== idxB) {
+        return idxA - idxB;
+      }
+
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+
+      const typeOrder: Record<string, number> = {
+        "message": 0,
+        "tool_call": 1,
+        "tool_result": 2,
+        "artifact": 3
+      };
+      const orderA = typeOrder[a.record_type] ?? 99;
+      const orderB = typeOrder[b.record_type] ?? 99;
+      return orderA - orderB;
+    });
+    records.splice(1, records.length - 1, ...otherRecords);
+  }
+
   const recordsContent = records.map((record) => JSON.stringify(record)).join("\n");
   const firstUserTitle = extractAntigravityPreviewTitle(recordsContent);
   let title = firstUserTitle ?? descriptor.title;
@@ -1422,7 +1562,17 @@ function buildChatRecordsFromTranscriptRows(
     }
 
     if (content || stepType) {
-      const toolName = transcriptToolName(stepType);
+      let toolName = transcriptToolName(stepType);
+      if (toolName === "code_action") {
+        const candidates = ["replace_file_content", "write_to_file", "multi_replace_file_content", "write_file", "edit_file"];
+        for (const candidate of candidates) {
+          if (pendingToolCallIds.has(candidate)) {
+            toolName = candidate;
+            break;
+          }
+        }
+      }
+
       const pendingIds = pendingToolCallIds.get(toolName) ?? [];
       const toolCallId = pendingIds.shift() ?? `${row.step_index ?? index}:result`;
       if (pendingIds.length > 0) {
