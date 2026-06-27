@@ -1,4 +1,5 @@
 import { createDecipheriv } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -103,7 +104,7 @@ export function isAntigravityConversationPath(absolutePath: string): boolean {
     (normalized.includes("/.gemini/antigravity/conversations/") ||
       normalized.includes("/.gemini/antigravity-cli/conversations/") ||
       normalized.includes("/.gemini/antigravity-cli/implicit/")) &&
-    normalized.endsWith(".pb")
+    (normalized.endsWith(".pb") || normalized.endsWith(".db"))
   );
 }
 
@@ -124,7 +125,7 @@ export function antigravitySessionIdFromPath(absolutePath: string): string | und
   }
 
   if (isAntigravityConversationPath(absolutePath)) {
-    return path.basename(absolutePath, ".pb");
+    return path.basename(absolutePath, absolutePath.toLowerCase().endsWith(".db") ? ".db" : ".pb");
   }
 
   return undefined;
@@ -134,19 +135,36 @@ export async function resolvePreferredAntigravitySessionPath(
   absolutePath: string
 ): Promise<string | undefined> {
   if (isAntigravityTranscriptPath(absolutePath)) {
+    const fallback = resolveConversationPathFromTranscriptPath(absolutePath);
+    if (fallback) {
+      const dbFallback = fallback.replace(/\.pb$/, ".db");
+      if (await fileExists(dbFallback)) {
+        return dbFallback;
+      }
+    }
+
     if (await isParseableJsonLinesFile(absolutePath)) {
       return absolutePath;
     }
 
-    const fallback = resolveConversationPathFromTranscriptPath(absolutePath);
-    return fallback && (await fileExists(fallback)) ? fallback : undefined;
+    if (fallback && (await fileExists(fallback))) {
+      return fallback;
+    }
+
+    return undefined;
   }
 
   if (!isAntigravityConversationPath(absolutePath)) {
     return undefined;
   }
 
-  const cascadeId = path.basename(absolutePath, ".pb");
+  const isDb = absolutePath.toLowerCase().endsWith(".db");
+  const dbPath = isDb ? absolutePath : absolutePath.replace(/\.pb$/, ".db");
+  if (await fileExists(dbPath)) {
+    return dbPath;
+  }
+
+  const cascadeId = path.basename(absolutePath, isDb ? ".db" : ".pb");
   const transcriptPath = resolveTranscriptPathFromConversationPath(absolutePath, cascadeId);
   if (transcriptPath && (await isParseableJsonLinesFile(transcriptPath))) {
     return transcriptPath;
@@ -539,6 +557,49 @@ export class DirectPbDecoder {
     return isRecord(trajectory) ? trajectory : { cascadeId };
   }
 
+  async decodeTrajectoryDbFile(
+    absolutePath: string,
+    cascadeId?: string
+  ): Promise<Record<string, unknown>> {
+    const db = new DatabaseSync(absolutePath);
+    let trajectoryId = "";
+    let finalCascadeId = cascadeId ?? "";
+
+    try {
+      const metaRow = db.prepare("SELECT trajectory_id, cascade_id FROM trajectory_meta LIMIT 1;").get() as any;
+      if (metaRow) {
+        trajectoryId = metaRow.trajectory_id ?? "";
+        finalCascadeId = metaRow.cascade_id ?? finalCascadeId;
+      }
+    } catch {
+      // Ignore meta query errors
+    }
+
+    const steps: any[] = [];
+    try {
+      const query = db.prepare("SELECT idx, step_payload FROM steps ORDER BY idx;");
+      const rows = query.all() as any[];
+      for (const row of rows) {
+        if (row.step_payload) {
+          try {
+            const step = this.decodeMessage(".gemini_coder.Step", Buffer.from(row.step_payload));
+            steps.push(step);
+          } catch {
+            // Ignore individual step decode errors
+          }
+        }
+      }
+    } catch {
+      // Ignore query errors
+    }
+
+    return {
+      cascadeId: finalCascadeId,
+      trajectoryId,
+      steps
+    };
+  }
+
   private loadTrajectoryDescriptors(): void {
     let loadedTrajectory = false;
 
@@ -872,7 +933,10 @@ async function tryDecodeAntigravityTrajectory(
 ): Promise<DecodedTrajectoryResult | null> {
   try {
     const decoder = DirectPbDecoder.fromDescriptorFiles(descriptorFiles);
-    const trajectory = await decoder.decodeTrajectoryFile(absolutePath, cascadeId);
+    const isDb = absolutePath.toLowerCase().endsWith(".db");
+    const trajectory = isDb
+      ? await decoder.decodeTrajectoryDbFile(absolutePath, cascadeId)
+      : await decoder.decodeTrajectoryFile(absolutePath, cascadeId);
     return {
       descriptorSource,
       trajectory

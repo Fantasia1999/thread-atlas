@@ -490,7 +490,8 @@ function isSessionLikeFile(absolutePath: string): boolean {
     name === "opencode.db" ||
     name.endsWith(".jsonl") ||
     name.endsWith(".json") ||
-    name.endsWith(".pb")
+    name.endsWith(".pb") ||
+    (name.endsWith(".db") && absolutePath.includes("/conversations/"))
   );
 }
 

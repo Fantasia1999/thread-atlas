@@ -57,6 +57,10 @@ test("inferSourceFromPath recognizes Windows session roots", () => {
     "antigravity"
   );
   assert.equal(
+    inferSourceFromPath("C:\\Users\\alice\\.gemini\\antigravity-cli\\conversations\\abc.db"),
+    "antigravity"
+  );
+  assert.equal(
     inferSourceFromPath(
       "C:\\Users\\alice\\.gemini\\antigravity-cli\\brain\\abc\\.system_generated\\logs\\transcript_full.jsonl"
     ),
