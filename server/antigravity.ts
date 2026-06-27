@@ -204,14 +204,53 @@ export function buildAntigravityDescriptor(
 
   let title: string | undefined;
   let hasToleratedError = false;
-  if (content) {
+  
+  const isDb = absolutePath.toLowerCase().endsWith(".db");
+
+  if (content && !isDb) {
     if (isAntigravityTranscriptPath(absolutePath)) {
       hasToleratedError = hasJsonLinesParseError(content);
     }
     title = extractAntigravityPreviewTitle(content);
   }
 
-  const baseTitle = title ?? buildAntigravityTitle(cascadeId);
+  let primaryWorkspace: string | undefined;
+  if (isDb) {
+    try {
+      const db = new DatabaseSync(absolutePath);
+      const query = db.prepare("SELECT idx, step_payload FROM steps ORDER BY idx;");
+      const rows = query.all() as any[];
+      
+      const decoder = DirectPbDecoder.fromDescriptorFiles(loadBundledDescriptorFiles());
+      for (const row of rows) {
+        if (row.step_payload) {
+          try {
+            const step = decoder.decodeMessage(".gemini_coder.Step", Buffer.from(row.step_payload)) as any;
+            if (step && typeof step === "object") {
+              if (!title && step.type === "CORTEX_STEP_TYPE_USER_INPUT" && typeof step.userInput?.userResponse === "string") {
+                title = step.userInput.userResponse;
+                if (title && title.length > 80) {
+                  title = title.slice(0, 80) + "...";
+                }
+              }
+              if (!primaryWorkspace && step.metadata?.workspaces) {
+                primaryWorkspace = extractPrimaryWorkspace(step.metadata.workspaces);
+              }
+            }
+          } catch {
+            // Ignore
+          }
+        }
+        if (title && primaryWorkspace) {
+          break;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  const baseTitle = title ?? buildAntigravityTitle(cascadeId, primaryWorkspace);
 
   const displayTitle = hasToleratedError ? `⚠️ ${baseTitle}` : baseTitle;
 
@@ -789,7 +828,7 @@ export class DirectPbDecoder {
     return messageDescriptor;
   }
 
-  private decodeMessage(typeName: string, buffer: Buffer): unknown {
+  decodeMessage(typeName: string, buffer: Buffer): unknown {
     if (typeName === ".google.protobuf.Timestamp") {
       const timestampFields = protobufFieldsDict(buffer);
       return formatTimestamp(numberFieldValue(timestampFields, 1) ?? 0, numberFieldValue(timestampFields, 2) ?? 0);
