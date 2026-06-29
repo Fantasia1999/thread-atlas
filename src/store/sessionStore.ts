@@ -30,14 +30,7 @@ interface CachedDescriptorsPayload {
   descriptors: SessionDescriptor[];
 }
 
-const ACTIVE_SESSION_CACHE_KEY = "thread-atlas-cached-active-session";
-const ACTIVE_SESSION_CACHE_VERSION = 1;
 
-interface CachedSessionPayload {
-  version: number;
-  key: string;
-  session: Session;
-}
 
 type Listener = (state: StoreState) => void;
 
@@ -71,27 +64,7 @@ export class SessionStore {
         return undefined;
       }
     })(),
-    sessions: (() => {
-      const map = new Map<string, Session>();
-      try {
-        const val = localStorage.getItem(ACTIVE_SESSION_CACHE_KEY);
-        if (val) {
-          const parsed = JSON.parse(val) as unknown;
-          if (
-            parsed &&
-            typeof parsed === "object" &&
-            (parsed as CachedSessionPayload).version === ACTIVE_SESSION_CACHE_VERSION &&
-            (parsed as CachedSessionPayload).key &&
-            (parsed as CachedSessionPayload).session
-          ) {
-            map.set((parsed as CachedSessionPayload).key, (parsed as CachedSessionPayload).session);
-          }
-        }
-      } catch {
-        // ignore
-      }
-      return map;
-    })(),
+    sessions: new Map(),
     sourceFilter: (() => {
       const val = localStorage.getItem("thread-atlas-source-filter");
       if (
@@ -436,18 +409,7 @@ export class SessionStore {
         status: `Viewing ${session.title}.`
       });
 
-      if (key === this.state.selectedKey) {
-        try {
-          const payload: CachedSessionPayload = {
-            version: ACTIVE_SESSION_CACHE_VERSION,
-            key,
-            session
-          };
-          localStorage.setItem(ACTIVE_SESSION_CACHE_KEY, JSON.stringify(payload));
-        } catch {
-          // ignore
-        }
-      }
+
     } catch (error) {
       this.updateState({
         loadingSession: false,
