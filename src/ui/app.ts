@@ -8,6 +8,7 @@ import { createConnectionModal } from "./connectionModal.js";
 import { createExportMdModal } from "./exportMdModal.js";
 import { createFilePreviewModal, parseFileLink, isSupportedPreview } from "./filePreviewModal.js";
 import { showToast, copyText } from "./utils.js";
+import { cleanupMermaid } from "./mermaidRender.js";
 
 type AppTheme = "light" | "dark";
 
@@ -370,6 +371,8 @@ export class ThreadAtlasApp {
     }
 
     this.restoreSidebarScroll();
+
+    void cleanupMermaid();
 
     this.mainMount.replaceChildren(
       renderChatView({
