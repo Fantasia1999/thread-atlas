@@ -22,6 +22,23 @@ export interface StoreState {
   hiddenProjects: Set<string>;
 }
 
+const CACHED_DESCRIPTORS_KEY = "thread-atlas-cached-descriptors";
+const CACHED_DESCRIPTORS_VERSION = 1;
+
+interface CachedDescriptorsPayload {
+  version: number;
+  descriptors: SessionDescriptor[];
+}
+
+const ACTIVE_SESSION_CACHE_KEY = "thread-atlas-cached-active-session";
+const ACTIVE_SESSION_CACHE_VERSION = 1;
+
+interface CachedSessionPayload {
+  version: number;
+  key: string;
+  session: Session;
+}
+
 type Listener = (state: StoreState) => void;
 
 export class SessionStore {
@@ -29,8 +46,52 @@ export class SessionStore {
   private importedBundles = new Map<string, SessionBundle>();
   private cachedKeysOrder: string[] = [];
   private state: StoreState = {
-    descriptors: [],
-    sessions: new Map(),
+    descriptors: (() => {
+      try {
+        const val = localStorage.getItem(CACHED_DESCRIPTORS_KEY);
+        if (!val) return [];
+        const parsed = JSON.parse(val) as unknown;
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          (parsed as CachedDescriptorsPayload).version === CACHED_DESCRIPTORS_VERSION &&
+          Array.isArray((parsed as CachedDescriptorsPayload).descriptors)
+        ) {
+          return (parsed as CachedDescriptorsPayload).descriptors;
+        }
+      } catch {
+        // ignore
+      }
+      return [];
+    })(),
+    selectedKey: (() => {
+      try {
+        return localStorage.getItem("thread-atlas-selected-session-key") ?? undefined;
+      } catch {
+        return undefined;
+      }
+    })(),
+    sessions: (() => {
+      const map = new Map<string, Session>();
+      try {
+        const val = localStorage.getItem(ACTIVE_SESSION_CACHE_KEY);
+        if (val) {
+          const parsed = JSON.parse(val) as unknown;
+          if (
+            parsed &&
+            typeof parsed === "object" &&
+            (parsed as CachedSessionPayload).version === ACTIVE_SESSION_CACHE_VERSION &&
+            (parsed as CachedSessionPayload).key &&
+            (parsed as CachedSessionPayload).session
+          ) {
+            map.set((parsed as CachedSessionPayload).key, (parsed as CachedSessionPayload).session);
+          }
+        }
+      } catch {
+        // ignore
+      }
+      return map;
+    })(),
     sourceFilter: (() => {
       const val = localStorage.getItem("thread-atlas-source-filter");
       if (
@@ -257,6 +318,39 @@ export class SessionStore {
     const targets = this.connection.getScanTargets();
     const collected: SessionDescriptor[] = [];
     const errors: string[] = [];
+    const machineCount = targets.length;
+    let completedCount = 0;
+
+    const updatePartialResults = (isDone: boolean) => {
+      const merged = mergeDescriptors(this.importedBundles, collected);
+      const selectedKey = resolveSelectedKey(merged, this.state.selectedKey);
+      const status = isDone
+        ? (errors.length > 0
+            ? `Loaded ${merged.length} sessions from ${machineCount - errors.length}/${machineCount} connections. ${errors.join("; ")}`
+            : `Loaded ${merged.length} sessions from ${machineCount} connection${machineCount === 1 ? "" : "s"}.`)
+        : `Scanning connections (${completedCount}/${machineCount})... loaded ${merged.length} sessions.`;
+
+      this.updateState({
+        descriptors: merged,
+        selectedKey: selectedKey ?? this.state.selectedKey,
+        loadingScan: !isDone,
+        status
+      });
+
+      if (isDone && merged.length > 0) {
+        try {
+          const payload: CachedDescriptorsPayload = {
+            version: CACHED_DESCRIPTORS_VERSION,
+            descriptors: merged.slice(0, 300)
+          };
+          localStorage.setItem(CACHED_DESCRIPTORS_KEY, JSON.stringify(payload));
+        } catch {
+          // Ignore storage errors
+        }
+      }
+
+      return selectedKey;
+    };
 
     await Promise.all(
       targets.map(async (target) => {
@@ -277,29 +371,21 @@ export class SessionStore {
           }
         } catch (error) {
           errors.push(`${target.label}: ${error instanceof Error ? error.message : "scan failed"}`);
+        } finally {
+          completedCount++;
+          updatePartialResults(completedCount === machineCount);
         }
       })
     );
 
     const merged = mergeDescriptors(this.importedBundles, collected);
-    const selectedKey = resolveSelectedKey(merged, this.state.selectedKey);
+    const finalSelectedKey = resolveSelectedKey(merged, this.state.selectedKey);
+    const selectPromise = (finalSelectedKey && !this.state.sessions.has(finalSelectedKey))
+      ? this.selectSession(finalSelectedKey)
+      : Promise.resolve();
 
-    const machineCount = targets.length;
-    const status =
-      errors.length > 0
-        ? `Loaded ${merged.length} sessions from ${machineCount - errors.length}/${machineCount} connections. ${errors.join("; ")}`
-        : `Loaded ${merged.length} sessions from ${machineCount} connection${machineCount === 1 ? "" : "s"}.`;
-
-    this.updateState({
-      descriptors: merged,
-      selectedKey,
-      loadingScan: false,
-      status
-    });
-
-    if (selectedKey && !this.state.sessions.has(selectedKey)) {
-      await this.selectSession(selectedKey);
-    }
+    updatePartialResults(true);
+    await selectPromise;
   }
 
   async selectSession(key: string): Promise<void> {
@@ -349,6 +435,19 @@ export class SessionStore {
         loadingSession: false,
         status: `Viewing ${session.title}.`
       });
+
+      if (key === this.state.selectedKey) {
+        try {
+          const payload: CachedSessionPayload = {
+            version: ACTIVE_SESSION_CACHE_VERSION,
+            key,
+            session
+          };
+          localStorage.setItem(ACTIVE_SESSION_CACHE_KEY, JSON.stringify(payload));
+        } catch {
+          // ignore
+        }
+      }
     } catch (error) {
       this.updateState({
         loadingSession: false,

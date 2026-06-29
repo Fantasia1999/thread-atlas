@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import zlib from "node:zlib";
 
 import { resolveAgentConfig } from "./agentConfig.js";
 import { resolveLocalScanRoots } from "./platformRoots.js";
@@ -279,7 +280,22 @@ function handleJsonRoute(
 ) {
   return async (request: Request, response: Response): Promise<void> => {
     try {
-      response.json(await handler(request));
+      const data = await handler(request);
+      const jsonString = JSON.stringify(data);
+      const acceptEncoding = request.header("accept-encoding") ?? "";
+      if (acceptEncoding.includes("gzip") && jsonString.length > 1024) {
+        zlib.gzip(Buffer.from(jsonString, "utf8"), (err, compressed) => {
+          if (err) {
+            response.json(data);
+            return;
+          }
+          response.setHeader("Content-Type", "application/json; charset=utf-8");
+          response.setHeader("Content-Encoding", "gzip");
+          response.send(compressed);
+        });
+      } else {
+        response.json(data);
+      }
     } catch (error) {
       response.status(error instanceof HttpError ? error.status : errorStatus).json({
         ok: false,

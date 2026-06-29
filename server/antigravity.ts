@@ -102,8 +102,7 @@ export function isAntigravityConversationPath(absolutePath: string): boolean {
   const normalized = absolutePath.replaceAll("\\", "/").toLowerCase();
   return (
     (normalized.includes("/.gemini/antigravity/conversations/") ||
-      normalized.includes("/.gemini/antigravity-cli/conversations/") ||
-      normalized.includes("/.gemini/antigravity-cli/implicit/")) &&
+      normalized.includes("/.gemini/antigravity-cli/conversations/")) &&
     (normalized.endsWith(".pb") || normalized.endsWith(".db"))
   );
 }
@@ -183,8 +182,29 @@ export async function isScannableAntigravitySessionPath(absolutePath: string): P
   }
 
   try {
-    const { trajectory } = await decodeAntigravityTrajectory(absolutePath);
-    return isTrajectoryDecodeUsable(trajectory);
+    const isDb = absolutePath.toLowerCase().endsWith(".db");
+    if (isDb) {
+      const db = new DatabaseSync(absolutePath, { readOnly: true });
+      try {
+        db.prepare("SELECT 1 FROM steps LIMIT 1;").get();
+        return true;
+      } finally {
+        db.close();
+      }
+    }
+
+    const encrypted = await fs.readFile(absolutePath);
+    if (encrypted.length < 28) {
+      return false;
+    }
+    const nonce = encrypted.subarray(0, 12);
+    const ciphertext = encrypted.subarray(12, encrypted.length - 16);
+    const tag = encrypted.subarray(encrypted.length - 16);
+    const decipher = createDecipheriv("aes-256-gcm", ANTIGRAVITY_KEY, nonce);
+    decipher.setAuthTag(tag);
+    decipher.update(ciphertext);
+    decipher.final();
+    return true;
   } catch {
     return false;
   }
@@ -217,11 +237,11 @@ export function buildAntigravityDescriptor(
   let primaryWorkspace: string | undefined;
   if (isDb) {
     try {
-      const db = new DatabaseSync(absolutePath);
-      const query = db.prepare("SELECT idx, step_payload FROM steps ORDER BY idx;");
+      const db = new DatabaseSync(absolutePath, { readOnly: true });
+      const query = db.prepare("SELECT idx, step_payload FROM steps ORDER BY idx LIMIT 10;");
       const rows = query.all() as any[];
       
-      const decoder = DirectPbDecoder.fromDescriptorFiles(loadBundledDescriptorFiles());
+      const decoder = getSharedDirectPbDecoder();
       for (const row of rows) {
         if (row.step_payload) {
           try {
@@ -983,6 +1003,15 @@ async function tryDecodeAntigravityTrajectory(
   } catch {
     return null;
   }
+}
+
+let sharedDecoderInstance: DirectPbDecoder | undefined;
+
+function getSharedDirectPbDecoder(): DirectPbDecoder {
+  if (!sharedDecoderInstance) {
+    sharedDecoderInstance = DirectPbDecoder.fromDescriptorFiles(loadBundledDescriptorFiles());
+  }
+  return sharedDecoderInstance;
 }
 
 export function loadBundledDescriptorFiles(): Map<string, Buffer> {
@@ -1842,8 +1871,27 @@ function resolveConversationPathFromTranscriptPath(absolutePath: string): string
 
 async function isParseableJsonLinesFile(absolutePath: string): Promise<boolean> {
   try {
-    const rows = parseJsonLines(await fs.readFile(absolutePath, "utf8"));
-    return rows.length > 0;
+    const handle = await fs.open(absolutePath, "r");
+    try {
+      const buffer = Buffer.alloc(4096);
+      const { bytesRead } = await handle.read(buffer, 0, 4096, 0);
+      if (bytesRead === 0) return false;
+      const text = buffer.toString("utf8", 0, bytesRead);
+      const lines = text.split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          JSON.parse(trimmed);
+          return true;
+        } catch {
+          // check next line in case of chunk split
+        }
+      }
+      return false;
+    } finally {
+      await handle.close();
+    }
   } catch {
     return false;
   }
@@ -1879,20 +1927,30 @@ function parseJsonLines(content: string): Array<Record<string, unknown>> {
 }
 
 function hasJsonLinesParseError(content: string): boolean {
-  const lines = content.split(/\r?\n/);
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
+  let start = 0;
+  let checked = 0;
+  while (start < content.length && checked < 5) {
+    let end = content.indexOf("\n", start);
+    if (end === -1) {
+      end = content.length;
+    }
+    let line = content.slice(start, end).trim();
+    if (line.endsWith("\r")) {
+      line = line.slice(0, -1).trim();
+    }
+    start = end + 1;
+    if (!line) {
       continue;
     }
     try {
-      const parsed = JSON.parse(trimmed) as unknown;
+      const parsed = JSON.parse(line) as unknown;
       if (!isRecord(parsed)) {
         return true;
       }
     } catch {
       return true;
     }
+    checked++;
   }
   return false;
 }

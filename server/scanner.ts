@@ -236,15 +236,24 @@ async function scanAntigravitySessions(
   );
   const preferredBySession = new Map<string, string>();
 
-  for (const absolutePath of candidates) {
-    const preferredPath = await resolvePreferredAntigravitySessionPath(absolutePath);
-    if (!preferredPath) {
-      continue;
-    }
-    if (!(await isScannableAntigravitySessionPath(preferredPath))) {
-      continue;
-    }
+  const resolvedCandidates = await Promise.all(
+    candidates.map(async (absolutePath) => {
+      const preferredPath = await resolvePreferredAntigravitySessionPath(absolutePath);
+      if (!preferredPath) {
+        return null;
+      }
+      if (!(await isScannableAntigravitySessionPath(preferredPath))) {
+        return null;
+      }
+      return { absolutePath, preferredPath };
+    })
+  );
 
+  for (const item of resolvedCandidates) {
+    if (!item) {
+      continue;
+    }
+    const { absolutePath, preferredPath } = item;
     const sessionId =
       antigravitySessionIdFromPath(preferredPath) ?? antigravitySessionIdFromPath(absolutePath);
     const dedupeKey = sessionId ? `${origin}:${sessionId}` : `${origin}:${preferredPath}`;
@@ -591,7 +600,14 @@ function buildFileDescriptor(
 
 async function readTextFileIfPossible(absolutePath: string): Promise<string | undefined> {
   try {
-    return await fs.readFile(absolutePath, "utf8");
+    const handle = await fs.open(absolutePath, "r");
+    try {
+      const buffer = Buffer.alloc(65536);
+      const { bytesRead } = await handle.read(buffer, 0, 65536, 0);
+      return buffer.toString("utf8", 0, bytesRead);
+    } finally {
+      await handle.close();
+    }
   } catch {
     return undefined;
   }

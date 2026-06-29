@@ -268,8 +268,10 @@ export class ThreadAtlasApp {
   }
 
   async init(): Promise<void> {
-    await this.store.getConnection().reconcileRemotes();
-    await this.store.refreshLocalScan();
+    await Promise.all([
+      this.store.getConnection().reconcileRemotes(),
+      this.store.refreshLocalScan()
+    ]);
   }
 
   private render(state: StoreState): void {
