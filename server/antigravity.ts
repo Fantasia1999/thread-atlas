@@ -4,9 +4,11 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 import type { MetadataValue, SessionBundle, SessionDescriptor } from "../src/parsers/types.js";
-import { BUNDLED_ANTIGRAVITY_DESCRIPTORS } from "./antigravityDescriptors.js";
 import { resolveLocalScanRoots } from "./platformRoots.js";
 import { extractAntigravityPreviewTitle } from "../src/parsers/antigravity.js";
 
@@ -1016,6 +1018,7 @@ function getSharedDirectPbDecoder(): DirectPbDecoder {
 
 export function loadBundledDescriptorFiles(): Map<string, Buffer> {
   if (!bundledDescriptorFiles) {
+    const { BUNDLED_ANTIGRAVITY_DESCRIPTORS } = require("./antigravityDescriptors.js");
     bundledDescriptorFiles = descriptorMapFromBase64(BUNDLED_ANTIGRAVITY_DESCRIPTORS);
   }
 
