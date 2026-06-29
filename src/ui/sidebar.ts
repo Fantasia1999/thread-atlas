@@ -356,7 +356,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     let hasRenderedPinnedHeader = false;
     let hasRenderedNormalHeader = false;
 
-    for (const descriptor of options.descriptors) {
+    const renderSingleDescriptor = (descriptor: SessionDescriptor) => {
       const isPinned = options.pinnedKeys.has(descriptor.key);
       const isFavorited = options.favoriteKeys.has(descriptor.key);
 
@@ -486,6 +486,44 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       }
 
       list.append(button);
+    };
+
+    const MAX_INITIAL_NORMAL = 200;
+    const pendingDescriptors: SessionDescriptor[] = [];
+    let renderedNormalCount = 0;
+
+    for (const descriptor of options.descriptors) {
+      const isPinned = options.pinnedKeys.has(descriptor.key);
+      const isSelected = descriptor.key === options.selectedKey;
+
+      if (!isPinned && !isSelected && renderedNormalCount >= MAX_INITIAL_NORMAL) {
+        pendingDescriptors.push(descriptor);
+        continue;
+      }
+
+      if (!isPinned) {
+        renderedNormalCount++;
+      }
+
+      renderSingleDescriptor(descriptor);
+    }
+
+    if (pendingDescriptors.length > 0) {
+      const moreBtn = document.createElement("button");
+      moreBtn.type = "button";
+      moreBtn.className = "button secondary show-more-sessions-btn";
+      moreBtn.style.width = "calc(100% - 16px)";
+      moreBtn.style.margin = "12px 8px";
+      moreBtn.style.padding = "8px 12px";
+      moreBtn.style.fontSize = "12px";
+      moreBtn.textContent = `Show full history (+${pendingDescriptors.length} remaining)`;
+      moreBtn.addEventListener("click", () => {
+        moreBtn.remove();
+        for (const descriptor of pendingDescriptors) {
+          renderSingleDescriptor(descriptor);
+        }
+      });
+      list.append(moreBtn);
     }
   }
 
