@@ -277,10 +277,19 @@ function renderSessionHeader(options: {
       exportBtn.classList.toggle("open", isHidden);
     });
 
-    document.addEventListener("click", () => {
-      exportMenu.classList.add("hidden");
-      exportBtn.classList.remove("open");
-    });
+    const clickOutsideHandler = (e: MouseEvent) => {
+      const isConnected = exportContainer.isConnected !== false;
+      if (!isConnected) {
+        document.removeEventListener("click", clickOutsideHandler);
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      if (!exportContainer.contains(target)) {
+        exportMenu.classList.add("hidden");
+        exportBtn.classList.remove("open");
+      }
+    };
+    document.addEventListener("click", clickOutsideHandler);
 
     exportContainer.append(exportBtn, exportMenu);
     actions.append(exportContainer);

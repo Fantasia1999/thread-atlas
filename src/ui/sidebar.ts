@@ -924,10 +924,19 @@ function createCustomDropdown(options: {
     }
   });
 
-  document.addEventListener("click", () => {
-    menu.classList.add("hidden");
-    trigger.classList.remove("open");
-  });
+  const clickOutsideHandler = (e: MouseEvent) => {
+    const isConnected = container.isConnected !== false;
+    if (!isConnected) {
+      document.removeEventListener("click", clickOutsideHandler);
+      return;
+    }
+    const target = e.target as HTMLElement | null;
+    if (!container.contains(target)) {
+      menu.classList.add("hidden");
+      trigger.classList.remove("open");
+    }
+  };
+  document.addEventListener("click", clickOutsideHandler);
 
   container.append(menu);
   return container;
