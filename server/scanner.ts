@@ -16,8 +16,9 @@ import {
   COPILOT_EVENTS_FILE
 } from "./copilot.js";
 import { resolveLocalScanRoots } from "./platformRoots.js";
-import { extractCodexPreviewTitle, extractCodexCwd } from "../src/parsers/codex.js";
+import { extractCodexPreviewTitle, extractCodexCwd, extractCodexParentThreadId, extractCodexSessionId } from "../src/parsers/codex.js";
 import { extractClaudePreviewTitle, extractClaudeCwd } from "../src/parsers/claude.js";
+import { parseJsonLines } from "../src/parsers/utils.js";
 import type {
   MetadataValue,
   SessionBundle,
@@ -568,19 +569,40 @@ function buildFileDescriptor(
   if (source === "antigravity") {
     return buildAntigravityDescriptor(absolutePath, origin, stats, content);
   }
+  let parsedRows: unknown[] | undefined;
+  if (content && (source === "codex" || source === "claude")) {
+    try {
+      parsedRows = parseJsonLines(content);
+    } catch {
+      // ignore
+    }
+  }
+
   const codexTitle =
-    source === "codex" && content ? extractCodexPreviewTitle(content) : undefined;
+    source === "codex" && parsedRows ? extractCodexPreviewTitle(parsedRows) : undefined;
   const claudeTitle =
-    source === "claude" && content ? extractClaudePreviewTitle(content) : undefined;
+    source === "claude" && parsedRows ? extractClaudePreviewTitle(parsedRows) : undefined;
   const claudeCwd =
-    source === "claude" && content ? extractClaudeCwd(content) : undefined;
+    source === "claude" && parsedRows ? extractClaudeCwd(parsedRows) : undefined;
   const codexCwd =
-    source === "codex" && content ? extractCodexCwd(content) : undefined;
+    source === "codex" && parsedRows ? extractCodexCwd(parsedRows) : undefined;
 
   const metadata: Record<string, MetadataValue> = {};
   const cwd = claudeCwd ?? codexCwd;
   if (cwd) {
     metadata.cwd = cwd;
+  }
+
+  const codexParentThreadId =
+    source === "codex" && parsedRows ? extractCodexParentThreadId(parsedRows) : undefined;
+  const codexSessionId =
+    source === "codex" && parsedRows ? extractCodexSessionId(parsedRows, absolutePath) : undefined;
+
+  if (codexParentThreadId) {
+    metadata.parentThreadId = codexParentThreadId;
+  }
+  if (codexSessionId) {
+    metadata.sessionId = codexSessionId;
   }
 
   return {

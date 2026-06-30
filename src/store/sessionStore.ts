@@ -20,6 +20,7 @@ export interface StoreState {
   favoriteKeys: Set<string>;
   favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
   hiddenProjects: Set<string>;
+  expandedSessionKeys: Set<string>;
 }
 
 const CACHED_DESCRIPTORS_KEY = "thread-atlas-cached-descriptors";
@@ -124,7 +125,8 @@ export class SessionStore {
       } catch {
         return new Set<string>();
       }
-    })()
+    })(),
+    expandedSessionKeys: new Set<string>()
   };
 
   subscribe(listener: Listener): () => void {
@@ -149,8 +151,19 @@ export class SessionStore {
       pinnedKeys: new Set(this.state.pinnedKeys),
       favoriteKeys: new Set(this.state.favoriteKeys),
       favoriteMetadata: new Map(this.state.favoriteMetadata),
-      hiddenProjects: new Set(this.state.hiddenProjects)
+      hiddenProjects: new Set(this.state.hiddenProjects),
+      expandedSessionKeys: new Set(this.state.expandedSessionKeys)
     };
+  }
+
+  toggleSessionCollapse(key: string): void {
+    const nextExpanded = new Set(this.state.expandedSessionKeys);
+    if (nextExpanded.has(key)) {
+      nextExpanded.delete(key);
+    } else {
+      nextExpanded.add(key);
+    }
+    this.updateState({ expandedSessionKeys: nextExpanded });
   }
 
   getVisibleDescriptors(): SessionDescriptor[] {

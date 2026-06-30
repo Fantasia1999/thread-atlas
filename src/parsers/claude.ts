@@ -387,8 +387,8 @@ function buildQueueOperationFallbackMessage(
   };
 }
 
-export function extractClaudePreviewTitle(content: string): string | undefined {
-  const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
+export function extractClaudePreviewTitle(content: string | unknown[]): string | undefined {
+  const rows = (Array.isArray(content) ? content : parseJsonLines(content)) as Array<Record<string, any>>;
   for (const row of rows) {
     const messageRecord =
       row.message && typeof row.message === "object"
@@ -407,8 +407,8 @@ export function extractClaudePreviewTitle(content: string): string | undefined {
   return undefined;
 }
 
-export function extractClaudeCwd(content: string): string | undefined {
-  const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
+export function extractClaudeCwd(content: string | unknown[]): string | undefined {
+  const rows = (Array.isArray(content) ? content : parseJsonLines(content)) as Array<Record<string, any>>;
   for (const row of rows) {
     if (typeof row.cwd === "string" && row.cwd.trim()) {
       return row.cwd.trim();

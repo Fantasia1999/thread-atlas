@@ -502,4 +502,75 @@ test("renderSidebar handles search box enter commands and renders :hidden list",
   assert.equal(searchedValue, "");
 });
 
+test("renderSidebar groups and nests subagents under main agent sessions", () => {
+  let collapsedKey = "";
+  const options = createSidebarOptions({
+    descriptors: [
+      {
+        key: "file::/path/to/main.jsonl",
+        source: "codex",
+        title: "Main Session",
+        primaryPath: "/path/to/main.jsonl",
+        relatedPaths: [],
+        transport: "local-scan",
+        origin: "local",
+        fileCount: 1,
+        size: 100,
+        mtimeMs: Date.now(),
+        metadata: { sessionId: "main-session-id" }
+      },
+      {
+        key: "file::/path/to/sub.jsonl",
+        source: "codex",
+        title: "Subagent Session",
+        primaryPath: "/path/to/sub.jsonl",
+        relatedPaths: [],
+        transport: "local-scan",
+        origin: "local",
+        fileCount: 1,
+        size: 100,
+        mtimeMs: Date.now() - 1000,
+        metadata: { parentThreadId: "main-session-id" }
+      }
+    ] as any[],
+    expandedSessionKeys: new Set<string>(),
+    onToggleSessionCollapse: (key) => { collapsedKey = key; }
+  });
+
+  // Test collapsed state first
+  const sidebarCollapsed = renderSidebar(options);
+  const listCollapsed = sidebarCollapsed.querySelector(".session-list");
+  assert.ok(listCollapsed);
+  
+  // Should show the subagent count badge
+  const badge = listCollapsed.querySelector(".subagent-count-badge");
+  assert.ok(badge);
+  assert.equal(badge.textContent, "1");
+
+  // Should have a collapse toggle button
+  const toggleBtn = listCollapsed.querySelector(".subagent-count-badge");
+  assert.ok(toggleBtn);
+  toggleBtn.dispatchEvent("click");
+  assert.equal(collapsedKey, "file::/path/to/main.jsonl");
+
+  // Test expanded state
+  const optionsExpanded = {
+    ...options,
+    expandedSessionKeys: new Set(["file::/path/to/main.jsonl"])
+  };
+  const sidebarExpanded = renderSidebar(optionsExpanded);
+  const childrenContainer = sidebarExpanded.querySelector(".session-children-container");
+  assert.ok(childrenContainer);
+  assert.ok(childrenContainer.innerHTML?.includes("Subagent Session"));
+
+  // Test search mode flat rendering
+  const optionsSearch = {
+    ...options,
+    search: "Subagent"
+  };
+  const sidebarSearch = renderSidebar(optionsSearch);
+  assert.ok(!sidebarSearch.querySelector(".session-children-container"));
+});
+
+
 

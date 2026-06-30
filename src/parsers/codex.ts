@@ -163,6 +163,13 @@ export function parseCodexSession(bundle: SessionBundle): Session {
     (cwd ? `${basenameTitle(cwd) || "project"} · Codex` : undefined) ??
     `${bundle.title || "Codex session"}`;
 
+  const parentThreadId =
+    typeof sessionMeta?.parent_thread_id === "string"
+      ? sessionMeta.parent_thread_id
+      : typeof (sessionMeta?.source as any)?.subagent?.thread_spawn?.parent_thread_id === "string"
+        ? (sessionMeta?.source as any).subagent.thread_spawn.parent_thread_id
+        : undefined;
+
   return buildSession(bundle, "codex", {
     id,
     title,
@@ -175,6 +182,7 @@ export function parseCodexSession(bundle: SessionBundle): Session {
       cwd: cwd ?? null,
       threadName: threadName ?? null,
       sessionId: id ?? null,
+      parentThreadId: parentThreadId ?? null,
       cli_version:
         typeof sessionMeta?.cli_version === "string" ? sessionMeta.cli_version : null,
       model_provider:
@@ -183,8 +191,8 @@ export function parseCodexSession(bundle: SessionBundle): Session {
   });
 }
 
-export function extractCodexCwd(content: string): string | undefined {
-  const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
+export function extractCodexCwd(content: string | unknown[]): string | undefined {
+  const rows = (Array.isArray(content) ? content : parseJsonLines(content)) as Array<Record<string, any>>;
   for (const row of rows) {
     if (row.type === "session_meta") {
       const payload = row.payload as Record<string, unknown> | undefined;
@@ -196,8 +204,58 @@ export function extractCodexCwd(content: string): string | undefined {
   return undefined;
 }
 
-export function extractCodexPreviewTitle(content: string): string | undefined {
-  const rows = parseJsonLines(content) as Array<Record<string, unknown>>;
+export function extractCodexSessionId(content: string | unknown[], absolutePath: string): string | undefined {
+  try {
+    const rows = (Array.isArray(content) ? content : parseJsonLines(content)) as Array<Record<string, any>>;
+    for (const row of rows) {
+      if (row.type === "session_meta") {
+        const payload = row.payload as Record<string, unknown> | undefined;
+        if (typeof payload?.id === "string") {
+          return payload.id;
+        }
+        if (typeof payload?.session_id === "string") {
+          return payload.session_id;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  const base = basenameTitle(absolutePath);
+  const match = base.match(/rollout-.*-([a-fA-F0-9-]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  return undefined;
+}
+
+export function extractCodexParentThreadId(content: string | unknown[]): string | undefined {
+  try {
+    const rows = (Array.isArray(content) ? content : parseJsonLines(content)) as Array<Record<string, any>>;
+    for (const row of rows) {
+      if (row.type === "session_meta") {
+        const payload = row.payload as Record<string, unknown> | undefined;
+        const parentThreadId =
+          typeof payload?.parent_thread_id === "string"
+            ? payload.parent_thread_id
+            : typeof (payload?.source as any)?.subagent?.thread_spawn?.parent_thread_id === "string"
+              ? (payload?.source as any).subagent.thread_spawn.parent_thread_id
+              : undefined;
+        if (parentThreadId) {
+          return parentThreadId;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
+
+export function extractCodexPreviewTitle(content: string | unknown[]): string | undefined {
+  const rows = (Array.isArray(content) ? content : parseJsonLines(content)) as Array<Record<string, any>>;
   let threadName: string | undefined;
   let firstUserTitle: string | undefined;
 

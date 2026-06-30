@@ -320,11 +320,15 @@ export class ThreadAtlasApp {
         favoriteKeys: state.favoriteKeys,
         favoriteMetadata: state.favoriteMetadata,
         hiddenProjects: state.hiddenProjects,
+        expandedSessionKeys: state.expandedSessionKeys,
         onTogglePinSession: (key) => {
           this.store.togglePin(key);
         },
         onToggleFavoriteSession: (key) => {
           this.store.toggleFavorite(key);
+        },
+        onToggleSessionCollapse: (key) => {
+          this.store.toggleSessionCollapse(key);
         },
         onToggleOpen: () => {
           this.toggleSidebarOpen();

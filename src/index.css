@@ -748,7 +748,7 @@ input[type="checkbox"] {
   align-content: start;
 }
 
-.session-row {
+.sidebar .session-row {
   width: 100%;
   text-align: left;
   padding: 10px;
@@ -761,17 +761,17 @@ input[type="checkbox"] {
   transition: all var(--transition);
 }
 
-.session-row:hover {
+.sidebar .session-row:hover {
   background: var(--bg-surface-hover);
   border-color: var(--border-strong);
 }
 
-.session-row.active {
+.sidebar .session-row.active {
   border-color: var(--text-primary);
   background: var(--bg-panel-muted);
 }
 
-.session-row.active::before {
+.sidebar .session-row.active::before {
   content: '';
   position: absolute;
   left: 0;
@@ -798,6 +798,8 @@ input[type="checkbox"] {
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.01em;
+  min-width: 0;
+  flex: 1;
 }
 
 .session-path,
@@ -2631,16 +2633,16 @@ details[open] .tool-call-header::after {
 }
 
 /* 2. Pinned & Favorited Card Styles */
-.session-row.pinned-row {
+.sidebar .session-row.pinned-row {
   border-left: 3px solid #ff7a59 !important; /* Premium Coral left accent */
   background: linear-gradient(90deg, rgba(255, 122, 89, 0.04) 0%, rgba(0, 0, 0, 0) 100%) !important;
 }
 
-.session-row.favorite-row {
+.sidebar .session-row.favorite-row {
   border-left-color: #ffd700; /* Gold star left indicator if favorited but not pinned */
 }
 
-.session-row.pinned-row.favorite-row {
+.sidebar .session-row.pinned-row.favorite-row {
   border-left-color: #ff7a59; /* Pinned takes precedence on accent border */
 }
 
@@ -2660,7 +2662,7 @@ details[open] .tool-call-header::after {
   transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.session-row:hover .session-item-actions {
+.sidebar .session-row:hover .session-item-actions {
   opacity: 1;
   transform: translateX(0);
 }
@@ -2698,12 +2700,12 @@ details[open] .tool-call-header::after {
   opacity: 1 !important;
 }
 
-.session-row:not(:hover) .session-item-actions:has(.active) {
+.sidebar .session-row:not(:hover) .session-item-actions:has(.active) {
   opacity: 1;
   transform: translateX(0);
 }
 
-.session-row:not(:hover) .session-action-btn:not(.active) {
+.sidebar .session-row:not(:hover) .session-action-btn:not(.active) {
   opacity: 0; /* Keep inactive actions invisible unless hovered */
 }
 
@@ -3856,3 +3858,94 @@ body:has(.mermaid-lightbox) .scroll-helper-hub {
   flex: 1;
   overflow: auto;
 }
+
+/* Collapsible Subagent Tree Styles */
+.session-tree-node {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.session-children-container {
+  display: grid;
+  gap: 4px;
+  margin-top: 2px;
+  margin-bottom: 6px;
+  position: relative;
+  padding-left: 20px;
+}
+
+/* Vertical guide line connecting subagents */
+.session-children-container::before {
+  content: '';
+  position: absolute;
+  left: 19px; /* aligns under the parent caret button */
+  top: 0;
+  bottom: 12px;
+  width: 1px;
+  border-left: 1px dashed var(--border-default);
+  pointer-events: none;
+}
+
+/* Subagent Session Row Styling overrides */
+.session-row.subagent-row {
+  background: transparent;
+  border: 1px solid transparent;
+  border-left: 2px solid var(--border-default);
+  border-radius: 0;
+  padding: 8px 10px 8px 14px;
+  box-shadow: none;
+  transition: all var(--transition);
+}
+
+.session-row.subagent-row:hover {
+  background: var(--bg-surface-hover);
+  border-color: transparent;
+  border-left-color: var(--accent-base);
+}
+
+.session-row.subagent-row.active {
+  background: var(--bg-panel-muted);
+  border-color: transparent;
+  border-left-color: var(--text-primary);
+}
+
+.session-row.subagent-row.active::before {
+  display: none; /* Hide default sidebar card active left bar */
+}
+
+.session-title-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.subagent-count-badge {
+  font-size: 10px;
+  background: color-mix(in srgb, var(--accent-base) 10%, transparent);
+  color: var(--accent-base);
+  border: 1px solid color-mix(in srgb, var(--accent-base) 20%, transparent);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  cursor: pointer;
+  outline: none;
+  transition: all var(--transition);
+}
+
+.subagent-count-badge:hover {
+  background: var(--accent-base);
+  color: var(--accent-inverse);
+  border-color: var(--accent-base);
+}
+
+
+

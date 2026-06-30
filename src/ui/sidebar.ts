@@ -14,10 +14,12 @@ interface SidebarOptions {
   favoriteKeys: Set<string>;
   favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
   hiddenProjects: Set<string>;
+  expandedSessionKeys?: Set<string>;
   onToggleOpen: () => void;
   onTogglePin: () => void;
   onTogglePinSession: (key: string) => void;
   onToggleFavoriteSession: (key: string) => void;
+  onToggleSessionCollapse?: (key: string) => void;
   onSearch: (value: string) => void;
   onFilter: (value: SessionSource | "all") => void;
   onSelect: (key: string) => void;
@@ -488,24 +490,278 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       list.append(button);
     };
 
+    interface TreeNode {
+      descriptor: SessionDescriptor;
+      children: TreeNode[];
+    }
+
+    const buildDescriptorTree = (descriptors: SessionDescriptor[], allDescriptors: SessionDescriptor[]): TreeNode[] => {
+      const descriptorMap = new Map<string, SessionDescriptor>();
+      for (const d of allDescriptors) {
+        const sId = d.metadata?.sessionId || d.metadata?.cascadeId;
+        if (sId) {
+          descriptorMap.set(String(sId), d);
+        }
+        descriptorMap.set(d.key, d);
+        const filename = d.primaryPath ? d.primaryPath.split(/[\\/]/).pop() : "";
+        if (filename) {
+          descriptorMap.set(filename, d);
+        }
+      }
+
+      const nodes = descriptors.map(d => ({ descriptor: d, children: [] as TreeNode[] }));
+      const nodeMap = new Map<string, TreeNode>();
+      for (const node of nodes) {
+        nodeMap.set(node.descriptor.key, node);
+      }
+
+      const roots: TreeNode[] = [];
+
+      for (const node of nodes) {
+        const pId = node.descriptor.metadata?.parentThreadId;
+        let parentNode: TreeNode | undefined;
+        if (pId) {
+          const parentDesc = descriptorMap.get(String(pId));
+          if (parentDesc) {
+            parentNode = nodeMap.get(parentDesc.key);
+          }
+        }
+
+        if (parentNode) {
+          parentNode.children.push(node);
+        } else {
+          roots.push(node);
+        }
+      }
+
+      const sortNodes = (a: TreeNode, b: TreeNode) => {
+        return b.descriptor.mtimeMs - a.descriptor.mtimeMs;
+      };
+
+      const recursiveSort = (node: TreeNode) => {
+        node.children.sort(sortNodes);
+        node.children.forEach(recursiveSort);
+      };
+
+      roots.sort(sortNodes);
+      roots.forEach(recursiveSort);
+
+      return roots;
+    };
+
+    const isDescendantSelected = (n: TreeNode): boolean => {
+      return n.children.some(child => child.descriptor.key === options.selectedKey || isDescendantSelected(child));
+    };
+
+    const renderTreeNode = (node: TreeNode, depth: number, parentContainer: HTMLElement) => {
+      const descriptor = node.descriptor;
+      const isPinned = options.pinnedKeys.has(descriptor.key);
+      const isFavorited = options.favoriteKeys.has(descriptor.key);
+
+      const nodeContainer = document.createElement("div");
+      nodeContainer.className = "session-tree-node";
+
+      const hasChildren = node.children.length > 0;
+      const isCollapsed = !(options.expandedSessionKeys?.has(descriptor.key) ?? false) && !isDescendantSelected(node);
+
+      const button = document.createElement("button");
+      let btnClassName = `session-row${descriptor.key === options.selectedKey ? " active" : ""}${isPinned ? " pinned-row" : ""}${isFavorited ? " favorite-row" : ""}`;
+      if (depth > 0) {
+        btnClassName += ` subagent-row subagent-row-depth-${depth}`;
+      }
+      button.className = btnClassName;
+      button.type = "button";
+      button.addEventListener("click", () => {
+        options.onSelect(descriptor.key);
+      });
+
+      const dateLabel = formatLocalDateTime(descriptor.mtimeMs, "Unknown time");
+      const hoverDateLabel = formatLocalDateTimeLong(descriptor.mtimeMs, "");
+      const workspaceLabel = getWorkspaceLabel(descriptor);
+      const meta = options.favoriteMetadata.get(descriptor.key);
+
+      const rowTop = document.createElement("div");
+      rowTop.className = "session-row-top";
+
+      const sourceAndDate = document.createElement("div");
+      sourceAndDate.className = "source-and-date";
+
+      const badgeSpan = document.createElement("span");
+      badgeSpan.className = `source-badge ${descriptor.source}`;
+      badgeSpan.textContent = descriptor.source;
+
+      const dateSpan = document.createElement("span");
+      dateSpan.className = "session-date";
+      dateSpan.title = hoverDateLabel;
+      dateSpan.textContent = dateLabel;
+
+      sourceAndDate.append(badgeSpan, dateSpan);
+
+      if (hasChildren) {
+        const badge = document.createElement("button");
+        badge.type = "button";
+        badge.className = "subagent-count-badge";
+        badge.textContent = String(node.children.length);
+        badge.title = isCollapsed ? "Expand subagents" : "Collapse subagents";
+        badge.addEventListener("click", (e) => {
+          e.stopPropagation();
+          options.onToggleSessionCollapse?.(descriptor.key);
+        });
+        sourceAndDate.append(badge);
+      }
+
+      rowTop.append(sourceAndDate);
+      button.append(rowTop);
+
+      const titleRow = document.createElement("div");
+      titleRow.className = "session-title-row";
+
+      const titleEl = document.createElement("strong");
+      titleEl.className = "session-title";
+      titleEl.textContent = descriptor.title;
+      titleRow.append(titleEl);
+
+      button.append(titleRow);
+
+      const pathRow = document.createElement("div");
+      pathRow.className = "session-path-row";
+      
+      if (workspaceLabel) {
+        const workspaceEl = document.createElement("span");
+        workspaceEl.className = "session-workspace";
+        const wsFullPath = getWorkspaceFullPath(descriptor);
+        workspaceEl.title = `${wsFullPath} (Double-click to hide project)`;
+        workspaceEl.textContent = workspaceLabel;
+        workspaceEl.addEventListener("dblclick", (e) => {
+          e.stopPropagation();
+          options.onHideProject(wsFullPath);
+        });
+        pathRow.append(workspaceEl);
+      }
+
+      if (descriptor.origin === "remote" && descriptor.connectionLabel) {
+        const connectionBadgeEl = document.createElement("span");
+        connectionBadgeEl.className = "connection-badge";
+        connectionBadgeEl.title = descriptor.connectionDetail ?? descriptor.connectionLabel;
+        connectionBadgeEl.textContent = descriptor.connectionLabel;
+        pathRow.append(connectionBadgeEl);
+      }
+
+      const pathEl = document.createElement("p");
+      pathEl.className = "session-path";
+      pathEl.textContent = descriptor.primaryPath;
+      pathRow.append(pathEl);
+
+      button.append(pathRow);
+
+      const actionsContainer = document.createElement("div");
+      actionsContainer.className = "session-item-actions";
+
+      const pinBtn = document.createElement("button");
+      pinBtn.type = "button";
+      pinBtn.className = `session-action-btn pin-btn${isPinned ? " active" : ""}`;
+      pinBtn.title = isPinned ? "Unpin session" : "Pin session";
+      pinBtn.innerHTML = pinIconMini();
+      pinBtn.addEventListener("click", (e) => {
+        e?.stopPropagation();
+        options.onTogglePinSession(descriptor.key);
+      });
+
+      const favBtn = document.createElement("button");
+      favBtn.type = "button";
+      favBtn.className = `session-action-btn favorite-btn${isFavorited ? " active" : ""}`;
+      favBtn.title = isFavorited ? "Remove from Favorites" : "Add to Favorites";
+      favBtn.innerHTML = starIconMini();
+      favBtn.addEventListener("click", (e) => {
+        e?.stopPropagation();
+        options.onToggleFavoriteSession(descriptor.key);
+      });
+
+      actionsContainer.append(pinBtn, favBtn);
+      rowTop.append(actionsContainer);
+
+      if (meta && meta.tags && meta.tags.length > 0) {
+        const tagsContainer = document.createElement("div");
+        tagsContainer.className = "session-row-tags";
+        for (const t of meta.tags) {
+          const pill = document.createElement("span");
+          pill.className = "tag-pill";
+          pill.textContent = t;
+          tagsContainer.append(pill);
+        }
+        button.append(tagsContainer);
+      }
+
+      if (meta && meta.notes && meta.notes.trim()) {
+        const notesEl = document.createElement("p");
+        notesEl.className = "session-row-note";
+        notesEl.title = meta.notes;
+        notesEl.textContent = `📝 ${meta.notes}`;
+        button.append(notesEl);
+      }
+
+      nodeContainer.append(button);
+
+      if (hasChildren && !isCollapsed) {
+        const childrenContainer = document.createElement("div");
+        childrenContainer.className = "session-children-container";
+        for (const child of node.children) {
+          renderTreeNode(child, depth + 1, childrenContainer);
+        }
+        nodeContainer.append(childrenContainer);
+      }
+
+      parentContainer.append(nodeContainer);
+    };
+
+    const isSearching = options.search.trim().length > 0;
     const MAX_INITIAL_NORMAL = 200;
     const pendingDescriptors: SessionDescriptor[] = [];
     let renderedNormalCount = 0;
 
-    for (const descriptor of options.descriptors) {
-      const isPinned = options.pinnedKeys.has(descriptor.key);
-      const isSelected = descriptor.key === options.selectedKey;
+    if (isSearching) {
+      for (const descriptor of options.descriptors) {
+        const isPinned = options.pinnedKeys.has(descriptor.key);
+        const isSelected = descriptor.key === options.selectedKey;
 
-      if (!isPinned && !isSelected && renderedNormalCount >= MAX_INITIAL_NORMAL) {
-        pendingDescriptors.push(descriptor);
-        continue;
+        if (!isPinned && !isSelected && renderedNormalCount >= MAX_INITIAL_NORMAL) {
+          pendingDescriptors.push(descriptor);
+          continue;
+        }
+
+        if (!isPinned) {
+          renderedNormalCount++;
+        }
+
+        renderSingleDescriptor(descriptor);
+      }
+    } else {
+      // First render all pinned descriptors
+      for (const descriptor of options.descriptors) {
+        if (options.pinnedKeys.has(descriptor.key)) {
+          renderSingleDescriptor(descriptor);
+        }
       }
 
-      if (!isPinned) {
+      // Build and render history tree
+      const unpinnedDescriptors = options.descriptors.filter(d => !options.pinnedKeys.has(d.key));
+      const treeRoots = buildDescriptorTree(unpinnedDescriptors, options.descriptors);
+
+      for (const root of treeRoots) {
+        const isSelected = root.descriptor.key === options.selectedKey || isDescendantSelected(root);
+
+        if (!isSelected && renderedNormalCount >= MAX_INITIAL_NORMAL) {
+          const collectPending = (n: TreeNode) => {
+            pendingDescriptors.push(n.descriptor);
+            n.children.forEach(collectPending);
+          };
+          collectPending(root);
+          continue;
+        }
+
         renderedNormalCount++;
+        renderTreeNode(root, 0, list);
       }
-
-      renderSingleDescriptor(descriptor);
     }
 
     if (pendingDescriptors.length > 0) {
@@ -519,8 +775,22 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       moreBtn.textContent = `Show full history (+${pendingDescriptors.length} remaining)`;
       moreBtn.addEventListener("click", () => {
         moreBtn.remove();
-        for (const descriptor of pendingDescriptors) {
-          renderSingleDescriptor(descriptor);
+        if (isSearching) {
+          for (const descriptor of pendingDescriptors) {
+            renderSingleDescriptor(descriptor);
+          }
+        } else {
+          const divider = list.querySelector(".session-group-header.divider");
+          if (divider) {
+            while (divider.nextSibling) {
+              divider.nextSibling.remove();
+            }
+          }
+          const unpinnedDescriptors = options.descriptors.filter(d => !options.pinnedKeys.has(d.key));
+          const treeRoots = buildDescriptorTree(unpinnedDescriptors, options.descriptors);
+          for (const root of treeRoots) {
+            renderTreeNode(root, 0, list);
+          }
         }
       });
       list.append(moreBtn);
@@ -569,6 +839,22 @@ function starIconMini(): string {
   return `
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" width="13" height="13">
       <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97 1.053 4.208a.75.75 0 0 1-1.087.79L8 12.257l-3.751 1.973a.75.75 0 0 1-1.087-.79l1.053-4.208-3.046-2.97a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/>
+    </svg>
+  `;
+}
+
+function caretRightIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="display: block;">
+      <path d="M5.72 13.47a.75.75 0 0 1 0-1.06L9.66 8.5 5.72 4.59a.75.75 0 1 1 1.06-1.06l4.47 4.47a.75.75 0 0 1 0 1.06l-4.47 4.47a.75.75 0 0 1-1.06 0Z"/>
+    </svg>
+  `;
+}
+
+function caretDownIcon(): string {
+  return `
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="display: block;">
+      <path d="M3.47 5.72a.75.75 0 0 1 1.06 0L8 9.19l3.47-3.47a.75.75 0 1 1 1.06 1.06l-4 4a.75.75 0 0 1-1.06 0l-4-4a.75.75 0 0 1 0-1.06Z"/>
     </svg>
   `;
 }
