@@ -286,9 +286,6 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
             lineDiv.append(numSpan, contentSpan);
             code.append(lineDiv);
 
-            if (idx < slicedLines.length - 1) {
-              code.append(document.createTextNode("\n"));
-            }
           });
         } else {
           code.textContent = text;

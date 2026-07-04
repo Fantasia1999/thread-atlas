@@ -4008,14 +4008,14 @@ body:has(.mermaid-lightbox) .scroll-helper-hub {
 .preview-line-row {
   display: block;
   width: 100%;
-  padding: 1px 14px;
+  padding: 0 14px;
   line-height: 1.5;
 }
 
 .preview-line-row.highlighted-line {
   background: rgba(255, 235, 59, 0.18);
   border-left: 3px solid var(--accent-base, #0070f3);
-  padding-left: 11px;
+  padding: 0 14px 0 11px;
 }
 
 html[data-theme="dark"] .preview-line-row.highlighted-line {
