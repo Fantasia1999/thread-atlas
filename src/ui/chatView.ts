@@ -92,7 +92,8 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
       timelineOpen: options.timelineOpen,
       onTimelineToggleOpen: options.onTimelineToggleOpen,
       onTimelineTogglePin: options.onTimelineTogglePin,
-      onRenderComplete: options.onRenderComplete
+      onRenderComplete: options.onRenderComplete,
+      session
     })
   );
 
@@ -639,6 +640,7 @@ function renderChatLayout(options: {
   onTimelineToggleOpen: () => void;
   onTimelineTogglePin: () => void;
   onRenderComplete?: () => void;
+  session?: Session;
 }): HTMLElement {
   let hoverTimeout: number | undefined;
   let leaveTimeout: number | undefined;
@@ -770,7 +772,8 @@ function renderChatLayout(options: {
       const messageElement = renderMessage(message, {
         anchorId,
         showToolBlocks: options.showToolBlocks,
-        collapsed: isCommentary
+        collapsed: isCommentary,
+        session: options.session
       });
       const timelineButton = renderTimelineButton(message, i, anchorId);
 
@@ -920,6 +923,7 @@ function renderMessage(
     anchorId: string;
     showToolBlocks: boolean;
     collapsed?: boolean;
+    session?: Session;
   }
 ): HTMLElement {
   const entry = document.createElement("article");
@@ -987,10 +991,33 @@ function renderMessage(
         list.className = "citation-entries-list";
         for (const entryItem of entries) {
           const li = document.createElement("li");
-          const fileSpan = document.createElement("span");
-          fileSpan.className = "citation-file";
-          fileSpan.textContent = entryItem.file;
-          li.append(fileSpan);
+
+          let fileHref = "";
+          const lineMatch = entryItem.file.match(/^([^:]+)(?::(\d+)(?:-(\d+))?)?$/);
+          if (lineMatch) {
+            const rawFile = lineMatch[1];
+            const startLine = lineMatch[2];
+            let pathPart = rawFile;
+            if (options.session && options.session.cwd) {
+              const cleanCwd = options.session.cwd.replace(/[/\\]+$/, "");
+              const cleanFile = rawFile.replace(/^[/\\]+/, "");
+              pathPart = `${cleanCwd}/${cleanFile}`;
+            }
+            let normalizedPath = pathPart.replace(/\\/g, "/");
+            if (!normalizedPath.startsWith("/")) {
+              normalizedPath = "/" + normalizedPath;
+            }
+            fileHref = `file://${normalizedPath}`;
+            if (startLine) {
+              fileHref += `#L${startLine}`;
+            }
+          }
+
+          const fileLink = document.createElement("a");
+          fileLink.className = "md-link citation-file";
+          fileLink.href = fileHref || "#";
+          fileLink.textContent = entryItem.file;
+          li.append(fileLink);
 
           if (entryItem.note) {
             const noteSpan = document.createElement("span");

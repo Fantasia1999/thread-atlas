@@ -1443,10 +1443,15 @@ html[data-theme="dark"] .log-role-badge.system {
   padding-bottom: 0;
 }
 
-.citation-file {
+a.citation-file {
   font-family: var(--font-mono, monospace);
   font-weight: 600;
-  color: var(--text-primary, #111111);
+  color: var(--text-link, var(--brand-default, #0066cc));
+  text-decoration: none;
+}
+
+a.citation-file:hover {
+  text-decoration: underline;
 }
 
 .citation-note {
