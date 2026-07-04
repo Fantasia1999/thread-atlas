@@ -109,7 +109,11 @@ app.get("/api/local/file", async (req, res): Promise<void> => {
       return;
     }
 
-    const normalizedPath = path.resolve(filePathQuery);
+    let targetPath = filePathQuery;
+    if (targetPath.startsWith("~/") || targetPath.startsWith("~\\")) {
+      targetPath = path.join(os.homedir(), targetPath.slice(2));
+    }
+    const normalizedPath = path.resolve(targetPath);
     const isAllowed = await isPathAllowed(
       normalizedPath,
       typeof sessionKeyQuery === "string" ? sessionKeyQuery : undefined

@@ -998,13 +998,15 @@ function renderMessage(
             const rawFile = lineMatch[1];
             const startLine = lineMatch[2];
             let pathPart = rawFile;
-            if (options.session && options.session.cwd) {
+            if (options.session && options.session.source === "codex") {
+              pathPart = `~/.codex/memories/${rawFile}`;
+            } else if (options.session && options.session.cwd) {
               const cleanCwd = options.session.cwd.replace(/[/\\]+$/, "");
               const cleanFile = rawFile.replace(/^[/\\]+/, "");
               pathPart = `${cleanCwd}/${cleanFile}`;
             }
             let normalizedPath = pathPart.replace(/\\/g, "/");
-            if (!normalizedPath.startsWith("/")) {
+            if (!normalizedPath.startsWith("/") && !normalizedPath.startsWith("~")) {
               normalizedPath = "/" + normalizedPath;
             }
             fileHref = `file://${normalizedPath}`;
