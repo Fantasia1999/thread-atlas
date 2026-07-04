@@ -927,6 +927,102 @@ function renderMessage(
   entry.id = options.anchorId;
   entry.setAttribute("data-message-anchor", options.anchorId);
 
+  const text = message.text.trim();
+  const citationRegex = /<oai-mem-citation>([\s\S]*?)<\/oai-mem-citation>/i;
+  const citationMatch = text.match(citationRegex);
+
+  let displayHTML: DocumentFragment | null = null;
+  let citationElement: HTMLElement | null = null;
+
+  if (citationMatch) {
+    const mainText = text.replace(citationRegex, "").trim();
+    if (mainText) {
+      displayHTML = renderMarkdown(mainText);
+    }
+
+    const citationContent = citationMatch[1];
+    const entriesMatch = citationContent.match(/<citation_entries>([\s\S]*?)<\/citation_entries>/i);
+    const idsMatch = citationContent.match(/<rollout_ids>([\s\S]*?)<\/rollout_ids>/i);
+
+    const entries: Array<{ file: string; note: string }> = [];
+    if (entriesMatch) {
+      const lines = entriesMatch[1].split("\n").map(l => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        const partMatch = line.match(/^([^|]+)(?:\|note=\[(.*)\])?$/);
+        if (partMatch) {
+          entries.push({
+            file: partMatch[1].trim(),
+            note: (partMatch[2] || "").trim()
+          });
+        }
+      }
+    }
+
+    const rolloutIds = idsMatch
+      ? idsMatch[1].split("\n").map(id => id.trim()).filter(Boolean)
+      : [];
+
+    if (entries.length > 0 || rolloutIds.length > 0) {
+      citationElement = document.createElement("details");
+      citationElement.className = "citation-block";
+
+      const summary = document.createElement("summary");
+      summary.className = "citation-header";
+
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "citation-icon";
+      iconSpan.textContent = "🏷️";
+
+      const titleSpan = document.createElement("span");
+      titleSpan.className = "citation-title";
+      titleSpan.textContent = `Memory Citations (${entries.length})`;
+
+      summary.append(iconSpan, titleSpan);
+
+      const body = document.createElement("div");
+      body.className = "citation-body";
+
+      if (entries.length > 0) {
+        const list = document.createElement("ul");
+        list.className = "citation-entries-list";
+        for (const entryItem of entries) {
+          const li = document.createElement("li");
+          const fileSpan = document.createElement("span");
+          fileSpan.className = "citation-file";
+          fileSpan.textContent = entryItem.file;
+          li.append(fileSpan);
+
+          if (entryItem.note) {
+            const noteSpan = document.createElement("span");
+            noteSpan.className = "citation-note";
+            noteSpan.textContent = entryItem.note;
+            li.append(noteSpan);
+          }
+          list.append(li);
+        }
+        body.append(list);
+      }
+
+      if (rolloutIds.length > 0) {
+        const rolloutsDiv = document.createElement("div");
+        rolloutsDiv.className = "citation-rollouts";
+        const label = document.createElement("span");
+        label.className = "rollouts-label";
+        label.textContent = "Rollout IDs: ";
+        rolloutsDiv.append(label);
+
+        const code = document.createElement("code");
+        code.textContent = rolloutIds.join(", ");
+        rolloutsDiv.append(code);
+        body.append(rolloutsDiv);
+      }
+
+      citationElement.append(summary, body);
+    }
+  } else if (text) {
+    displayHTML = renderMarkdown(text);
+  }
+
   if (options.collapsed) {
     entry.classList.add("collapsed-commentary-entry");
 
@@ -941,9 +1037,10 @@ function renderMessage(
     label.className = "commentary-label";
     label.textContent = "Thinking / Commentary";
 
+    const previewTextContent = text.replace(citationRegex, "").trim();
     const preview = document.createElement("span");
     preview.className = "commentary-preview";
-    preview.textContent = previewText(message.text, 70);
+    preview.textContent = previewText(previewTextContent, 70);
 
     const arrow = document.createElement("span");
     arrow.className = "commentary-arrow";
@@ -966,11 +1063,15 @@ function renderMessage(
     `;
     contentWrapper.append(header);
 
-    if (message.text.trim()) {
+    if (displayHTML) {
       const body = document.createElement("div");
       body.className = "log-content markdown-theme";
-      body.append(renderMarkdown(message.text));
+      body.append(displayHTML);
       contentWrapper.append(body);
+    }
+
+    if (citationElement) {
+      contentWrapper.append(citationElement);
     }
     entry.append(contentWrapper);
 
@@ -995,11 +1096,15 @@ function renderMessage(
 
   entry.append(header);
 
-  if (message.text.trim()) {
+  if (displayHTML) {
     const body = document.createElement("div");
     body.className = "log-content markdown-theme";
-    body.append(renderMarkdown(message.text));
+    body.append(displayHTML);
     entry.append(body);
+  }
+
+  if (citationElement) {
+    entry.append(citationElement);
   }
 
   if (!options.showToolBlocks) {

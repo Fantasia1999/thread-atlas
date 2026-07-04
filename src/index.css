@@ -1392,6 +1392,82 @@ html[data-theme="dark"] .log-role-badge.system {
   border-top: 1px solid var(--border-default);
 }
 
+/* Collapsible Memory Citation Styles */
+.citation-block {
+  margin-top: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-surface-soft, var(--canvas-soft-2, #fafafa));
+  overflow: hidden;
+}
+
+.citation-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.citation-header:hover {
+  background: var(--bg-surface-hover, #f0f0f0);
+}
+
+.citation-body {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-surface, #ffffff);
+  font-size: 12px;
+}
+
+.citation-entries-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.citation-entries-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.citation-entries-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.citation-file {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  color: var(--text-primary, #111111);
+}
+
+.citation-note {
+  color: var(--text-muted);
+}
+
+.citation-rollouts {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-default);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.citation-rollouts code {
+  background: var(--bg-surface-soft, #fafafa);
+  padding: 2px 4px;
+  border-radius: var(--radius-xs, 4px);
+  font-family: var(--font-mono, monospace);
+}
+
 /* Flat solid left indicators for scannability */
 .log-entry::after {
   content: '';

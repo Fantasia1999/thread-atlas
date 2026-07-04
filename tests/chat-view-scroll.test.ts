@@ -120,3 +120,80 @@ test("scroll to bottom button behavior", () => {
   assert.equal(scrollToCalled, true, "scrollTo should be called when already on last message");
   assert.deepEqual(scrollToOptions, { top: 1000, behavior: "smooth" });
 });
+
+test("renderChatView parses and renders oai-mem-citation as collapsible block", () => {
+  const dateStr = "2026-07-02T10:48:32.019Z";
+  const descriptor = {
+    id: "session-1",
+    source: "codex" as const,
+    title: "Session 1",
+    cwd: "/workspace",
+    updatedAt: dateStr,
+    messageCount: 1
+  };
+  const session = {
+    id: "session-1",
+    source: "codex" as const,
+    title: "Session 1",
+    cwd: "/workspace",
+    startedAt: dateStr,
+    updatedAt: dateStr,
+    messageCount: 1,
+    messages: [
+      {
+        id: "msg-1",
+        role: "assistant" as const,
+        text: "hello world\n<oai-mem-citation>\n<citation_entries>\nMEMORY.md:35-39|note=[confirmed snapshot]\n</citation_entries>\n<rollout_ids>\nuuid-123\n</rollout_ids>\n</oai-mem-citation>",
+        createdAt: dateStr
+      }
+    ],
+    metadata: {},
+    rawFiles: []
+  };
+
+  const options = {
+    descriptor,
+    session,
+    loading: false,
+    messageFilter: "raw" as const,
+    timelinePinned: false,
+    timelineOpen: false,
+    pinnedKeys: new Set<string>(),
+    favoriteKeys: new Set<string>(),
+    favoriteMetadata: new Map(),
+    onFilterChange: () => {},
+    onTimelineToggleOpen: () => {},
+    onTimelineTogglePin: () => {},
+    onExport: () => {},
+    onTogglePinSession: () => {},
+    onToggleFavoriteSession: () => {},
+    onUpdateMetadata: () => {}
+  };
+
+  const container = renderChatView(options);
+  const citationBlock = container.querySelector(".citation-block");
+  assert.ok(citationBlock, "citation-block should exist");
+
+  const titleNode = citationBlock.querySelector(".citation-title");
+  assert.ok(titleNode);
+  assert.equal(titleNode.textContent, "Memory Citations (1)");
+
+  const fileNode = citationBlock.querySelector(".citation-file");
+  assert.ok(fileNode);
+  assert.equal(fileNode.textContent, "MEMORY.md:35-39");
+
+  const noteNode = citationBlock.querySelector(".citation-note");
+  assert.ok(noteNode);
+  assert.equal(noteNode.textContent, "confirmed snapshot");
+
+  const rolloutsDiv = citationBlock.querySelector(".citation-rollouts");
+  assert.ok(rolloutsDiv);
+  const codeNode = rolloutsDiv.querySelector("code");
+  assert.ok(codeNode);
+  assert.equal(codeNode.textContent, "uuid-123");
+
+  // Check that the tag itself is stripped from the main content body
+  const bodyText = container.querySelector(".log-content")?.textContent || "";
+  assert.ok(!bodyText.includes("<oai-mem-citation>"), "Should strip tag from main body");
+  assert.ok(bodyText.includes("hello world"), "Should render main markdown text");
+});
