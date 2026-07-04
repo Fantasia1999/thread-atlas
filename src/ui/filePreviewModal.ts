@@ -248,7 +248,11 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
         const text = await response.text();
         if (isClosed) return;
 
-        let displayText = text;
+        const pre = document.createElement("pre");
+        pre.className = "preview-text-block code-block";
+        const code = document.createElement("code");
+        code.className = "md-code hljs";
+
         if (typeof lineNumber === "number" && !isNaN(lineNumber)) {
           const lines = text.split(/\r?\n/);
           const target = lineNumber;
@@ -259,20 +263,37 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
             endLine = lines.length - 1;
           }
           const slicedLines = lines.slice(startLine, endLine + 1);
-
           const padLength = String(endLine + 1).length;
-          displayText = slicedLines.map((line, idx) => {
+
+          slicedLines.forEach((line, idx) => {
             const lineNum = startLine + idx + 1;
             const paddedLineNum = String(lineNum).padStart(padLength, " ");
-            return `${paddedLineNum} | ${line}`;
-          }).join("\n");
+
+            const lineDiv = document.createElement("div");
+            lineDiv.className = "preview-line-row";
+            if (lineNum === target) {
+              lineDiv.classList.add("highlighted-line");
+            }
+
+            const numSpan = document.createElement("span");
+            numSpan.className = "preview-line-num";
+            numSpan.textContent = `${paddedLineNum} | `;
+
+            const contentSpan = document.createElement("span");
+            contentSpan.className = "preview-line-content";
+            contentSpan.textContent = line;
+
+            lineDiv.append(numSpan, contentSpan);
+            code.append(lineDiv);
+
+            if (idx < slicedLines.length - 1) {
+              code.append(document.createTextNode("\n"));
+            }
+          });
+        } else {
+          code.textContent = text;
         }
 
-        const pre = document.createElement("pre");
-        pre.className = "preview-text-block code-block";
-        const code = document.createElement("code");
-        code.className = "md-code hljs";
-        code.textContent = displayText;
         pre.append(code);
         body.append(pre);
       }

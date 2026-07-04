@@ -4001,6 +4001,40 @@ body:has(.mermaid-lightbox) .scroll-helper-hub {
   overflow: auto;
 }
 
+.preview-text-block.code-block {
+  padding: 14px 0;
+}
+
+.preview-line-row {
+  display: block;
+  width: 100%;
+  padding: 1px 14px;
+  line-height: 1.5;
+}
+
+.preview-line-row.highlighted-line {
+  background: rgba(255, 235, 59, 0.18);
+  border-left: 3px solid var(--accent-base, #0070f3);
+  padding-left: 11px;
+}
+
+html[data-theme="dark"] .preview-line-row.highlighted-line {
+  background: rgba(255, 235, 59, 0.12);
+}
+
+.preview-line-num {
+  color: var(--text-muted);
+  user-select: none;
+  font-family: var(--font-mono, monospace);
+  margin-right: 8px;
+}
+
+.preview-line-content {
+  font-family: var(--font-mono, monospace);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 /* Collapsible Subagent Tree Styles */
 .session-tree-node {
   display: grid;
