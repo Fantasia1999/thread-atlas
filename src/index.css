@@ -1448,6 +1448,7 @@ a.citation-file {
   font-weight: 600;
   color: var(--text-link, var(--brand-default, #0066cc));
   text-decoration: none;
+  align-self: flex-start;
 }
 
 a.citation-file:hover {
