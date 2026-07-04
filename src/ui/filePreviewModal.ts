@@ -186,6 +186,8 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
         cleanPath = decodeURIComponent(filePath.slice(7));
       }
     }
+  } else if (cleanPath.startsWith("file://")) {
+    cleanPath = decodeURIComponent(cleanPath.slice(7));
   } else {
     cleanPath = decodeURIComponent(cleanPath);
   }

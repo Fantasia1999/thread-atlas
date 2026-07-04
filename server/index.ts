@@ -110,6 +110,9 @@ app.get("/api/local/file", async (req, res): Promise<void> => {
     }
 
     let targetPath = filePathQuery;
+    if (targetPath.startsWith("/~/") || targetPath.startsWith("\\~\\")) {
+      targetPath = targetPath.slice(1);
+    }
     if (targetPath.startsWith("~/") || targetPath.startsWith("~\\")) {
       targetPath = path.join(os.homedir(), targetPath.slice(2));
     }
