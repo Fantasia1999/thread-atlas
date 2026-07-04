@@ -71,13 +71,13 @@ test("export md modal renders and defaults all messages checked", () => {
   assert.ok(filenamePreview.textContent?.includes("my-project"));
   assert.ok(filenamePreview.textContent?.includes("cd7d2767-7c09-4e74-8c2f-227efe147a35"));
 
-  // Renders three messages
+  // Renders two messages (pure filter excludes tool)
   const items = overlay.querySelectorAll(".export-message-item");
-  assert.equal(items.length, 3);
+  assert.equal(items.length, 2);
 
   // Checkboxes are checked by default
   const checkboxes = overlay.querySelectorAll(".export-message-checkbox") as any[];
-  assert.equal(checkboxes.length, 3);
+  assert.equal(checkboxes.length, 2);
   assert.equal(checkboxes.every(cb => cb.checked), true);
 });
 
@@ -89,11 +89,19 @@ test("export md modal filters work correctly", () => {
     onExport: () => {}
   });
 
-  // Renders 3 items initially (default filter)
+  // Renders 2 items initially (pure filter)
+  assert.equal(overlay.querySelectorAll(".export-message-item").length, 2);
+
+  // Find raw filter chip and click it
+  const chips = overlay.querySelectorAll(".export-filter-chip") as any[];
+  const rawChip = chips.find(c => c.textContent?.trim() === "raw");
+  assert.ok(rawChip);
+  rawChip.dispatchEvent("click");
+
+  // Renders 3 items under raw filter
   assert.equal(overlay.querySelectorAll(".export-message-item").length, 3);
 
   // Find user filter chip and click it
-  const chips = overlay.querySelectorAll(".export-filter-chip") as any[];
   const userChip = chips.find(c => c.textContent?.trim() === "user");
   assert.ok(userChip);
   userChip.dispatchEvent("click");
@@ -165,6 +173,17 @@ test("export md modal triggers export with generated filename and markdown", () 
       exportedMd = md;
     }
   });
+
+  const chips = overlay.querySelectorAll(".export-filter-chip") as any[];
+  const rawChip = chips.find(c => c.textContent?.trim() === "raw");
+  assert.ok(rawChip);
+  rawChip.dispatchEvent("click");
+
+  const selectAllBtn = overlay
+    .querySelectorAll(".button")
+    .find((node: any) => node.textContent.trim() === "Select All") as any;
+  assert.ok(selectAllBtn);
+  selectAllBtn.dispatchEvent("click");
 
   const exportBtn = overlay
     .querySelectorAll(".button")

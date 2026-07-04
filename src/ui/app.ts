@@ -26,10 +26,10 @@ export class ThreadAtlasApp {
   private readonly themeControls: HTMLElement;
   private messageFilter: MessageViewFilter = (() => {
     const val = localStorage.getItem(MESSAGE_FILTER_STORAGE_KEY);
-    if (val === "default" || val === "not-tool" || val === "user" || val === "answer") {
+    if (val === "raw" || val === "not-tool" || val === "pure" || val === "user" || val === "answer") {
       return val;
     }
-    return "default";
+    return "pure";
   })();
   private theme: AppTheme = getInitialTheme();
   private sidebarPinned = getStoredBoolean(SIDEBAR_PIN_STORAGE_KEY, true);

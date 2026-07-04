@@ -11,7 +11,7 @@ import {
   ansiToHtml
 } from "./utils.js";
 
-export type MessageViewFilter = "default" | "not-tool" | "user" | "answer";
+export type MessageViewFilter = "raw" | "not-tool" | "pure" | "user" | "answer";
 
 interface ChatViewOptions {
   descriptor?: SessionDescriptor;
@@ -34,7 +34,8 @@ interface ChatViewOptions {
 }
 
 const FILTER_OPTIONS: Array<{ key: MessageViewFilter; label: string }> = [
-  { key: "default", label: "default" },
+  { key: "pure", label: "pure" },
+  { key: "raw", label: "raw" },
   { key: "not-tool", label: "not tool" },
   { key: "user", label: "user" },
   { key: "answer", label: "answer" }
@@ -85,7 +86,8 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
   container.append(
     renderChatLayout({
       messages: filteredMessages,
-      showToolBlocks: options.messageFilter === "default",
+      showToolBlocks: options.messageFilter === "raw",
+      isPureMode: options.messageFilter === "pure",
       timelinePinned: options.timelinePinned,
       timelineOpen: options.timelineOpen,
       onTimelineToggleOpen: options.onTimelineToggleOpen,
@@ -606,9 +608,32 @@ function pinIcon(): string {
   `;
 }
 
+function getFinalAssistantMessageIds(messages: Message[]): Set<string> {
+  const ids = new Set<string>();
+  let lastAssistantMsg: Message | null = null;
+
+  for (const message of messages) {
+    if (message.role === "user") {
+      if (lastAssistantMsg) {
+        ids.add(lastAssistantMsg.id);
+        lastAssistantMsg = null;
+      }
+    } else if (message.role === "assistant") {
+      lastAssistantMsg = message;
+    }
+  }
+
+  if (lastAssistantMsg) {
+    ids.add(lastAssistantMsg.id);
+  }
+
+  return ids;
+}
+
 function renderChatLayout(options: {
   messages: Message[];
   showToolBlocks: boolean;
+  isPureMode?: boolean;
   timelinePinned: boolean;
   timelineOpen: boolean;
   onTimelineToggleOpen: () => void;
@@ -628,6 +653,9 @@ function renderChatLayout(options: {
       leaveTimeout = undefined;
     }
   };
+
+  const isPureMode = options.isPureMode ?? false;
+  const finalAssistantIds = isPureMode ? getFinalAssistantMessageIds(options.messages) : new Set<string>();
 
   const layout = document.createElement("div");
   layout.className = "chat-layout";
@@ -737,14 +765,26 @@ function renderChatLayout(options: {
     const end = Math.min(currentIndex + chunkSize, totalMessages);
     for (let i = currentIndex; i < end; i++) {
       const message = options.messages[i];
+      const isCommentary = isPureMode && message.role === "assistant" && !finalAssistantIds.has(message.id);
       const anchorId = buildAnchorId(message, i);
       const messageElement = renderMessage(message, {
         anchorId,
-        showToolBlocks: options.showToolBlocks
+        showToolBlocks: options.showToolBlocks,
+        collapsed: isCommentary
       });
       const timelineButton = renderTimelineButton(message, i, anchorId);
 
       timelineButton.addEventListener("click", () => {
+        // Auto-expand collapsed commentary if jumped from timeline
+        const contentWrapper = messageElement.querySelector(".commentary-content-wrapper");
+        if (contentWrapper && contentWrapper.classList.contains("hidden")) {
+          contentWrapper.classList.remove("hidden");
+          const trigger = messageElement.querySelector(".commentary-collapse-trigger");
+          if (trigger) {
+            trigger.classList.add("expanded");
+          }
+        }
+
         messageElement.scrollIntoView({
           behavior: "smooth",
           block: "start"
@@ -866,17 +906,82 @@ function renderTimelineButton(
   return button;
 }
 
+function previewText(text: string, length = 120): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= length) {
+    return normalized;
+  }
+  return `${normalized.slice(0, length - 1)}...`;
+}
+
 function renderMessage(
   message: Message,
   options: {
     anchorId: string;
     showToolBlocks: boolean;
+    collapsed?: boolean;
   }
 ): HTMLElement {
   const entry = document.createElement("article");
   entry.className = "log-entry";
   entry.id = options.anchorId;
   entry.setAttribute("data-message-anchor", options.anchorId);
+
+  if (options.collapsed) {
+    entry.classList.add("collapsed-commentary-entry");
+
+    const trigger = document.createElement("div");
+    trigger.className = "commentary-collapse-trigger";
+
+    const icon = document.createElement("span");
+    icon.className = "commentary-icon";
+    icon.textContent = "🤖";
+
+    const label = document.createElement("span");
+    label.className = "commentary-label";
+    label.textContent = "Thinking / Commentary";
+
+    const preview = document.createElement("span");
+    preview.className = "commentary-preview";
+    preview.textContent = previewText(message.text, 70);
+
+    const arrow = document.createElement("span");
+    arrow.className = "commentary-arrow";
+    arrow.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+
+    trigger.append(icon, label, preview, arrow);
+    entry.append(trigger);
+
+    const contentWrapper = document.createElement("div");
+    contentWrapper.className = "commentary-content-wrapper hidden";
+
+    const header = document.createElement("div");
+    header.className = "log-entry-header";
+    const messageTime = formatDisplayTime(message.createdAt);
+    const messageTimeTitle = formatDateTimeLong(message.createdAt);
+    header.innerHTML = `
+      <span class="log-role-badge ${message.role}">${escapeHtml(message.role)}</span>
+      <span class="message-type">${escapeHtml(message.rawType ?? "message")}</span>
+      <span class="message-time" title="${escapeHtml(messageTimeTitle)}">${escapeHtml(messageTime)}</span>
+    `;
+    contentWrapper.append(header);
+
+    if (message.text.trim()) {
+      const body = document.createElement("div");
+      body.className = "log-content markdown-theme";
+      body.append(renderMarkdown(message.text));
+      contentWrapper.append(body);
+    }
+    entry.append(contentWrapper);
+
+    trigger.addEventListener("click", () => {
+      const isHidden = contentWrapper.classList.contains("hidden");
+      contentWrapper.classList.toggle("hidden", !isHidden);
+      trigger.classList.toggle("expanded", isHidden);
+    });
+
+    return entry;
+  }
 
   const header = document.createElement("div");
   header.className = "log-entry-header";
@@ -998,6 +1103,7 @@ function createEmpty(message: string): HTMLElement {
 export function filterMessagesForView(messages: Message[], filter: MessageViewFilter): Message[] {
   switch (filter) {
     case "not-tool":
+    case "pure":
       return messages.filter(
         (message) =>
           !isToolOnlyMessage(message) &&
@@ -1008,6 +1114,7 @@ export function filterMessagesForView(messages: Message[], filter: MessageViewFi
       return messages.filter((message) => message.role === "user");
     case "answer":
       return messages.filter((message) => message.role === "assistant");
+    case "raw":
     default:
       return messages;
   }

@@ -50,9 +50,9 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   body.className = "modal-body";
 
   // Setup state
-  let currentFilter: MessageViewFilter = "default";
+  let currentFilter: MessageViewFilter = "pure";
   // Store checked state by message ID
-  const checkedIds = new Set<string>(session.messages.map((m) => m.id));
+  const checkedIds = new Set<string>(filterMessagesForView(session.messages, currentFilter).map((m) => m.id));
 
   // 1. Filter Row
   const filterRow = document.createElement("div");
@@ -62,7 +62,8 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   filterChips.className = "export-filter-chips";
 
   const filters: Array<{ key: MessageViewFilter; label: string }> = [
-    { key: "default", label: "default" },
+    { key: "pure", label: "pure" },
+    { key: "raw", label: "raw" },
     { key: "not-tool", label: "not tool" },
     { key: "user", label: "user" },
     { key: "answer", label: "answer" }
@@ -542,8 +543,8 @@ function generateMarkdown(session: Session, selectedMessages: Message[], filter:
       md += `${msg.text.trim()}\n\n`;
     }
     
-    // Standalone tool calls are only exported if the filter is "default"
-    if (filter === "default" && msg.toolCalls && msg.toolCalls.length > 0) {
+    // Standalone tool calls are only exported if the filter is "raw"
+    if (filter === "raw" && msg.toolCalls && msg.toolCalls.length > 0) {
       md += `#### 🛠️ Tool Calls\n\n`;
       for (const tool of msg.toolCalls) {
         md += `##### **${tool.toolName}** \`[${tool.status}]\`\n`;

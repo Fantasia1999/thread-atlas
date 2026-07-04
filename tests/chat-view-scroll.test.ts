@@ -37,7 +37,7 @@ test("scroll to bottom button behavior", () => {
     descriptor,
     session,
     loading: false,
-    messageFilter: "default" as const,
+    messageFilter: "pure" as const,
     timelinePinned: false,
     timelineOpen: false,
     pinnedKeys: new Set<string>(),
