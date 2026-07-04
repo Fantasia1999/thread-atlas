@@ -969,6 +969,7 @@ function renderMessage(
     if (entries.length > 0 || rolloutIds.length > 0) {
       citationElement = document.createElement("details");
       citationElement.className = "citation-block";
+      citationElement.setAttribute("open", "");
 
       const summary = document.createElement("summary");
       summary.className = "citation-header";
