@@ -630,6 +630,99 @@ function getFinalAssistantMessageIds(messages: Message[]): Set<string> {
 
   return ids;
 }
+type RenderBlock =
+  | { type: "message"; message: Message; index: number }
+  | { type: "commentary-group"; messages: Array<{ message: Message; index: number }> };
+
+function partitionMessages(
+  messages: Message[],
+  isPureMode: boolean,
+  finalAssistantIds: Set<string>
+): RenderBlock[] {
+  const blocks: RenderBlock[] = [];
+  let currentGroup: Array<{ message: Message; index: number }> = [];
+
+  messages.forEach((message, index) => {
+    const isCommentary =
+      isPureMode && message.role === "assistant" && !finalAssistantIds.has(message.id);
+
+    if (isCommentary) {
+      currentGroup.push({ message, index });
+    } else {
+      if (currentGroup.length > 0) {
+        blocks.push({ type: "commentary-group", messages: currentGroup });
+        currentGroup = [];
+      }
+      blocks.push({ type: "message", message, index });
+    }
+  });
+
+  if (currentGroup.length > 0) {
+    blocks.push({ type: "commentary-group", messages: currentGroup });
+  }
+
+  return blocks;
+}
+
+function renderCommentaryGroup(
+  block: { type: "commentary-group"; messages: Array<{ message: Message; index: number }> },
+  options: {
+    showToolBlocks: boolean;
+    session?: Session;
+  }
+): HTMLElement {
+  const groupElement = document.createElement("article");
+  groupElement.className = "log-entry collapsed-commentary-group";
+
+  const trigger = document.createElement("div");
+  trigger.className = "commentary-collapse-trigger";
+
+  const icon = document.createElement("span");
+  icon.className = "commentary-icon";
+  icon.textContent = "🤖";
+
+  const label = document.createElement("span");
+  label.className = "commentary-label";
+  label.textContent = `Thinking / Commentary (${block.messages.length} steps)`;
+
+  const firstMsg = block.messages[0].message;
+  const citationRegex = /<oai-mem-citation>([\s\S]*?)<\/oai-mem-citation>/i;
+  const previewTextContent = firstMsg.text.replace(citationRegex, "").trim();
+  const preview = document.createElement("span");
+  preview.className = "commentary-preview";
+  preview.textContent = previewText(previewTextContent, 70);
+
+  const arrow = document.createElement("span");
+  arrow.className = "commentary-arrow";
+  arrow.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+
+  trigger.append(icon, label, preview, arrow);
+  groupElement.append(trigger);
+
+  const contentWrapper = document.createElement("div");
+  contentWrapper.className = "commentary-content-wrapper hidden";
+
+  block.messages.forEach(({ message, index }) => {
+    const msgElement = renderMessage(message, {
+      anchorId: buildAnchorId(message, index),
+      showToolBlocks: options.showToolBlocks,
+      session: options.session,
+      collapsed: false
+    });
+    msgElement.classList.add("commentary-group-inner-item");
+    contentWrapper.append(msgElement);
+  });
+
+  groupElement.append(contentWrapper);
+
+  trigger.addEventListener("click", () => {
+    const isHidden = contentWrapper.classList.contains("hidden");
+    contentWrapper.classList.toggle("hidden", !isHidden);
+    trigger.classList.toggle("expanded", isHidden);
+  });
+
+  return groupElement;
+}
 
 function renderChatLayout(options: {
   messages: Message[];
@@ -754,7 +847,8 @@ function renderChatLayout(options: {
     }
   };
 
-  const totalMessages = options.messages.length;
+  const blocks = partitionMessages(options.messages, isPureMode, finalAssistantIds);
+  const totalBlocks = blocks.length;
   let currentIndex = 0;
   const chunkSize = 10;
 
@@ -764,40 +858,65 @@ function renderChatLayout(options: {
       return;
     }
 
-    const end = Math.min(currentIndex + chunkSize, totalMessages);
+    const end = Math.min(currentIndex + chunkSize, totalBlocks);
     for (let i = currentIndex; i < end; i++) {
-      const message = options.messages[i];
-      const isCommentary = isPureMode && message.role === "assistant" && !finalAssistantIds.has(message.id);
-      const anchorId = buildAnchorId(message, i);
-      const messageElement = renderMessage(message, {
-        anchorId,
-        showToolBlocks: options.showToolBlocks,
-        collapsed: isCommentary,
-        session: options.session
-      });
-      const timelineButton = renderTimelineButton(message, i, anchorId);
-
-      timelineButton.addEventListener("click", () => {
-        // Auto-expand collapsed commentary if jumped from timeline
-        const contentWrapper = messageElement.querySelector(".commentary-content-wrapper");
-        if (contentWrapper && contentWrapper.classList.contains("hidden")) {
-          contentWrapper.classList.remove("hidden");
-          const trigger = messageElement.querySelector(".commentary-collapse-trigger");
-          if (trigger) {
-            trigger.classList.add("expanded");
-          }
-        }
-
-        messageElement.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
+      const block = blocks[i];
+      if (block.type === "message") {
+        const message = block.message;
+        const anchorId = buildAnchorId(message, block.index);
+        const messageElement = renderMessage(message, {
+          anchorId,
+          showToolBlocks: options.showToolBlocks,
+          session: options.session
         });
-        setActiveTimelineItem(anchorId);
-      });
+        const timelineButton = renderTimelineButton(message, block.index, anchorId);
 
-      timelineButtons.push(timelineButton);
-      messageList.append(messageElement);
-      timelineList.append(timelineButton);
+        timelineButton.addEventListener("click", () => {
+          messageElement.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+          setActiveTimelineItem(anchorId);
+        });
+
+        timelineButtons.push(timelineButton);
+        messageList.append(messageElement);
+        timelineList.append(timelineButton);
+      } else {
+        const groupElement = renderCommentaryGroup(block, {
+          showToolBlocks: options.showToolBlocks,
+          session: options.session
+        });
+        messageList.append(groupElement);
+
+        block.messages.forEach(({ message, index }) => {
+          const anchorId = buildAnchorId(message, index);
+          const timelineButton = renderTimelineButton(message, index, anchorId);
+
+          timelineButton.addEventListener("click", () => {
+            const contentWrapper = groupElement.querySelector(".commentary-content-wrapper");
+            if (contentWrapper && contentWrapper.classList.contains("hidden")) {
+              contentWrapper.classList.remove("hidden");
+              const trigger = groupElement.querySelector(".commentary-collapse-trigger");
+              if (trigger) {
+                trigger.classList.add("expanded");
+              }
+            }
+
+            const innerItem = groupElement.querySelector(`#${anchorId}`);
+            if (innerItem) {
+              innerItem.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+              });
+            }
+            setActiveTimelineItem(anchorId);
+          });
+
+          timelineButtons.push(timelineButton);
+          timelineList.append(timelineButton);
+        });
+      }
     }
 
     if (currentIndex === 0 && timelineButtons[0]) {
@@ -805,7 +924,7 @@ function renderChatLayout(options: {
     }
 
     currentIndex = end;
-    if (currentIndex < totalMessages) {
+    if (currentIndex < totalBlocks) {
       setTimeout(renderNextChunk, 0);
     } else {
       renderMermaidDiagrams(messageList).then(() => {
