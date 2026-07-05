@@ -739,11 +739,14 @@ function parseSimpleYamlRecord(text: string): Record<string, string> {
 }
 
 async function readCopilotWorkspaceFile(sessionPath: string): Promise<Record<string, string>> {
-  if (!(await exists(sessionPath))) {
+  try {
+    if (!(await exists(sessionPath))) {
+      return {};
+    }
+    return parseSimpleYamlRecord(await fs.readFile(sessionPath, "utf8"));
+  } catch {
     return {};
   }
-
-  return parseSimpleYamlRecord(await fs.readFile(sessionPath, "utf8"));
 }
 
 function inferCopilotTitle(workspace: Record<string, string>, sessionDir: string): string {

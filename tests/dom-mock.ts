@@ -3,6 +3,7 @@ export type FakeNode = FakeDocumentFragment | FakeElement | FakeText;
 export class FakeDocumentFragment {
   readonly nodeType = 11;
   readonly childNodes: FakeNode[] = [];
+  parentNode: any = null;
 
   get children(): FakeElement[] {
     return this.childNodes.filter(node => node.nodeType === 1) as FakeElement[];
@@ -21,20 +22,59 @@ export class FakeDocumentFragment {
   append(...nodes: FakeNode[]): void {
     for (const node of nodes) {
       if (node.nodeType === 11) {
-        this.childNodes.push(...node.childNodes);
+        const kids = Array.from(node.childNodes);
+        for (const child of kids) {
+          child.remove();
+          child.parentNode = this;
+          this.childNodes.push(child);
+        }
+        node.childNodes.length = 0;
       } else {
+        node.remove();
+        node.parentNode = this;
         this.childNodes.push(node);
       }
     }
   }
 
+  insertBefore(node: any, child: any): any {
+    const index = this.childNodes.indexOf(child);
+    if (index !== -1) {
+      if (node.nodeType === 11) {
+        const kids = Array.from(node.childNodes);
+        for (const c of kids) {
+          c.remove();
+          c.parentNode = this;
+        }
+        this.childNodes.splice(index, 0, ...kids);
+        node.childNodes.length = 0;
+      } else {
+        node.remove();
+        node.parentNode = this;
+        this.childNodes.splice(index, 0, node);
+      }
+    } else {
+      this.append(node);
+    }
+    return node;
+  }
+
   replaceChildren(...nodes: FakeNode[]): void {
+    for (const child of this.childNodes) {
+      child.parentNode = null;
+    }
     this.childNodes.length = 0;
     this.append(...nodes);
   }
 
   remove(): void {
-    // no-op
+    if (this.parentNode) {
+      const index = this.parentNode.childNodes.indexOf(this);
+      if (index !== -1) {
+        this.parentNode.childNodes.splice(index, 1);
+      }
+      this.parentNode = null;
+    }
   }
 
   contains(node: any): boolean {
@@ -120,6 +160,13 @@ export class FakeElement extends FakeDocumentFragment {
   }
   set src(value: string) {
     this.setAttribute("src", value);
+  }
+
+  get alt(): string {
+    return this.getAttribute("alt") || "";
+  }
+  set alt(value: string) {
+    this.setAttribute("alt", value);
   }
 
   get title(): string {
@@ -243,8 +290,19 @@ export class FakeElement extends FakeDocumentFragment {
 export class FakeText {
   readonly nodeType = 3;
   readonly childNodes: FakeNode[] = [];
+  parentNode: any = null;
 
   constructor(readonly textContent: string) {}
+
+  remove(): void {
+    if (this.parentNode) {
+      const index = this.parentNode.childNodes.indexOf(this);
+      if (index !== -1) {
+        this.parentNode.childNodes.splice(index, 1);
+      }
+      this.parentNode = null;
+    }
+  }
 }
 
 export function findElementsByTag(node: FakeNode, tagName: string): FakeElement[] {
@@ -277,6 +335,7 @@ const documentListeners: Record<string, Function[]> = {};
 const createdElements: FakeElement[] = [];
 
 globalThis.document = {
+  body: new FakeElement("BODY"),
   createDocumentFragment: () => new FakeDocumentFragment(),
   createElement: (tagName: string) => {
     const el = new FakeElement(tagName);

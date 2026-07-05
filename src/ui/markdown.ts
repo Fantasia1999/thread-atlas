@@ -563,10 +563,118 @@ function renderMath(text: string, displayMode: boolean): HTMLElement {
   return element;
 }
 
+function showImageModal(src: string, alt: string): void {
+  const overlay = document.createElement("div");
+  overlay.className = "image-zoom-overlay";
+
+  const img = document.createElement("img");
+  img.className = "image-zoom-img";
+  img.src = src;
+  img.alt = alt;
+
+  overlay.append(img);
+  document.body.append(overlay);
+
+  // Trigger reflow
+  overlay.getBoundingClientRect();
+  overlay.classList.add("active");
+
+  overlay.addEventListener("click", () => {
+    overlay.classList.remove("active");
+    overlay.addEventListener("transitionend", () => {
+      overlay.remove();
+    }, { once: true });
+  });
+}
+
+function groupImages(fragment: DocumentFragment): void {
+  const childNodes = Array.from(fragment.childNodes);
+  const galleryGroups: (HTMLElement | Text)[][] = [];
+  let currentGroup: (HTMLElement | Text)[] = [];
+
+  const isImageRelated = (node: ChildNode): boolean => {
+    if (node.nodeType === 3) {
+      return currentGroup.length > 0 && !node.textContent?.trim();
+    }
+    if (node.nodeType === 1) {
+      const el = node as HTMLElement;
+      return (
+        el.classList.contains("image-attachment-badge") ||
+        el.classList.contains("md-image") ||
+        el.classList.contains("image-card")
+      );
+    }
+    return false;
+  };
+
+  for (const node of childNodes) {
+    if (isImageRelated(node)) {
+      currentGroup.push(node as any);
+    } else {
+      if (currentGroup.length > 0) {
+        galleryGroups.push(currentGroup);
+        currentGroup = [];
+      }
+    }
+  }
+  if (currentGroup.length > 0) {
+    galleryGroups.push(currentGroup);
+  }
+
+  for (const group of galleryGroups) {
+    const realElements = group.filter((n) => n.nodeType === 1) as HTMLElement[];
+    if (realElements.length === 0) continue;
+
+    const firstNode = group[0];
+    const parent = firstNode.parentNode;
+    const gallery = document.createElement("div");
+    gallery.className = "image-gallery";
+
+    if (parent) {
+      parent.insertBefore(gallery, firstNode);
+    } else {
+      fragment.append(gallery);
+    }
+
+    for (const node of group) {
+      node.remove();
+    }
+
+    const cards: HTMLElement[] = [];
+    let i = 0;
+    while (i < realElements.length) {
+      const current = realElements[i];
+      const next = realElements[i + 1];
+
+      if (
+        current.classList.contains("image-attachment-badge") &&
+        next &&
+        next.classList.contains("md-image")
+      ) {
+        const card = document.createElement("div");
+        card.className = "image-card";
+        card.append(current, next);
+        cards.push(card);
+        i += 2;
+      } else {
+        const card = document.createElement("div");
+        card.className = "image-card";
+        card.append(current);
+        cards.push(card);
+        i += 1;
+      }
+    }
+
+    if (cards.length > 0) {
+      gallery.append(...cards);
+    }
+  }
+}
+
 function renderInline(text: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const tokenPattern =
-    /(\[([^\]]+)\]\(((?:https?|file):\/\/[^\s)]+|[^\s)]+)\)|`([^`]+)`|(?<![\\\w])\$(?![\s$])([^$\n]*?\S)(?<!\\)\$(?!\w)|\*\*((?:[^*]|`[^`]+`|\*(?!\*))+?)\*\*|(?<![\\/.\w])__([^_]+)__(?![\w\\/]|[.][A-Za-z0-9])|\*((?:[^*]|`[^`]+`)+?)\*|(?<![\\/.\w])_([^_\s](?:[^_]*[^_\s])?)_(?![\w\\/]|[.][A-Za-z0-9]))/g;
+    /((?:\!?)\[([^\]]*)\]\(((?:https?|file):\/\/[^\s)]+|[^\s)]+)\)|`([^`]+)`|(?<![\\\w])\$(?![\s$])([^$\n]*?\S)(?<!\\)\$(?!\w)|\*\*((?:[^*]|`[^`]+`|\*(?!\*))+?)\*\*|(?<![\\/.\w])__([^_]+)__(?![\w\\/]|[.][A-Za-z0-9])|\*((?:[^*]|`[^`]+`)+?)\*|(?<![\\/.\w])_([^_\s](?:[^_]*[^_\s])?)_(?![\w\\/]|[.][A-Za-z0-9])|(<image\s+name=["']?\[?([^\"'\]>]+)\]?["']?\s+path=["']?([^\"'>]*)["']?\s*\/?>)|(<\/image>))/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
 
@@ -575,14 +683,28 @@ function renderInline(text: string): DocumentFragment {
       fragment.append(document.createTextNode(text.slice(cursor, match.index)));
     }
 
-    if (match[2] && match[3]) {
-      const link = document.createElement("a");
-      link.className = "md-link";
-      link.href = match[3];
-      link.target = "_blank";
-      link.rel = "noreferrer";
-      link.textContent = match[2];
-      fragment.append(link);
+    if (match[2] !== undefined && match[3]) {
+      const isImage = match[0].startsWith("!");
+      if (isImage) {
+        const img = document.createElement("img");
+        img.className = "md-image";
+        const imgSrc = match[3];
+        const imgAlt = match[2] || "";
+        img.src = imgSrc;
+        img.alt = imgAlt;
+        img.addEventListener("click", () => {
+          showImageModal(imgSrc, imgAlt);
+        });
+        fragment.append(img);
+      } else {
+        const link = document.createElement("a");
+        link.className = "md-link";
+        link.href = match[3];
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        link.textContent = match[2] || match[3];
+        fragment.append(link);
+      }
     } else if (match[4]) {
       const code = document.createElement("code");
       code.className = "inline-code";
@@ -598,6 +720,13 @@ function renderInline(text: string): DocumentFragment {
       const emphasis = document.createElement("em");
       emphasis.append(renderInline(match[8] ?? match[9] ?? ""));
       fragment.append(emphasis);
+    } else if (match[10]) {
+      const span = document.createElement("span");
+      span.className = "image-attachment-badge";
+      span.textContent = `📷 ${match[11] || "Image Attachment"}`;
+      fragment.append(span);
+    } else if (match[13]) {
+      // Ignore closing </image> tag
     }
 
     cursor = match.index + match[0].length;
@@ -606,6 +735,8 @@ function renderInline(text: string): DocumentFragment {
   if (cursor < text.length) {
     fragment.append(document.createTextNode(text.slice(cursor)));
   }
+
+  groupImages(fragment);
 
   return fragment;
 }

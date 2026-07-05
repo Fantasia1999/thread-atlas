@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { parseClaudeSession, extractClaudePreviewTitle, extractClaudeCwd } from "../src/parsers/claude.ts";
 import { parseGeminiSession } from "../src/parsers/gemini.ts";
 import { parseAntigravitySession } from "../src/parsers/antigravity.ts";
+import { parseCodexSession } from "../src/parsers/codex.ts";
 import type { SessionBundle } from "../src/parsers/types.ts";
 
 test("parseClaudeSession preserves tool_result content as a fenced code block", () => {
@@ -429,6 +430,54 @@ test("extractClaudeCwd correctly extracts cwd from Claude session content", () =
   const session = parseClaudeSession(bundle);
   assert.equal(session.cwd, "/home/wcl/workspace/my-awesome-project");
   assert.equal(session.title, "my-awesome-project · Claude");
+});
+
+test("parseCodexSession extracts input_image block as markdown image tag", () => {
+  const content = JSON.stringify({
+    timestamp: "2026-07-05T03:53:02.838Z",
+    type: "response_item",
+    payload: {
+      type: "message",
+      role: "user",
+      content: [
+        {
+          type: "input_text",
+          text: "这里是用户请求"
+        },
+        {
+          type: "input_image",
+          image_url: "data:image/png;base64,iVBORw0KGgoAAAANS",
+          detail: "high"
+        }
+      ]
+    }
+  });
+
+  const bundle: SessionBundle = {
+    key: "file::/tmp/rollout.jsonl",
+    source: "codex",
+    title: "rollout.jsonl",
+    primaryPath: "/tmp/rollout.jsonl",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 1,
+    size: 1,
+    mtimeMs: 1,
+    metadata: {},
+    files: [
+      {
+        path: "/tmp/rollout.jsonl",
+        content
+      }
+    ]
+  };
+
+  const session = parseCodexSession(bundle);
+  const [msg] = session.messages;
+  assert.ok(msg);
+  assert.equal(msg.role, "user");
+  assert.match(msg.text, /!\[Image\]\(data:image\/png;base64,iVBORw0KGgoAAAANS\)/);
 });
 
 

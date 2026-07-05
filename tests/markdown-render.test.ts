@@ -283,3 +283,82 @@ test("renderMarkdown renders local file:// links as anchor elements", () => {
   assert.equal(links[0].getAttribute("href"), "file:///home/example-user/.gemini/antigravity-cli/brain/session/report.md");
   assert.equal(links[0].textContent, "artifact report");
 });
+
+test("renderMarkdown renders image syntax as image element and opens zoom modal on click", () => {
+  const fragment = renderMarkdown(
+    "Here is an image: ![Cool Image](data:image/png;base64,iVBORw0KGgoAAAANS)"
+  ) as unknown as FakeDocumentFragment;
+
+  const imgs = findElementsByTag(fragment, "img");
+  assert.equal(imgs.length, 1);
+  assert.equal(imgs[0].className, "md-image");
+  assert.equal(imgs[0].getAttribute("src"), "data:image/png;base64,iVBORw0KGgoAAAANS");
+  assert.equal(imgs[0].getAttribute("alt"), "Cool Image");
+
+  // Click to open modal
+  imgs[0].dispatchEvent("click");
+  
+  // Verify overlay is created on document.body
+  const overlay = (globalThis.document as any).body.childNodes.find(
+    (node: any) => node.className.includes("image-zoom-overlay")
+  );
+  assert.ok(overlay);
+  assert.equal(overlay.classList.contains("active"), true);
+
+  const zoomImg = overlay.childNodes.find((node: any) => node.className === "image-zoom-img");
+  assert.ok(zoomImg);
+  assert.equal(zoomImg.getAttribute("src"), "data:image/png;base64,iVBORw0KGgoAAAANS");
+
+  // Click to close overlay
+  overlay.dispatchEvent("click");
+  assert.equal(overlay.classList.contains("active"), false);
+});
+
+test("renderMarkdown renders XML-like image tags as styled attachment badges and ignores closing </image> tags", () => {
+  const fragment = renderMarkdown(
+    `Attached file: <image name=[Image #1] path="/var/folders/tf/wqzy96dx0cn1zxt3x6s7nvmr0000gn/T/codex-clipboard-7632fb05-b0d4-42a5-b9fa-c0cd78fc76bc.png"></image>`
+  ) as unknown as FakeDocumentFragment;
+
+  const badges = findElementsByTag(fragment, "span").filter(
+    (el) => el.className === "image-attachment-badge"
+  );
+  assert.equal(badges.length, 1);
+  assert.equal(badges[0].textContent, "📷 Image #1");
+
+  // Verify that </image> is not rendered in the text content
+  assert.doesNotMatch(collectText(fragment), /<\/image>/);
+});
+
+test("renderMarkdown groups consecutive image badges and images into gallery cards", () => {
+  const fragment = renderMarkdown(
+    `<image name=[Image #1] path="/a.png">\n![Img1](data:image/png;base64,1)\n<image name=[Image #2] path="/b.png">\n![Img2](data:image/png;base64,2)`
+  ) as unknown as FakeDocumentFragment;
+
+  const galleries = findElementsByTag(fragment, "div").filter(
+    (el) => el.className === "image-gallery"
+  );
+  assert.equal(galleries.length, 1);
+
+  const cards = galleries[0].childNodes.filter(
+    (node: any) => node.className === "image-card"
+  );
+  assert.equal(cards.length, 2);
+
+  // First card has badge and image
+  const card1 = cards[0];
+  const badge1 = card1.childNodes.find((n: any) => n.className === "image-attachment-badge");
+  const img1 = card1.childNodes.find((n: any) => n.className === "md-image");
+  assert.ok(badge1);
+  assert.ok(img1);
+  assert.equal(badge1.textContent, "📷 Image #1");
+  assert.equal(img1.getAttribute("src"), "data:image/png;base64,1");
+
+  // Second card has badge and image
+  const card2 = cards[1];
+  const badge2 = card2.childNodes.find((n: any) => n.className === "image-attachment-badge");
+  const img2 = card2.childNodes.find((n: any) => n.className === "md-image");
+  assert.ok(badge2);
+  assert.ok(img2);
+  assert.equal(badge2.textContent, "📷 Image #2");
+  assert.equal(img2.getAttribute("src"), "data:image/png;base64,2");
+});

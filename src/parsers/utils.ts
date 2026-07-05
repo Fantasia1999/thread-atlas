@@ -51,6 +51,9 @@ export function collectText(value: unknown, depth = 0): string {
   }
 
   const record = value as Record<string, unknown>;
+  if (record.type === "input_image" && typeof record.image_url === "string") {
+    return `![Image](${record.image_url})`;
+  }
   const preferredKeys = [
     "text",
     "content",
