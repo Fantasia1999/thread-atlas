@@ -624,8 +624,8 @@ async function readTextFileIfPossible(absolutePath: string): Promise<string | un
   try {
     const handle = await fs.open(absolutePath, "r");
     try {
-      const buffer = Buffer.alloc(65536);
-      const { bytesRead } = await handle.read(buffer, 0, 65536, 0);
+      const buffer = Buffer.alloc(5242880);
+      const { bytesRead } = await handle.read(buffer, 0, 5242880, 0);
       return buffer.toString("utf8", 0, bytesRead);
     } finally {
       await handle.close();

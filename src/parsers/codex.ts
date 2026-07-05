@@ -173,7 +173,7 @@ export function parseCodexSession(bundle: SessionBundle): Session {
   return buildSession(bundle, "codex", {
     id,
     title,
-    summary: previewText(dedupedMessages.find((message) => message.role === "user")?.text ?? ""),
+    summary: previewText(cleanCodexPrompt(dedupedMessages.find((message) => message.role === "user")?.text ?? "")),
     cwd,
     startedAt: toIsoTimestamp(sessionMeta?.timestamp),
     updatedAt: dedupedMessages.at(-1)?.createdAt,
@@ -260,22 +260,34 @@ export function extractCodexPreviewTitle(content: string | unknown[]): string | 
   let firstUserTitle: string | undefined;
 
   for (const row of rows) {
-    if (row.type !== "event_msg") {
-      continue;
-    }
+    const rowType = String(row.type ?? "");
+    const payload = (row.payload as Record<string, unknown> | undefined) ?? {};
 
-    const payload = row.payload as Record<string, unknown> | undefined;
-    if (payload?.type === "user_message" && firstUserTitle == null) {
-      firstUserTitle = previewTitle(collectText(payload.message));
-      if (firstUserTitle) {
+    if (rowType === "event_msg") {
+      const eventType = String(payload.type ?? "");
+      if (eventType === "thread_name_updated") {
+        const nextThreadName = normalizeThreadName(payload.thread_name);
+        if (nextThreadName) {
+          threadName = nextThreadName;
+        }
         continue;
       }
-    }
-
-    if (payload?.type === "thread_name_updated") {
-      const nextThreadName = normalizeThreadName(payload.thread_name);
-      if (nextThreadName) {
-        threadName = nextThreadName;
+      if (eventType === "user_message" && firstUserTitle == null) {
+        const text = collectText(payload.message);
+        if (text.trim() && !isSystemInstructionText(text)) {
+          firstUserTitle = previewTitle(text);
+        }
+      }
+    } else if (rowType === "response_item") {
+      const responseType = String(payload.type ?? "");
+      if (responseType === "message") {
+        const role = normalizeRole(payload.role);
+        if (role === "user" && firstUserTitle == null) {
+          const text = collectText(payload.content);
+          if (text.trim() && !isSystemInstructionText(text)) {
+            firstUserTitle = previewTitle(text);
+          }
+        }
       }
     }
   }
@@ -292,13 +304,33 @@ function normalizeThreadName(input: unknown): string | undefined {
   return value || undefined;
 }
 
+export function cleanCodexPrompt(text: string): string {
+  const match = text.match(/(?:##?\s*My request for Codex:)\s*([\s\S]+)/i);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  if (text.includes("# Files mentioned by the user:")) {
+    const lines = text.split("\n");
+    const cleanLines = lines.filter(line => {
+      const trimmed = line.trim();
+      return !trimmed.startsWith("#") && !trimmed.includes("codex-clipboard-") && !trimmed.includes("/T/codex-clipboard-");
+    });
+    const cleaned = cleanLines.join("\n").trim();
+    if (cleaned) {
+      return cleaned;
+    }
+  }
+  return text;
+}
+
 function codexTitleFromMessages(messages: Message[]): string | undefined {
   const firstUserMessage = messages.find((message) => message.role === "user");
   return previewTitle(firstUserMessage?.text ?? "");
 }
 
 function previewTitle(text: string): string | undefined {
-  const title = previewText(text, CODEX_TITLE_PREVIEW_LENGTH);
+  const cleaned = cleanCodexPrompt(text);
+  const title = previewText(cleaned, CODEX_TITLE_PREVIEW_LENGTH);
   return title || undefined;
 }
 

@@ -5,7 +5,7 @@ import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 
 import { loadLocalSessionBundle } from "../server/scanner.ts";
-import { extractCodexPreviewTitle, parseCodexSession } from "../src/parsers/codex.ts";
+import { extractCodexPreviewTitle, parseCodexSession, cleanCodexPrompt } from "../src/parsers/codex.ts";
 import type { SessionBundle } from "../src/parsers/types.ts";
 
 const CODEX_THREAD_NAME = "解释 physical-planner 模块";
@@ -71,6 +71,21 @@ test("extractCodexPreviewTitle returns the latest non-empty thread name", () => 
   ].join("\n");
 
   assert.equal(extractCodexPreviewTitle(content), CODEX_THREAD_NAME);
+});
+
+test("cleanCodexPrompt cleans user prompts prefixed with file mentions", () => {
+  const prompt = `
+# Files mentioned by the user:
+
+## codex-clipboard-7632fb05-b0d4-42a5-b9fa-c0cd78fc76bc.png: /var/folders/tf/wqzy96dx0cn1zxt3x6s7nvmr0000gn/T/codex-clipboard-7632fb05-b0d4-42a5-b9fa-c0cd78fc76bc.png
+
+## My request for Codex:
+确认入库现在还使用的是原生的弹窗。请修复一下。
+`;
+  assert.equal(cleanCodexPrompt(prompt), "确认入库现在还使用的是原生的弹窗。请修复一下。");
+
+  const normalPrompt = "Help me debug this loop";
+  assert.equal(cleanCodexPrompt(normalPrompt), "Help me debug this loop");
 });
 
 test("loadLocalSessionBundle uses Codex thread name for bundle title", async (t) => {

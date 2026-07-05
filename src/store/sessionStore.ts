@@ -416,12 +416,29 @@ export class SessionStore {
         }
       }
 
+      const nextDescriptors = this.state.descriptors.map((desc) => {
+        if (desc.key === key && desc.title !== session.title && session.title) {
+          return { ...desc, title: session.title };
+        }
+        return desc;
+      });
+
+      try {
+        const payload: CachedDescriptorsPayload = {
+          version: CACHED_DESCRIPTORS_VERSION,
+          descriptors: nextDescriptors.slice(0, 300)
+        };
+        localStorage.setItem(CACHED_DESCRIPTORS_KEY, JSON.stringify(payload));
+      } catch {
+        // Ignore storage errors
+      }
+
       this.updateState({
+        descriptors: nextDescriptors,
         sessions: nextSessions,
         loadingSession: false,
         status: `Viewing ${session.title}.`
       });
-
 
     } catch (error) {
       this.updateState({
