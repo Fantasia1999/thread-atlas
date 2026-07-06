@@ -127,6 +127,9 @@ export class FakeElement extends FakeDocumentFragment {
   readonly dataset: Record<string, string> = {};
   readonly style: Record<string, string> = {};
   className = "";
+  get isConnected(): boolean {
+    return true;
+  }
   private _innerHTML = "";
   get innerHTML(): string {
     if (this._innerHTML) return this._innerHTML;

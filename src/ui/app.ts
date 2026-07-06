@@ -176,6 +176,21 @@ export class ThreadAtlasApp {
       const link = target.closest("a.md-link") as HTMLAnchorElement | null;
       if (link) {
         const href = link.getAttribute("href") || "";
+        if (href.startsWith("session://")) {
+          event.preventDefault();
+          const targetSessionId = href.slice(10);
+          const state = this.store.getState();
+          const targetDescriptor = state.descriptors.find(
+            d => d.metadata?.sessionId === targetSessionId || d.key === targetSessionId
+          );
+          if (targetDescriptor) {
+            void this.store.selectSession(targetDescriptor.key);
+            showToast("Switched to subagent session", "success");
+          } else {
+            showToast("Subagent session is not loaded in workspace", "error");
+          }
+          return;
+        }
         const isWebLink = href.startsWith("http://") || href.startsWith("https://");
         const isAnchorOnly = href.startsWith("#");
         if (href && !isWebLink && !isAnchorOnly) {

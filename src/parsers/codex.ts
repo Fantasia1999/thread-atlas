@@ -1,4 +1,4 @@
-import type { Message, Session, SessionBundle, ToolCall, SessionRole } from "./types.js";
+import type { Message, Session, SessionBundle, ToolCall, SessionRole, SubagentNotification } from "./types.js";
 import {
   addToolCall,
   basenameTitle,
@@ -65,7 +65,8 @@ export function parseCodexSession(bundle: SessionBundle): Session {
           role,
           text,
           createdAt: timestamp,
-          rawType: eventType
+          rawType: eventType,
+          subagentNotification: parseSubagentNotification(text)
         });
       }
       continue;
@@ -88,7 +89,8 @@ export function parseCodexSession(bundle: SessionBundle): Session {
         role,
         text,
         createdAt: timestamp,
-        rawType: responseType
+        rawType: responseType,
+        subagentNotification: parseSubagentNotification(text)
       });
       continue;
     }
@@ -440,3 +442,36 @@ function isSystemInstructionText(text: string): boolean {
     trimmed.includes("<plugins_instructions>")
   );
 }
+
+function parseSubagentNotification(text: string): SubagentNotification | undefined {
+  const match = text.match(/<subagent_notification>([\s\S]*?)<\/subagent_notification>/i);
+  if (!match) {
+    return undefined;
+  }
+  try {
+    const payload = JSON.parse(match[1].trim());
+    if (payload && typeof payload.agent_path === "string") {
+      let statusStr = "unknown";
+      let content: string | undefined;
+
+      if (typeof payload.status === "string") {
+        statusStr = payload.status;
+      } else if (payload.status && typeof payload.status === "object") {
+        const keys = Object.keys(payload.status);
+        if (keys.length > 0) {
+          statusStr = keys[0];
+          content = String(payload.status[keys[0]] ?? "");
+        }
+      }
+      return {
+        agentPath: payload.agent_path,
+        status: statusStr,
+        content
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+

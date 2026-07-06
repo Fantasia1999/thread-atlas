@@ -1018,9 +1018,13 @@ function renderTimelineButton(
 
   const timelineTime = formatDisplayTime(message.createdAt, "unknown time");
   const timelineTimeTitle = formatDateTimeLong(message.createdAt);
+  const isSubagent = !!message.subagentNotification;
+  const roleLabel = isSubagent ? "subagent" : timelineLabel(message.role);
+  const roleEmoji = isSubagent ? "🧵" : timelineEmoji(message.role);
+
   button.innerHTML = `
     <span class="timeline-index">${String(index + 1).padStart(2, "0")}</span>
-    <span class="timeline-role-emoji" title="${escapeHtml(timelineLabel(message.role))}">${timelineEmoji(message.role)}</span>
+    <span class="timeline-role-emoji" title="${escapeHtml(roleLabel)}">${roleEmoji}</span>
     <strong class="timeline-preview">${escapeHtml(buildTimelinePreview(message))}</strong>
     <span class="timeline-time" title="${escapeHtml(timelineTimeTitle)}">${escapeHtml(timelineTime)}</span>
   `;
@@ -1049,6 +1053,63 @@ function renderMessage(
   entry.className = "log-entry";
   entry.id = options.anchorId;
   entry.setAttribute("data-message-anchor", options.anchorId);
+
+  if (message.subagentNotification) {
+    entry.classList.add("subagent-notification-entry");
+    
+    const notify = message.subagentNotification;
+    
+    // Header
+    const cardHeader = document.createElement("div");
+    cardHeader.className = "subagent-notification-header";
+    
+    const badge = document.createElement("span");
+    badge.className = "subagent-badge";
+    badge.innerHTML = `<span>Subagent Event</span>`;
+    
+    const statusPill = document.createElement("span");
+    statusPill.className = `subagent-status-pill ${notify.status}`;
+    statusPill.textContent = notify.status;
+    
+    cardHeader.append(badge, statusPill);
+    entry.append(cardHeader);
+
+    // Meta/Info Row
+    const infoRow = document.createElement("div");
+    infoRow.className = "subagent-info-row";
+    
+    const idLabel = document.createElement("span");
+    idLabel.className = "subagent-id-label";
+    idLabel.innerHTML = `ID: <code>${escapeHtml(notify.agentPath)}</code>`;
+    
+    const link = document.createElement("a");
+    link.className = "subagent-session-link md-link";
+    link.href = `session://${notify.agentPath}`;
+    link.innerHTML = `View Session`;
+    
+    infoRow.append(idLabel, link);
+    entry.append(infoRow);
+    
+    // Content / Report
+    if (notify.content?.trim()) {
+      const contentBox = document.createElement("div");
+      contentBox.className = "subagent-notification-content log-content markdown-theme";
+      contentBox.append(renderMarkdown(notify.content));
+      entry.append(contentBox);
+    }
+    
+    // Add timestamps
+    const footer = document.createElement("div");
+    footer.className = "subagent-notification-footer";
+    const messageTime = formatDisplayTime(message.createdAt);
+    const messageTimeTitle = formatDateTimeLong(message.createdAt);
+    footer.innerHTML = `
+      <span class="message-time" title="${escapeHtml(messageTimeTitle)}">${escapeHtml(messageTime)}</span>
+    `;
+    entry.append(footer);
+    
+    return entry;
+  }
 
   const text = message.text.trim();
   const citationRegex = /<oai-mem-citation>([\s\S]*?)<\/oai-mem-citation>/i;
@@ -1389,6 +1450,15 @@ function buildAnchorId(message: Message, index: number): string {
 }
 
 function buildTimelinePreview(message: Message): string {
+  if (message.subagentNotification) {
+    const notify = message.subagentNotification;
+    const shortId = notify.agentPath.slice(0, 8);
+    const statusText = notify.status;
+    const contentText = notify.content ? `: ${notify.content}` : "";
+    const full = `Subagent [${shortId}] ${statusText}${contentText}`;
+    return previewText(full, 86);
+  }
+
   let source = message.text.trim();
   if (source.includes("<USER_REQUEST>")) {
     const match = source.match(/<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/i);

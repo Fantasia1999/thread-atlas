@@ -57,6 +57,12 @@ export interface ToolCall {
   backgroundTask?: BackgroundTask;
 }
 
+export interface SubagentNotification {
+  agentPath: string;
+  status: "shutdown" | "completed" | "failed" | string;
+  content?: string;
+}
+
 export interface Message {
   id: string;
   role: SessionRole;
@@ -64,6 +70,7 @@ export interface Message {
   createdAt?: string;
   rawType?: string;
   toolCalls?: ToolCall[];
+  subagentNotification?: SubagentNotification;
 }
 
 export interface Session {
