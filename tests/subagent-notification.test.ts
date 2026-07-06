@@ -251,3 +251,115 @@ test("ThreadAtlasApp intercepts session:// clicks and switches session", async (
   // Wait for async selectSession and render lifecycle setTimeout to resolve completely
   await new Promise((resolve) => setTimeout(resolve, 100));
 });
+
+test("renders parent session backlink in session header when parentThreadId is present", () => {
+  const descriptor: SessionDescriptor = {
+    key: "subagent-key",
+    source: "codex",
+    title: "Subagent Session",
+    primaryPath: "/tmp/subagent.jsonl",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 1,
+    size: 100,
+    mtimeMs: 100,
+    metadata: { parentThreadId: "parent-session-id" }
+  };
+
+  const session: Session = {
+    id: "subagent-key",
+    source: "codex",
+    title: "Subagent Session",
+    summary: "",
+    primaryPath: "/tmp/subagent.jsonl",
+    messageCount: 0,
+    messages: [],
+    metadata: { parentThreadId: "parent-session-id" },
+    rawFiles: []
+  };
+
+  const container = renderChatView({
+    descriptor,
+    session,
+    loading: false,
+    messageFilter: "raw",
+    timelinePinned: false,
+    timelineOpen: false,
+    pinnedKeys: new Set<string>(),
+    favoriteKeys: new Set<string>(),
+    favoriteMetadata: new Map(),
+    onFilterChange: () => {},
+    onTimelineToggleOpen: () => {},
+    onTimelineTogglePin: () => {},
+    onExport: () => {},
+    onTogglePinSession: () => {},
+    onToggleFavoriteSession: () => {},
+    onUpdateMetadata: () => {}
+  });
+
+  const backLink = container.querySelector(".parent-session-backlink") as HTMLAnchorElement;
+  assert.ok(backLink, "Should render parent session backlink link");
+  assert.equal(backLink.getAttribute("href"), "session://parent-session-id");
+  assert.equal(backLink.textContent, "← Parent Session");
+});
+
+test("renders history Back link in session header when previousKeys is not empty", () => {
+  const descriptor: SessionDescriptor = {
+    key: "subagent-key",
+    source: "codex",
+    title: "Subagent Session",
+    primaryPath: "/tmp/subagent.jsonl",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 1,
+    size: 100,
+    mtimeMs: 100,
+    metadata: {}
+  };
+
+  const session: Session = {
+    id: "subagent-key",
+    source: "codex",
+    title: "Subagent Session",
+    summary: "",
+    primaryPath: "/tmp/subagent.jsonl",
+    messageCount: 0,
+    messages: [],
+    metadata: {},
+    rawFiles: []
+  };
+
+  let goBackCalled = false;
+  const container = renderChatView({
+    descriptor,
+    session,
+    loading: false,
+    messageFilter: "raw",
+    timelinePinned: false,
+    timelineOpen: false,
+    pinnedKeys: new Set<string>(),
+    favoriteKeys: new Set<string>(),
+    favoriteMetadata: new Map(),
+    onFilterChange: () => {},
+    onTimelineToggleOpen: () => {},
+    onTimelineTogglePin: () => {},
+    onExport: () => {},
+    onTogglePinSession: () => {},
+    onToggleFavoriteSession: () => {},
+    onUpdateMetadata: () => {},
+    previousKeys: ["previous-session-key"],
+    onGoBack: () => {
+      goBackCalled = true;
+    }
+  });
+
+  const backLink = container.querySelector(".history-back-link") as HTMLAnchorElement;
+  assert.ok(backLink, "Should render history back link");
+  assert.equal(backLink.textContent, "← Back");
+
+  // Click back link
+  backLink.dispatchEvent("click");
+  assert.ok(goBackCalled, "onGoBack should be called");
+});

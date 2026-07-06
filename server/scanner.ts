@@ -184,7 +184,7 @@ async function scanFileTree(
     .sort((a, b) => b.stats.mtimeMs - a.stats.mtimeMs)
     .slice(0, MAX_FILES_PER_SOURCE);
 
-  return await Promise.all(
+  const loadedDescriptors = await Promise.all(
     validCandidates.map(async ({ absolutePath, inferredSource, stats }) => {
       const content =
         (inferredSource === "codex" || inferredSource === "claude")
@@ -193,6 +193,64 @@ async function scanFileTree(
       return buildFileDescriptor(absolutePath, inferredSource, origin, stats, content);
     })
   );
+
+  // Recover parent sessions that fell outside the slice limit
+  let resolveDone = false;
+  let iterations = 0;
+  const slicedPaths = new Set(validCandidates.map((c) => c.absolutePath));
+
+  while (!resolveDone && iterations < 3) {
+    resolveDone = true;
+    iterations++;
+
+    const loadedSessionIds = new Set<string>();
+    for (const desc of loadedDescriptors) {
+      if (desc.metadata?.sessionId) {
+        loadedSessionIds.add(String(desc.metadata.sessionId));
+      }
+    }
+
+    const missingParentIds = new Set<string>();
+    for (const desc of loadedDescriptors) {
+      const parentId = desc.metadata?.parentThreadId;
+      if (parentId && !loadedSessionIds.has(String(parentId))) {
+        missingParentIds.add(String(parentId));
+      }
+    }
+
+    if (missingParentIds.size > 0) {
+      const unslicedCandidates = candidatesWithStats.filter(
+        (c): c is NonNullable<typeof c> => c !== null && !slicedPaths.has(c.absolutePath)
+      );
+
+      const extraCandidates: typeof unslicedCandidates = [];
+      for (const parentId of missingParentIds) {
+        const matched = unslicedCandidates.find(
+          (c) => c.absolutePath.includes(parentId) && !slicedPaths.has(c.absolutePath)
+        );
+        if (matched) {
+          extraCandidates.push(matched);
+          slicedPaths.add(matched.absolutePath);
+        }
+      }
+
+      if (extraCandidates.length > 0) {
+        resolveDone = false;
+        const extraDescriptors = await Promise.all(
+          extraCandidates.map(async ({ absolutePath, inferredSource, stats }) => {
+            const content =
+              (inferredSource === "codex" || inferredSource === "claude")
+                ? await readTextFileIfPossible(absolutePath)
+                : undefined;
+            return buildFileDescriptor(absolutePath, inferredSource, origin, stats, content);
+          })
+        );
+        loadedDescriptors.push(...extraDescriptors);
+      }
+    }
+  }
+
+  return loadedDescriptors;
 }
 
 async function loadAntigravityHistoryMap(): Promise<Map<string, string>> {

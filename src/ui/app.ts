@@ -433,6 +433,10 @@ export class ThreadAtlasApp {
         },
         onRenderComplete: () => {
           setTimeout(() => this.restoreChatMessagesScroll(), 0);
+        },
+        previousKeys: state.previousKeys,
+        onGoBack: () => {
+          this.store.goBack();
         }
       })
     );

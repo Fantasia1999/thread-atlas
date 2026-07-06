@@ -31,6 +31,8 @@ interface ChatViewOptions {
   onToggleFavoriteSession: (key: string) => void;
   onUpdateMetadata: (key: string, tags: string[], notes: string) => void;
   onRenderComplete?: () => void;
+  previousKeys?: string[];
+  onGoBack?: () => void;
 }
 
 const FILTER_OPTIONS: Array<{ key: MessageViewFilter; label: string }> = [
@@ -69,7 +71,9 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
       onExport: options.onExport,
       onTogglePinSession: options.onTogglePinSession,
       onToggleFavoriteSession: options.onToggleFavoriteSession,
-      onUpdateMetadata: options.onUpdateMetadata
+      onUpdateMetadata: options.onUpdateMetadata,
+      previousKeys: options.previousKeys,
+      onGoBack: options.onGoBack
     })
   );
 
@@ -113,6 +117,8 @@ function renderSessionHeader(options: {
   onTogglePinSession: (key: string) => void;
   onToggleFavoriteSession: (key: string) => void;
   onUpdateMetadata: (key: string, tags: string[], notes: string) => void;
+  previousKeys?: string[];
+  onGoBack?: () => void;
 }): HTMLElement {
   const header = document.createElement("div");
   header.className = "chat-header";
@@ -141,13 +147,28 @@ function renderSessionHeader(options: {
     titleBadges += `<span class="header-badge star-badge" title="Favorited session">⭐</span>`;
   }
 
-  heading.innerHTML = `
-    <div class="eyebrow">Session Detail</div>
-    <div class="chat-title-container">
-      <h1 title="${escapeHtml(session?.title ?? descriptor.title)}">${escapeHtml(session?.title ?? descriptor.title)}</h1>
-      ${titleBadges ? `<div class="chat-header-badges">${titleBadges}</div>` : ""}
-    </div>
-  `;
+  const eyebrowDiv = document.createElement("div");
+  eyebrowDiv.className = "eyebrow";
+  eyebrowDiv.textContent = "Session Detail";
+  heading.append(eyebrowDiv);
+
+  const titleContainer = document.createElement("div");
+  titleContainer.className = "chat-title-container";
+
+  const titleH1 = document.createElement("h1");
+  titleH1.title = session?.title ?? descriptor.title;
+  titleH1.textContent = session?.title ?? descriptor.title;
+
+  titleContainer.append(titleH1);
+
+  if (titleBadges) {
+    const badgesDiv = document.createElement("div");
+    badgesDiv.className = "chat-header-badges";
+    badgesDiv.innerHTML = titleBadges;
+    titleContainer.append(badgesDiv);
+  }
+
+  heading.append(titleContainer);
 
   titleRow.append(heading);
 
@@ -440,6 +461,43 @@ function renderSessionHeader(options: {
   if (session) {
     const filterRow = document.createElement("div");
     filterRow.className = "chat-filter-row";
+    filterRow.style.display = "flex";
+    filterRow.style.alignItems = "center";
+    filterRow.style.gap = "12px";
+
+    const parentThreadId = descriptor.metadata?.parentThreadId || session?.metadata?.parentThreadId;
+    const hasHistory = options.previousKeys && options.previousKeys.length > 0;
+
+    if (parentThreadId || hasHistory) {
+      const backLink = document.createElement("a");
+      backLink.className = "parent-session-backlink md-link";
+      backLink.style.fontSize = "12px";
+      backLink.style.fontWeight = "500";
+      backLink.style.whiteSpace = "nowrap";
+
+      if (parentThreadId) {
+        backLink.href = `session://${parentThreadId}`;
+        backLink.title = "Go back to parent session";
+        backLink.textContent = "← Parent Session";
+      } else {
+        backLink.classList.add("history-back-link");
+        backLink.href = "#";
+        backLink.title = "Go back to previous session";
+        backLink.textContent = "← Back";
+        backLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          options.onGoBack?.();
+        });
+      }
+
+      const separator = document.createElement("span");
+      separator.className = "parent-link-separator";
+      separator.innerHTML = "|";
+      separator.style.opacity = "0.3";
+      separator.style.margin = "0";
+
+      filterRow.append(backLink, separator);
+    }
 
     const chipRow = document.createElement("div");
     chipRow.className = "filter-chip-row";

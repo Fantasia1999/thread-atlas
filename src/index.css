@@ -4323,4 +4323,20 @@ html[data-theme="dark"] .preview-line-row.highlighted-line {
 
 
 
+.parent-session-backlink {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--transition);
+}
+
+.parent-session-backlink:hover {
+  color: var(--text-link) !important;
+  text-decoration: underline;
+}
+
+.parent-link-separator {
+  color: var(--text-muted);
+  margin: 0 6px;
+}
 

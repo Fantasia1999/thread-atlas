@@ -21,6 +21,7 @@ export interface StoreState {
   favoriteMetadata: Map<string, { tags: string[]; notes: string }>;
   hiddenProjects: Set<string>;
   expandedSessionKeys: Set<string>;
+  previousKeys: string[];
 }
 
 const CACHED_DESCRIPTORS_KEY = "thread-atlas-cached-descriptors";
@@ -126,7 +127,8 @@ export class SessionStore {
         return new Set<string>();
       }
     })(),
-    expandedSessionKeys: new Set<string>()
+    expandedSessionKeys: new Set<string>(),
+    previousKeys: []
   };
 
   subscribe(listener: Listener): () => void {
@@ -374,16 +376,26 @@ export class SessionStore {
     await selectPromise;
   }
 
-  async selectSession(key: string): Promise<void> {
+  async selectSession(key: string, pushHistory = true): Promise<void> {
     try {
       localStorage.setItem("thread-atlas-selected-session-key", key);
     } catch (e) {
       // Ignore storage errors in restricted environments
     }
+
+    let nextPreviousKeys = this.state.previousKeys;
+    if (pushHistory && this.state.selectedKey && this.state.selectedKey !== key) {
+      nextPreviousKeys = [...nextPreviousKeys, this.state.selectedKey];
+      if (nextPreviousKeys.length > 50) {
+        nextPreviousKeys.shift();
+      }
+    }
+
     this.updateState({
       selectedKey: key,
       loadingSession: true,
-      status: "Loading session..."
+      status: "Loading session...",
+      previousKeys: nextPreviousKeys
     });
 
     try {
@@ -445,6 +457,17 @@ export class SessionStore {
         loadingSession: false,
         status: error instanceof Error ? error.message : "Failed to load session."
       });
+    }
+  }
+
+  goBack(): void {
+    const nextPreviousKeys = [...this.state.previousKeys];
+    const prevKey = nextPreviousKeys.pop();
+    if (prevKey) {
+      this.updateState({
+        previousKeys: nextPreviousKeys
+      });
+      void this.selectSession(prevKey, false);
     }
   }
 
