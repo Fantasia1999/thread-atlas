@@ -647,7 +647,7 @@ export class ThreadAtlasApp {
   }
 
   private openFilePreviewModal(fileUrlOrPath: string, apiBase?: string): void {
-    const { filePath, lineNumber } = parseFileLink(fileUrlOrPath);
+    const { filePath, lineNumber, endLineNumber } = parseFileLink(fileUrlOrPath);
     const selectedKey = this.store.getState().selectedKey || undefined;
     const resolvedApiBase = apiBase || (() => {
       return selectedKey
@@ -659,6 +659,7 @@ export class ThreadAtlasApp {
       createFilePreviewModal({
         filePath,
         lineNumber,
+        endLineNumber,
         connection: this.store.getConnection(),
         apiBase: resolvedApiBase,
         sessionKey: selectedKey,

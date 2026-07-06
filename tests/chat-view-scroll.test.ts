@@ -181,7 +181,7 @@ test("renderChatView parses and renders oai-mem-citation as collapsible block", 
   const fileNode = citationBlock.querySelector(".citation-file");
   assert.ok(fileNode);
   assert.equal(fileNode.textContent, "MEMORY.md:35-39");
-  assert.equal(fileNode.getAttribute("href"), "file://~/.codex/memories/MEMORY.md#L35");
+  assert.equal(fileNode.getAttribute("href"), "file://~/.codex/memories/MEMORY.md#L35-L39");
 
   const noteNode = citationBlock.querySelector(".citation-note");
   assert.ok(noteNode);

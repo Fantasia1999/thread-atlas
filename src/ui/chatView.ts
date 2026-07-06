@@ -1117,6 +1117,7 @@ function renderMessage(
           if (lineMatch) {
             const rawFile = lineMatch[1];
             const startLine = lineMatch[2];
+            const endLine = lineMatch[3];
             let pathPart = rawFile;
             if (options.session && options.session.source === "codex") {
               pathPart = `~/.codex/memories/${rawFile}`;
@@ -1131,7 +1132,11 @@ function renderMessage(
             }
             fileHref = `file://${normalizedPath}`;
             if (startLine) {
-              fileHref += `#L${startLine}`;
+              if (endLine) {
+                fileHref += `#L${startLine}-L${endLine}`;
+              } else {
+                fileHref += `#L${startLine}`;
+              }
             }
           }
 

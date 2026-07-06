@@ -257,6 +257,21 @@ test("parseFileLink extracts clean path and line number correctly", () => {
   const result3 = parseFileLink("file:///home/user/report.md");
   assert.equal(result3.filePath, "file:///home/user/report.md");
   assert.equal(result3.lineNumber, undefined);
+
+  const result4 = parseFileLink("file:///home/user/main.cpp:111-120");
+  assert.equal(result4.filePath, "file:///home/user/main.cpp");
+  assert.equal(result4.lineNumber, 111);
+  assert.equal(result4.endLineNumber, 120);
+
+  const result5 = parseFileLink("file:///C:/project/index.ts#L42-L50");
+  assert.equal(result5.filePath, "file:///C:/project/index.ts");
+  assert.equal(result5.lineNumber, 42);
+  assert.equal(result5.endLineNumber, 50);
+
+  const result6 = parseFileLink("file:///C:/project/index.ts#L42-50");
+  assert.equal(result6.filePath, "file:///C:/project/index.ts");
+  assert.equal(result6.lineNumber, 42);
+  assert.equal(result6.endLineNumber, 50);
 });
 
 test("isSupportedPreview correctly identifies previewable files", () => {
@@ -318,6 +333,54 @@ test("file preview modal slices content when lineNumber is provided", async () =
   const headerNode = overlay.querySelector(".modal-header");
   assert.ok(headerNode);
   assert.ok(headerNode.innerHTML.includes("main.cpp:30"));
+});
+
+test("file preview modal slices content and highlights range when endLineNumber is provided", async () => {
+  const manager = freshManager();
+  
+  // Construct a file content with 50 lines
+  const linesContent = Array.from({ length: 50 }, (_, i) => `line ${i + 1}`).join("\n");
+
+  (manager as unknown as { fetch: unknown }).fetch = async (url: string) => {
+    return {
+      ok: true,
+      text: async () => linesContent
+    } as unknown as Response;
+  };
+
+  // We request range 25 to 30, which should slice from minTarget - 15 (10) to maxTarget + 15 (45)
+  const overlay = createFilePreviewModal({
+    filePath: "/home/example-user/project/main.cpp",
+    lineNumber: 25,
+    endLineNumber: 30,
+    connection: manager,
+    onClose: () => {}
+  });
+
+  // Wait for promise resolution ticks
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const codeNode = overlay.querySelector("code");
+  assert.ok(codeNode);
+  
+  const content = codeNode.textContent;
+  // Should start with line 10 prefixed with '10 | line 10'
+  assert.ok(content.includes("10 | line 10"));
+  // Should end with line 45 prefixed with '45 | line 45'
+  assert.ok(content.includes("45 | line 45"));
+  // Should NOT contain line 9
+  assert.ok(!content.includes("line 9"));
+  // Should NOT contain line 46
+  assert.ok(!content.includes("line 46"));
+
+  // Header title should include line range
+  const headerNode = overlay.querySelector(".modal-header");
+  assert.ok(headerNode);
+  assert.ok(headerNode.innerHTML.includes("main.cpp:25-30"));
+
+  // Check that lines 25 to 30 have the highlighted class
+  const highlightedRows = overlay.querySelectorAll(".highlighted-line");
+  assert.equal(highlightedRows.length, 6); // 25, 26, 27, 28, 29, 30
 });
 
 test("ThreadAtlasApp link click and dblclick triggers copy on unsupported links", async () => {

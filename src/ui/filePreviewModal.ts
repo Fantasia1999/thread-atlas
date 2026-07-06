@@ -6,32 +6,40 @@ import { escapeHtml } from "./utils.js";
 export interface ParsedFileLink {
   filePath: string;
   lineNumber?: number;
+  endLineNumber?: number;
 }
 
 export function parseFileLink(href: string): ParsedFileLink {
   let fileUrl = href;
   let lineNumber: number | undefined;
+  let endLineNumber: number | undefined;
 
-  // Check for hash first, e.g. #L111 or #111
+  // Check for hash first, e.g. #L111 or #111 or #L111-L222 or #111-222
   const hashIdx = fileUrl.indexOf("#");
   if (hashIdx !== -1) {
     const rawPath = fileUrl.slice(0, hashIdx);
     const hashPart = fileUrl.slice(hashIdx + 1);
-    const lineMatch = hashPart.match(/^L?(\d+)/i);
+    const lineMatch = hashPart.match(/^L?(\d+)(?:-L?(\d+))?/i);
     if (lineMatch) {
       lineNumber = parseInt(lineMatch[1], 10);
+      if (lineMatch[2]) {
+        endLineNumber = parseInt(lineMatch[2], 10);
+      }
     }
-    return { filePath: rawPath, lineNumber };
+    return { filePath: rawPath, lineNumber, endLineNumber };
   }
 
-  // Check for trailing :line, e.g. :111 or :L111
+  // Check for trailing :line, e.g. :111 or :L111 or :L111-L222 or :111-222
   // We match from the end to avoid matching drive letters like C:\path
-  const trailingLineRegex = /:L?(\d+)$/i;
+  const trailingLineRegex = /:L?(\d+)(?:-L?(\d+))?$/i;
   const match = fileUrl.match(trailingLineRegex);
   if (match) {
     const rawPath = fileUrl.slice(0, fileUrl.length - match[0].length);
     lineNumber = parseInt(match[1], 10);
-    return { filePath: rawPath, lineNumber };
+    if (match[2]) {
+      endLineNumber = parseInt(match[2], 10);
+    }
+    return { filePath: rawPath, lineNumber, endLineNumber };
   }
 
   return { filePath: fileUrl };
@@ -63,6 +71,7 @@ export function isSupportedPreview(filePath: string, lineNumber?: number): boole
 interface FilePreviewModalOptions {
   filePath: string;
   lineNumber?: number;
+  endLineNumber?: number;
   connection: ConnectionManager;
   apiBase?: string;
   sessionKey?: string;
@@ -70,7 +79,7 @@ interface FilePreviewModalOptions {
 }
 
 export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLElement {
-  const { filePath, lineNumber, connection, apiBase, sessionKey } = options;
+  const { filePath, lineNumber, endLineNumber, connection, apiBase, sessionKey } = options;
 
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
@@ -103,7 +112,14 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
     displayPath = decodeURIComponent(displayPath);
   }
 
-  const displayTitle = lineNumber !== undefined ? `${displayPath}:${lineNumber}` : displayPath;
+  let displayTitle = displayPath;
+  if (lineNumber !== undefined) {
+    if (endLineNumber !== undefined) {
+      displayTitle = `${displayPath}:${lineNumber}-${endLineNumber}`;
+    } else {
+      displayTitle = `${displayPath}:${lineNumber}`;
+    }
+  }
 
   const header = document.createElement("div");
   header.className = "modal-header";
@@ -255,9 +271,13 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
 
         if (typeof lineNumber === "number" && !isNaN(lineNumber)) {
           const lines = text.split(/\r?\n/);
-          const target = lineNumber;
-          let startLine = Math.max(0, target - 1 - 15);
-          let endLine = Math.min(lines.length - 1, target - 1 + 15);
+          const targetStart = lineNumber;
+          const targetEnd = (typeof endLineNumber === "number" && !isNaN(endLineNumber)) ? endLineNumber : lineNumber;
+          const minTarget = Math.min(targetStart, targetEnd);
+          const maxTarget = Math.max(targetStart, targetEnd);
+
+          let startLine = Math.max(0, minTarget - 1 - 15);
+          let endLine = Math.min(lines.length - 1, maxTarget - 1 + 15);
           if (startLine > endLine) {
             startLine = 0;
             endLine = lines.length - 1;
@@ -271,7 +291,7 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
 
             const lineDiv = document.createElement("div");
             lineDiv.className = "preview-line-row";
-            if (lineNum === target) {
+            if (lineNum >= minTarget && lineNum <= maxTarget) {
               lineDiv.classList.add("highlighted-line");
             }
 
@@ -285,7 +305,6 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
 
             lineDiv.append(numSpan, contentSpan);
             code.append(lineDiv);
-
           });
         } else {
           code.textContent = text;
