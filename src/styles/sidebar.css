@@ -1,0 +1,726 @@
+/* Sidebar Styling */
+.sidebar {
+  position: absolute;
+  left: var(--rail-width);
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  width: var(--sidebar-width);
+  border-right: 1px solid var(--border-default);
+  background: var(--bg-panel-muted);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-100%);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-dock.open .sidebar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.sidebar-dock.pinned .sidebar {
+  grid-column: 1 / -1;
+  position: static;
+  width: auto;
+  border-right: 0;
+  box-shadow: none;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.panel-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-panel);
+}
+
+.panel-header h2 {
+  font-family: var(--font-brand);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* Search and dropdown side-by-side in sidebar controls */
+.sidebar-controls {
+  display: grid;
+  grid-template-columns: 1fr 105px;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-panel-muted);
+}
+
+/* Form Inputs styling */
+.text-input,
+.text-area {
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 12px;
+  transition: all var(--transition);
+}
+
+.text-input:focus,
+.text-area:focus {
+  border-color: var(--border-strong);
+  background: var(--bg-surface-hover);
+}
+
+/* Beautiful Premium Custom Select Dropdowns */
+.select-input {
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 24px 4px 8px; /* Extra padding-right for arrow alignment */
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  
+  /* Disable crude raw system arrow */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  
+  /* Embedded refined high-res SVG micro-arrow */
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px 10px;
+  
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+
+.select-input:hover {
+  border-color: var(--border-strong);
+  background-color: var(--bg-surface-hover);
+}
+
+.select-input:focus {
+  border-color: var(--border-strong);
+  background-color: var(--bg-surface);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.15); /* Delicate glowing focus aura */
+}
+
+/* Stylized option catalog card drop compatibility */
+.select-input option {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 6px;
+}
+
+.text-input::placeholder,
+.text-area::placeholder {
+  color: var(--text-muted);
+}
+
+.text-area {
+  min-height: 104px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+/* Session Row List */
+.session-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.sidebar .session-row {
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  display: grid;
+  gap: 6px;
+  position: relative;
+  transition: all var(--transition);
+}
+
+.sidebar .session-row:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-strong);
+}
+
+.sidebar .session-row.active {
+  border-color: var(--text-primary);
+  background: var(--bg-panel-muted);
+}
+
+.sidebar .session-row.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--text-primary);
+}
+
+.session-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.session-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+  min-width: 0;
+  flex: 1;
+}
+
+.session-path,
+.session-date {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.session-path-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.session-workspace {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 90px;
+}
+
+.session-path {
+  flex-grow: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 4px;
+  background: var(--bg-panel-muted);
+  border-radius: var(--radius-sm);
+}
+
+/* Clean, flat, high-contrast badges (No AI glowing gradients!) */
+.source-badge,
+.log-role-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--border-default);
+}
+
+.connection-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 18px;
+  max-width: 160px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent-base);
+  background: color-mix(in srgb, var(--accent-base) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-base) 45%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-meta-connection.is-remote {
+  color: var(--accent-base);
+  font-weight: 600;
+}
+
+.source-badge.codex,
+.log-role-badge.assistant,
+.log-role-badge.developer {
+  color: #1e40af;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+html[data-theme="dark"] .source-badge.codex,
+html[data-theme="dark"] .log-role-badge.assistant,
+html[data-theme="dark"] .log-role-badge.developer {
+  color: #93c5fd;
+  background: rgba(147, 197, 253, 0.08);
+  border-color: rgba(147, 197, 253, 0.15);
+}
+
+.source-badge.claude {
+  color: #c2410c;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+html[data-theme="dark"] .source-badge.claude {
+  color: #fdba74;
+  background: rgba(253, 186, 116, 0.08);
+  border-color: rgba(253, 186, 116, 0.15);
+}
+
+.source-badge.opencode {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+html[data-theme="dark"] .source-badge.opencode {
+  color: #6ee7b7;
+  background: rgba(110, 231, 183, 0.08);
+  border-color: rgba(110, 231, 183, 0.15);
+}
+
+.source-badge.gemini,
+.log-role-badge.tool {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+html[data-theme="dark"] .source-badge.gemini,
+html[data-theme="dark"] .log-role-badge.tool {
+  color: #fcd34d;
+  background: rgba(252, 211, 77, 0.08);
+  border-color: rgba(252, 211, 77, 0.15);
+}
+
+.source-badge.antigravity {
+  color: #0e7490;
+  background: #ecfeff;
+  border-color: #c5f6fa;
+}
+html[data-theme="dark"] .source-badge.antigravity {
+  color: #67e8f9;
+  background: rgba(103, 232, 249, 0.08);
+  border-color: rgba(103, 232, 249, 0.15);
+}
+
+.source-badge.copilot {
+  color: #6d28d9;
+  background: #faf5ff;
+  border-color: #e9d5ff;
+}
+html[data-theme="dark"] .source-badge.copilot {
+  color: #d8b4fe;
+  background: rgba(216, 180, 254, 0.08);
+  border-color: rgba(216, 180, 254, 0.15);
+}
+
+.log-role-badge.user {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+html[data-theme="dark"] .log-role-badge.user {
+  color: #6ee7b7;
+  background: rgba(110, 231, 183, 0.08);
+  border-color: rgba(110, 231, 183, 0.15);
+}
+
+.log-role-badge.system {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+html[data-theme="dark"] .log-role-badge.system {
+  color: #fca5a5;
+  background: rgba(252, 165, 165, 0.08);
+  border-color: rgba(252, 165, 165, 0.15);
+}
+
+/* Filter active source-specific brand colors */
+.filter-pill.active.filter-pill-copilot { background: var(--brand-copilot); border-color: var(--brand-copilot); }
+.filter-pill.active.filter-pill-claude { background: var(--brand-claude); border-color: var(--brand-claude); }
+.filter-pill.active.filter-pill-antigravity { background: var(--brand-antigravity); border-color: var(--brand-antigravity); }
+.filter-pill.active.filter-pill-codex { background: var(--brand-codex); border-color: var(--brand-codex); }
+.filter-pill.active.filter-pill-gemini { background: var(--brand-gemini); border-color: var(--brand-gemini); }
+.filter-pill.active.filter-pill-opencode { background: var(--brand-opencode); border-color: var(--brand-opencode); }
+
+.remote-results {
+  padding: 12px 20px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.remote-row.selected {
+  border-color: var(--border-strong);
+  background: var(--bg-surface);
+}
+
+.remote-row-content {
+  min-width: 0;
+  width: 100%;
+}
+
+.remote-row-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.kind-badge {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.mtime-badge {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.results-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-panel-muted);
+}
+
+.results-status-inline {
+  padding: 0;
+  border-bottom: 0;
+  font-size: 11px;
+}
+
+/* ==========================================================================
+   📌 PIN & FAVORITES PREMIUM DESIGN SYSTEM
+   ========================================================================== */
+
+/* 1. Group Headers inside Sidebar */
+.session-group-header {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 12px 14px 4px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.session-group-header.divider {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 8px;
+}
+
+/* 2. Pinned & Favorited Card Styles */
+.sidebar .session-row.pinned-row {
+  border-left: 3px solid #ff7a59 !important; /* Premium Coral left accent */
+  background: linear-gradient(90deg, rgba(255, 122, 89, 0.04) 0%, rgba(0, 0, 0, 0) 100%) !important;
+}
+
+.sidebar .session-row.favorite-row {
+  border-left-color: #ffd700; /* Gold star left indicator if favorited but not pinned */
+}
+
+.sidebar .session-row.pinned-row.favorite-row {
+  border-left-color: #ff7a59; /* Pinned takes precedence on accent border */
+}
+
+/* 3. Inline Actions on Sidebar Row */
+.source-and-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.session-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transform: translateX(10px);
+  transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar .session-row:hover .session-item-actions {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.session-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.session-action-btn:hover {
+  background: var(--bg-panel-muted);
+  transform: scale(1.15);
+}
+
+.session-action-btn.pin-btn:hover,
+.session-action-btn.pin-btn.active {
+  color: #ff7a59 !important; /* Coral pink glow */
+}
+
+.session-action-btn.favorite-btn:hover,
+.session-action-btn.favorite-btn.active {
+  color: #ffc83b !important; /* Beautiful glowing gold */
+}
+
+/* Keep active icons visible without hover */
+.session-action-btn.active {
+  opacity: 1 !important;
+}
+
+.sidebar .session-row:not(:hover) .session-item-actions:has(.active) {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar .session-row:not(:hover) .session-action-btn:not(.active) {
+  opacity: 0; /* Keep inactive actions invisible unless hovered */
+}
+
+/* 4. Tag Pills & Custom Notes inside Row */
+.session-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  width: 100%;
+}
+
+.tag-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  background: var(--bg-panel-muted);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+
+.tag-pill:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-surface);
+}
+
+.session-row-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 4px;
+  text-align: left;
+}
+
+/* 5. C.3 Quick Search Chips Bar */
+.quick-chips-container {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 0 0;
+  margin-top: -2px;
+  margin-bottom: 2px;
+  overflow: visible; /* Prevent clipping of absolutely positioned custom dropdown menu */
+  scrollbar-width: none; /* Hide scrollbar for clean visual */
+  grid-column: 1 / -1; /* Span across all grid columns to occupy the full row */
+}
+
+.quick-chips-container::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-btn {
+  background: var(--bg-panel-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.chip-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.chip-btn.active {
+  background: var(--text-primary);
+  color: var(--bg-surface);
+  border-color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.chip-btn.star-chip.active {
+  background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
+  color: #000;
+  border-color: #ffd700;
+}
+
+/* Collapsible Subagent Tree Styles */
+.session-tree-node {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.session-children-container {
+  display: grid;
+  gap: 4px;
+  margin-top: 2px;
+  margin-bottom: 6px;
+  position: relative;
+  padding-left: 20px;
+}
+
+/* Vertical guide line connecting subagents */
+.session-children-container::before {
+  content: '';
+  position: absolute;
+  left: 19px; /* aligns under the parent caret button */
+  top: 0;
+  bottom: 12px;
+  width: 1px;
+  border-left: 1px dashed var(--border-default);
+  pointer-events: none;
+}
+
+/* Subagent Session Row Styling overrides */
+.session-row.subagent-row {
+  background: transparent;
+  border: 1px solid transparent;
+  border-left: 2px solid var(--border-default);
+  border-radius: 0;
+  padding: 8px 10px 8px 14px;
+  box-shadow: none;
+  transition: all var(--transition);
+}
+
+.session-row.subagent-row:hover {
+  background: var(--bg-surface-hover);
+  border-color: transparent;
+  border-left-color: var(--accent-base);
+}
+
+.session-row.subagent-row.active {
+  background: var(--bg-panel-muted);
+  border-color: transparent;
+  border-left-color: var(--text-primary);
+}
+
+.session-row.subagent-row.active::before {
+  display: none; /* Hide default sidebar card active left bar */
+}
+
+.session-title-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.subagent-count-badge {
+  font-size: 10px;
+  background: color-mix(in srgb, var(--accent-base) 10%, transparent);
+  color: var(--accent-base);
+  border: 1px solid color-mix(in srgb, var(--accent-base) 20%, transparent);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  cursor: pointer;
+  outline: none;
+  transition: all var(--transition);
+}
+
+.subagent-count-badge:hover {
+  background: var(--accent-base);
+  color: var(--accent-inverse);
+  border-color: var(--accent-base);
+}
+
