@@ -22,7 +22,7 @@
 - Keep all filesystem writes under `data/remote/`.
 - Local and remote scan behavior is heuristic and intentionally bounded rather than exhaustive.
 - OpenCode scan support is SQLite-backed through the Node dependency. If a database query fails, return no OpenCode results rather than crashing.
-- Antigravity descriptor decode prefers the bundled snapshot in `server/antigravityDescriptors.ts` and only falls back to extracting descriptors from a local `extension.js` when needed.
+- Antigravity descriptor decode prefers the bundled snapshot in `server/antigravity/descriptorSnapshot.ts` and only falls back to extracting descriptors from a local `extension.js` when needed.
 
 ## Implementation Notes
 
@@ -44,7 +44,7 @@
 - Remote sync should download files first and let the normal local scanner pick them up afterward.
   - Copilot is still mirrored as files even though SSH scan presents a session-directory selection.
 - Preserve stable response shapes with `src/parsers/types.ts` as the source of truth.
-- `server/antigravityDescriptors.ts` is a checked-in snapshot of protobuf descriptors.
+- `server/antigravity/descriptorSnapshot.ts` is a checked-in snapshot of protobuf descriptors.
   - Refresh it when upstream Antigravity descriptors change.
   - Runtime fallback may still read the installed Antigravity `extension.js` if the bundled snapshot is stale.
 
