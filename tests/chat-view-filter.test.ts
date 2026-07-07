@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { filterMessagesForView, isToolOnlyMessage } from "../src/ui/chatView.ts";
+import { filterMessagesForView, isToolOnlyMessage } from "../src/ui/messageFilter.ts";
 import type { Message } from "../src/parsers/types.ts";
 
 test("isToolOnlyMessage matches empty assistant tool placeholders", () => {

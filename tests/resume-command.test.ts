@@ -6,9 +6,9 @@ import {
   buildCodexResumeCommand,
   buildAntigravityResumeCommand,
   buildClaudeResumeCommand,
-  buildCopilotResumeCommand,
-  createCopyResumeButton
-} from "../src/ui/chatView.ts";
+  buildCopilotResumeCommand
+} from "../src/ui/resumeCommands.ts";
+import { createCopyResumeButton } from "../src/ui/chatView.ts";
 import type { Session } from "../src/parsers/types.ts";
 
 test("buildCodexResumeCommand builds command for Codex sessions with sessionId", () => {
@@ -196,5 +196,4 @@ test("buildCopilotResumeCommand returns null for non-Copilot sessions", () => {
   const command = buildCopilotResumeCommand(session);
   assert.equal(command, null);
 });
-
 

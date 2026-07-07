@@ -1,7 +1,7 @@
 import type { Message, Session } from "../parsers/types.js";
 import { renderMarkdown } from "./markdown.js";
 import { escapeHtml } from "./utils.js";
-import { type MessageViewFilter, filterMessagesForView } from "./chatView.js";
+import { type MessageViewFilter, filterMessagesForView } from "./messageFilter.js";
 
 interface ExportMdModalOptions {
   session: Session;
@@ -617,4 +617,3 @@ function saveFilenameConfig(config: FilenameElementConfig[]): void {
     console.error("Failed to save filename config", e);
   }
 }
-
