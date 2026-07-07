@@ -1,4 +1,4 @@
-import type { Message } from "../parsers/types.js";
+import type { Message } from "../../shared/types.js";
 import { escapeHtml, formatDateTimeLong, formatDisplayTime } from "./utils.js";
 
 export function renderTimelineButton(

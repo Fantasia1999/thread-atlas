@@ -1,4 +1,4 @@
-import type { Session } from "../parsers/types.js";
+import type { Session } from "../../shared/types.js";
 import { SessionStore, type StoreState } from "../store/sessionStore.js";
 import { createImportModal } from "./importModal.js";
 import { renderSidebar } from "./sidebar.js";

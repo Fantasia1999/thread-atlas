@@ -9,7 +9,7 @@ import {
   buildCopilotResumeCommand
 } from "../src/ui/resumeCommands.ts";
 import { createCopyResumeButton } from "../src/ui/chatView.ts";
-import type { Session } from "../src/parsers/types.ts";
+import type { Session } from "../shared/types.ts";
 
 test("buildCodexResumeCommand builds command for Codex sessions with sessionId", () => {
   const session: Session = {

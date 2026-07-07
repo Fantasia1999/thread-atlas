@@ -5,8 +5,9 @@ import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 
 import { loadLocalSessionBundle } from "../server/scanner.ts";
-import { extractCodexPreviewTitle, parseCodexSession, cleanCodexPrompt } from "../src/parsers/codex.ts";
-import type { SessionBundle } from "../src/parsers/types.ts";
+import { parseCodexSession } from "../src/parsers/codex.ts";
+import { cleanCodexPrompt, extractCodexPreviewTitle } from "../shared/extractors/codex.ts";
+import type { SessionBundle } from "../shared/types.ts";
 
 const CODEX_THREAD_NAME = "解释 physical-planner 模块";
 

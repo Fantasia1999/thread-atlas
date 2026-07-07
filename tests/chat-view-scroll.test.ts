@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import "./dom-mock.ts";
 import { renderChatView } from "../src/ui/chatView.ts";
-import type { Session, SessionDescriptor } from "../src/parsers/types.ts";
+import type { Session, SessionDescriptor } from "../shared/types.ts";
 
 test("scroll to bottom button behavior", () => {
   const dateStr = new Date().toISOString();

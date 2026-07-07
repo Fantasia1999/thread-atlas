@@ -1,4 +1,4 @@
-import type { Message, Session } from "../parsers/types.js";
+import type { Message, Session } from "../../shared/types.js";
 import { renderMarkdown } from "./markdown.js";
 import { escapeHtml } from "./utils.js";
 import { type MessageViewFilter, filterMessagesForView } from "./messageFilter.js";

@@ -1,5 +1,5 @@
 import { detectSessionSource } from "../parsers/detect.js";
-import type { SessionBundle } from "../parsers/types.js";
+import type { SessionBundle } from "../../shared/types.js";
 
 interface ImportModalOptions {
   onClose: () => void;

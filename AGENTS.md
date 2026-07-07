@@ -29,7 +29,7 @@ More specific guidance lives in `server/AGENTS.md` and `src/AGENTS.md`.
 - Imported files stay browser-side in `SessionStore`; they are not uploaded to the backend.
 - Remote sync writes only under `data/remote/<user>@<host>/...`.
 
-If you change descriptor or bundle shapes, update `src/parsers/types.ts` first and propagate from there.
+If you change descriptor or bundle shapes, update `shared/types.ts` first and propagate from there.
 
 ## Supported Sources
 
@@ -99,4 +99,3 @@ Imported browser files can still be source-detected from content and path hints 
   - local scan
   - SSH test / scan / sync
   - message filters, timeline jump, and export on a loaded session
-

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import "./dom-mock.ts";
 import { parseCodexSession } from "../src/parsers/codex.ts";
 import { renderChatView } from "../src/ui/chatView.ts";
-import type { Session, SessionBundle, SessionDescriptor } from "../src/parsers/types.ts";
+import type { Session, SessionBundle, SessionDescriptor } from "../shared/types.ts";
 
 function buildCodexBundle(records: Array<Record<string, unknown>>): SessionBundle {
   return {

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import "./dom-mock.ts";
 import { renderSidebar } from "../src/ui/sidebar.ts";
-import type { SessionDescriptor } from "../src/parsers/types.ts";
+import type { SessionDescriptor } from "../shared/types.ts";
 
 function createSidebarOptions(overrides?: Partial<Parameters<typeof renderSidebar>[0]>) {
   return {

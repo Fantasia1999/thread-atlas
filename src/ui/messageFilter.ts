@@ -1,4 +1,4 @@
-import type { Message } from "../parsers/types.js";
+import type { Message } from "../../shared/types.js";
 
 export type MessageViewFilter = "raw" | "not-tool" | "pure" | "user" | "answer";
 

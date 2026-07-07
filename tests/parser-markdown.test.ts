@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { parseClaudeSession, extractClaudePreviewTitle, extractClaudeCwd } from "../src/parsers/claude.ts";
+import { parseClaudeSession } from "../src/parsers/claude.ts";
 import { parseGeminiSession } from "../src/parsers/gemini.ts";
 import { parseAntigravitySession } from "../src/parsers/antigravity.ts";
 import { parseCodexSession } from "../src/parsers/codex.ts";
-import type { SessionBundle } from "../src/parsers/types.ts";
+import { extractClaudeCwd, extractClaudePreviewTitle } from "../shared/extractors/claude.ts";
+import type { SessionBundle } from "../shared/types.ts";
 
 test("parseClaudeSession preserves tool_result content as a fenced code block", () => {
   const bundle: SessionBundle = {
@@ -479,5 +480,4 @@ test("parseCodexSession extracts input_image block as markdown image tag", () =>
   assert.equal(msg.role, "user");
   assert.match(msg.text, /!\[Image\]\(data:image\/png;base64,iVBORw0KGgoAAAANS\)/);
 });
-
 

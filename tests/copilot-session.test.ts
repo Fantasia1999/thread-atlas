@@ -7,7 +7,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { loadLocalSessionBundle, scanLocalSessions } from "../server/scanner.ts";
 import { parseCopilotSession } from "../src/parsers/copilot.ts";
 import { detectSessionSource } from "../src/parsers/detect.ts";
-import type { SessionBundle } from "../src/parsers/types.ts";
+import type { SessionBundle } from "../shared/types.ts";
 
 test("detectSessionSource recognizes Copilot events bundles", () => {
   const bundle: SessionBundle = {

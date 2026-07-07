@@ -1,4 +1,4 @@
-import type { Message, Session, SessionBundle, ToolCall } from "./types.js";
+import type { Message, Session, SessionBundle, ToolCall } from "../../shared/types.js";
 import {
   addToolCall,
   basenameTitle,

@@ -1,4 +1,4 @@
-import type { SessionDescriptor, SessionSource } from "../parsers/types.js";
+import type { SessionDescriptor, SessionSource } from "../../shared/types.js";
 import { escapeHtml, formatLocalDateTime, formatLocalDateTimeLong } from "./utils.js";
 import { getWorkspaceFullPath, getWorkspaceLabel } from "../store/sessionStore.js";
 

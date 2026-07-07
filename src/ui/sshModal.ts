@@ -1,4 +1,4 @@
-import type { SessionSource } from "../parsers/types.js";
+import type { SessionSource } from "../../shared/types.js";
 import { escapeHtml, formatLocalDateTime } from "./utils.js";
 
 const SAVED_SSH_SERVERS_STORAGE_KEY = "thread-atlas-saved-ssh-servers";

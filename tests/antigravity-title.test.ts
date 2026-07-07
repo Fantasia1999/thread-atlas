@@ -5,8 +5,9 @@ import path from "node:path";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 
 import { loadLocalSessionBundle } from "../server/scanner.ts";
-import { extractAntigravityPreviewTitle, parseAntigravitySession } from "../src/parsers/antigravity.ts";
-import type { SessionBundle } from "../src/parsers/types.ts";
+import { parseAntigravitySession } from "../src/parsers/antigravity.ts";
+import { extractAntigravityPreviewTitle } from "../shared/extractors/antigravity.ts";
+import type { SessionBundle } from "../shared/types.ts";
 
 const PROMPT_TITLE = "Implement first user prompt extraction as session title";
 

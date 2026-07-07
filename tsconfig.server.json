@@ -12,5 +12,5 @@
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["server/**/*.ts", "src/parsers/types.ts"]
+  "include": ["server/**/*.ts", "shared/**/*.ts"]
 }

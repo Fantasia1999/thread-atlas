@@ -39,26 +39,6 @@ export async function fileExists(absolutePath: string): Promise<boolean> {
   }
 }
 
-export function parseJsonLines(content: string): Array<Record<string, unknown>> {
-  const result: Array<Record<string, unknown>> = [];
-  const lines = content.split(/\r?\n/);
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      continue;
-    }
-    try {
-      const parsed = JSON.parse(trimmed) as unknown;
-      if (isRecord(parsed)) {
-        result.push(parsed);
-      }
-    } catch {
-      // Keep parsing other lines in the file even if one is malformed
-    }
-  }
-  return result;
-}
-
 export function hasJsonLinesParseError(content: string): boolean {
   let start = 0;
   let checked = 0;

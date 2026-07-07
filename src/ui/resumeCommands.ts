@@ -1,4 +1,4 @@
-import type { Session } from "../parsers/types.js";
+import type { Session } from "../../shared/types.js";
 
 export function buildCodexResumeCommand(session: Session): string | null {
   if (session.source !== "codex") {

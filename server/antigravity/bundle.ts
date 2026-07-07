@@ -3,10 +3,11 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { MetadataValue, SessionBundle, SessionDescriptor } from "../../src/parsers/types.js";
+import type { MetadataValue, SessionBundle, SessionDescriptor } from "../../shared/types.js";
+import { extractAntigravityPreviewTitle } from "../../shared/extractors/antigravity.js";
+import { parseJsonLines } from "../../shared/jsonl.js";
 import { resolveLocalScanRoots } from "../platformRoots.js";
-import { extractAntigravityPreviewTitle } from "../../src/parsers/antigravity.js";
-import { hasJsonLinesParseError, parseJsonLines } from "../fsUtils.js";
+import { hasJsonLinesParseError } from "../fsUtils.js";
 import { antigravitySessionIdFromPath, isAntigravityTranscriptPath, resolveBrainDirFromConversationPath, resolvePreferredAntigravitySessionPath } from "./paths.js";
 import { decodeAntigravityTrajectory, getSharedDirectPbDecoder } from "./pbDecoder.js";
 import { buildChatRecords, buildChatRecordsFromTranscriptRows, synthesizeDirectSummary } from "./records.js";
@@ -183,7 +184,7 @@ export async function loadAntigravityTranscriptBundle(
   ]);
   const descriptor = buildAntigravityDescriptor(absolutePath, origin, stats, content);
   const cascadeId = antigravitySessionIdFromPath(absolutePath) ?? path.basename(absolutePath);
-  const rows = parseJsonLines(content);
+  const rows = parseJsonLines(content).filter(isRecord);
   const records = buildChatRecordsFromTranscriptRows(cascadeId, rows, absolutePath);
 
   // Read sibling messages directory if it exists

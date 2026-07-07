@@ -4,7 +4,8 @@ import type {
   SessionBundle,
   SessionDescriptor,
   SessionSource
-} from "../parsers/types.js";
+} from "../../shared/types.js";
+import { compareDescriptors } from "../../shared/descriptors.js";
 import { ConnectionManager, type ScanTarget } from "./connection.js";
 
 export interface StoreState {
@@ -663,15 +664,6 @@ function resolveSelectedKey(
   }
 
   return descriptors[0]?.key;
-}
-
-function compareDescriptors(left: SessionDescriptor, right: SessionDescriptor): number {
-  const timeDelta = right.mtimeMs - left.mtimeMs;
-  if (timeDelta !== 0) {
-    return timeDelta;
-  }
-
-  return left.title.localeCompare(right.title);
 }
 
 export function getWorkspaceFullPath(descriptor: SessionDescriptor): string {

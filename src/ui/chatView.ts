@@ -1,4 +1,4 @@
-import type { Message, Session, SessionDescriptor } from "../parsers/types.js";
+import type { Message, Session, SessionDescriptor } from "../../shared/types.js";
 import { renderMermaidDiagrams } from "./mermaidRender.js";
 import { renderMessage } from "./messageRenderer.js";
 import { clipboardIcon, errorIcon, pinIcon, spinnerIcon, successIcon, timelineIcon } from "./icons.js";

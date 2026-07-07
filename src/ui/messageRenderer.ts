@@ -1,4 +1,4 @@
-import type { Message, Session, ToolCall } from "../parsers/types.js";
+import type { Message, Session, ToolCall } from "../../shared/types.js";
 import { renderMarkdown } from "./markdown.js";
 import { previewText } from "./timeline.js";
 import { ansiToHtml, escapeHtml, formatDateTimeLong, formatDisplayTime } from "./utils.js";

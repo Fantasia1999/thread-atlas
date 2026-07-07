@@ -1,4 +1,4 @@
-import type { Session, SessionBundle, SessionSource } from "./types.js";
+import type { Session, SessionBundle, SessionSource } from "../../shared/types.js";
 import { parseAntigravitySession } from "./antigravity.js";
 import { parseClaudeSession } from "./claude.js";
 import { parseCopilotSession } from "./copilot.js";
@@ -6,6 +6,7 @@ import { parseCodexSession } from "./codex.js";
 import { parseGeminiSession } from "./gemini.js";
 import { parseOpenCodeSession } from "./opencode.js";
 import { buildFallbackSession } from "./utils.js";
+import { normalizePathForMatch } from "../../shared/pathUtils.js";
 
 export function detectSessionSource(bundle: SessionBundle): SessionSource {
   if (bundle.source && bundle.source !== "unknown") {
@@ -104,8 +105,4 @@ export function parseSessionBundle(bundle: SessionBundle): Session {
     const message = error instanceof Error ? error.message : "Unknown parse failure.";
     return buildFallbackSession(bundle, source, message);
   }
-}
-
-function normalizePathForMatch(value: string): string {
-  return value.replaceAll("\\", "/").toLowerCase();
 }

@@ -16,15 +16,17 @@ import {
   COPILOT_EVENTS_FILE
 } from "./copilot.js";
 import { resolveLocalScanRoots } from "./platformRoots.js";
-import { extractCodexPreviewTitle, extractCodexCwd, extractCodexParentThreadId, extractCodexSessionId } from "../src/parsers/codex.js";
-import { extractClaudePreviewTitle, extractClaudeCwd } from "../src/parsers/claude.js";
-import { parseJsonLines } from "../src/parsers/utils.js";
+import { compareDescriptors } from "../shared/descriptors.js";
+import { extractClaudeCwd, extractClaudePreviewTitle } from "../shared/extractors/claude.js";
+import { extractCodexCwd, extractCodexParentThreadId, extractCodexPreviewTitle, extractCodexSessionId } from "../shared/extractors/codex.js";
+import { parseJsonLines } from "../shared/jsonl.js";
+import { basenameFromAnyPath, isWithinPathRoot, normalizePathForMatch } from "../shared/pathUtils.js";
 import type {
   MetadataValue,
   SessionBundle,
   SessionDescriptor,
   SessionSource
-} from "../src/parsers/types.js";
+} from "../shared/types.js";
 
 const REMOTE_SYNC_ROOT = path.resolve(process.cwd(), "data", "remote");
 const MAX_FILES_PER_SOURCE = 120;
@@ -604,16 +606,6 @@ function inferOrigin(absolutePath: string): DescriptorOrigin {
   return isWithinPathRoot(absolutePath, REMOTE_SYNC_ROOT) ? "remote" : "local";
 }
 
-export function isWithinPathRoot(absolutePath: string, rootPath: string): boolean {
-  const normalizedPath = normalizePathForMatch(absolutePath);
-  const normalizedRoot = normalizePathForMatch(rootPath);
-  return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}/`);
-}
-
-export function normalizePathForMatch(value: string): string {
-  return value.replaceAll("\\", "/").toLowerCase();
-}
-
 function buildFileDescriptor(
   absolutePath: string,
   source: SessionSource,
@@ -831,11 +823,6 @@ function inferCopilotMtimeMs(
   return Math.max(...files.map((file) => file.stats.mtimeMs));
 }
 
-function basenameFromAnyPath(input: string): string {
-  const segments = input.split(/[\\/]/).filter(Boolean);
-  return segments[segments.length - 1] ?? input;
-}
-
 function dedupeAndSortDescriptors(descriptors: SessionDescriptor[]): SessionDescriptor[] {
   const deduped = new Map<string, SessionDescriptor>();
   for (const descriptor of descriptors) {
@@ -843,15 +830,6 @@ function dedupeAndSortDescriptors(descriptors: SessionDescriptor[]): SessionDesc
   }
 
   return [...deduped.values()].sort(compareDescriptors);
-}
-
-function compareDescriptors(left: SessionDescriptor, right: SessionDescriptor): number {
-  const timeDelta = right.mtimeMs - left.mtimeMs;
-  if (timeDelta !== 0) {
-    return timeDelta;
-  }
-
-  return left.title.localeCompare(right.title);
 }
 
 async function exists(targetPath: string): Promise<boolean> {

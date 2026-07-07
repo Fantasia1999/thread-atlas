@@ -4,7 +4,7 @@ import path from "node:path";
 import { Duplex } from "node:stream";
 import { Client, type ConnectConfig, type SFTPWrapper } from "ssh2";
 
-import type { SessionSource } from "../src/parsers/types.js";
+import type { SessionSource } from "../shared/types.js";
 import { COPILOT_BUNDLE_FILES, COPILOT_EVENTS_FILE } from "./copilot.js";
 
 const REMOTE_SYNC_ROOT = path.resolve(process.cwd(), "data", "remote");

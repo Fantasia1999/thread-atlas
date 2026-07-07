@@ -13,12 +13,9 @@ import { parseClaudeSession } from "../src/parsers/claude.ts";
 import { parseCopilotSession } from "../src/parsers/copilot.ts";
 import { parseCodexSession } from "../src/parsers/codex.ts";
 import { detectSessionSource } from "../src/parsers/detect.ts";
-import type { SessionBundle } from "../src/parsers/types.ts";
-import {
-  inferSourceFromPath,
-  isWithinPathRoot,
-  normalizePathForMatch
-} from "../server/scanner.ts";
+import type { SessionBundle } from "../shared/types.ts";
+import { inferSourceFromPath } from "../server/scanner.ts";
+import { isWithinPathRoot, normalizePathForMatch } from "../shared/pathUtils.ts";
 
 test("normalizePathForMatch converts Windows separators to lowercase POSIX-style paths", () => {
   assert.equal(
@@ -471,5 +468,4 @@ test("Antigravity loader parses task messages from sibling messages directory an
   assert.equal(toolResult254.tool_name, "replace_file_content"); // mapped from code_action
   assert.equal(toolResult254.tool_call.id, toolCall253.tool_call.id); // matched successfully!
 });
-
 

@@ -43,7 +43,7 @@
   - `opencode-sqlite::<dbPath>::<sessionId>`
 - Remote sync should download files first and let the normal local scanner pick them up afterward.
   - Copilot is still mirrored as files even though SSH scan presents a session-directory selection.
-- Preserve stable response shapes with `src/parsers/types.ts` as the source of truth.
+- Preserve stable response shapes with `shared/types.ts` as the source of truth.
 - `server/antigravity/descriptorSnapshot.ts` is a checked-in snapshot of protobuf descriptors.
   - Refresh it when upstream Antigravity descriptors change.
   - Runtime fallback may still read the installed Antigravity `extension.js` if the bundled snapshot is stale.

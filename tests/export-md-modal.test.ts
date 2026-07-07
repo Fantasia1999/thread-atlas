@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import "./dom-mock.ts";
 
-import type { Session } from "../src/parsers/types.ts";
+import type { Session } from "../shared/types.ts";
 import { createExportMdModal } from "../src/ui/exportMdModal.ts";
 
 function getMockSession(): Session {
