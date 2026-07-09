@@ -188,7 +188,18 @@ export const opencodeSource: ServerSourceAdapter = {
       return undefined;
     }
 
-    const [, dbPath, sessionId] = key.split("::");
+    const payload = key.slice(OPENCODE_KEY_PREFIX.length);
+    const separatorIndex = payload.lastIndexOf("::");
+    if (separatorIndex <= 0) {
+      return undefined;
+    }
+
+    const dbPath = payload.slice(0, separatorIndex);
+    const sessionId = payload.slice(separatorIndex + 2);
+    if (!dbPath || !sessionId) {
+      return undefined;
+    }
+
     return await loadOpenCodeBundle(dbPath, sessionId);
   }
 };
