@@ -129,3 +129,51 @@ export function extractClaudeCwd(content: string | unknown[]): string | undefine
   }
   return undefined;
 }
+
+export function extractClaudeSessionId(content: string | unknown[], absolutePath: string): string | undefined {
+  try {
+    const rows = (Array.isArray(content) ? content : parseJsonLines(content)) as Array<Record<string, any>>;
+    for (const row of rows) {
+      if (typeof row.agentId === "string" && row.agentId.trim()) {
+        return row.agentId.trim();
+      }
+      if (typeof row.sessionId === "string" && row.sessionId.trim()) {
+        return row.sessionId.trim();
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // Fallback to path extraction
+  const subagentMatch = absolutePath.match(/subagents\/agent-([a-fA-F0-9-]+)\.jsonl$/i);
+  if (subagentMatch) {
+    return subagentMatch[1];
+  }
+  const parentMatch = absolutePath.match(/\/([a-fA-F0-9-]+)\.jsonl$/i);
+  if (parentMatch) {
+    return parentMatch[1];
+  }
+  return undefined;
+}
+
+export function extractClaudeParentThreadId(content: string | unknown[], absolutePath: string): string | undefined {
+  try {
+    const rows = (Array.isArray(content) ? content : parseJsonLines(content)) as Array<Record<string, any>>;
+    for (const row of rows) {
+      if (typeof row.agentId === "string" && typeof row.sessionId === "string" && row.sessionId.trim()) {
+        return row.sessionId.trim();
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  const normalized = absolutePath.replace(/\\/g, "/");
+  const subagentMatch = normalized.match(/\/([a-fA-F0-9-]+)\/subagents\/agent-[a-fA-F0-9-]+\.jsonl$/i);
+  if (subagentMatch) {
+    return subagentMatch[1];
+  }
+  return undefined;
+}
+

@@ -1,4 +1,4 @@
-import type { BackgroundTask, Message, Session, SessionBundle, ToolCall } from "../../shared/types.js";
+import type { BackgroundTask, Message, Session, SessionBundle, ToolCall, SubagentNotification } from "../../shared/types.js";
 import {
   addToolCall,
   basenameTitle,
@@ -12,7 +12,7 @@ import {
   stringifyValue,
   toIsoTimestamp
 } from "./utils.js";
-import { extractClaudeCwd, extractClaudePreviewTitle, parseClaudeContent } from "../../shared/extractors/claude.js";
+import { extractClaudeCwd, extractClaudePreviewTitle, parseClaudeContent, extractClaudeParentThreadId, extractClaudeSessionId } from "../../shared/extractors/claude.js";
 export { extractClaudeCwd, extractClaudePreviewTitle } from "../../shared/extractors/claude.js";
 
 interface ClaudeQueueOperation {
@@ -55,6 +55,7 @@ export function parseClaudeSession(bundle: SessionBundle): Session {
 
     if (rowType === "queue-operation") {
       const queueOperation = parseClaudeQueueOperation(row);
+      let handledByStitching = false;
       if (queueOperation?.toolUseId) {
         const existingIndex = toolMessageIndex.get(queueOperation.toolUseId);
         if (existingIndex != null) {
@@ -69,19 +70,33 @@ export function parseClaudeSession(bundle: SessionBundle): Session {
               finishedAt: timestamp ?? existingCall.finishedAt,
               backgroundTask: mergeBackgroundTask(existingCall.backgroundTask, queueOperation)
             });
-            return;
+            handledByStitching = true;
           }
         }
       }
 
-      const fallbackMessage = buildQueueOperationFallbackMessage(
-        bundle.key,
-        index,
-        queueOperation,
-        timestamp
-      );
-      if (fallbackMessage) {
-        messages.push(fallbackMessage);
+      const contentStr = typeof row.content === "string" ? row.content : "";
+      const subagentNotification = parseClaudeTaskNotification(contentStr);
+
+      if (subagentNotification) {
+        messages.push({
+          id: `${bundle.key}:${index}`,
+          role: "system",
+          text: contentStr,
+          createdAt: timestamp,
+          rawType: "queue-operation",
+          subagentNotification
+        });
+      } else if (!handledByStitching) {
+        const fallbackMessage = buildQueueOperationFallbackMessage(
+          bundle.key,
+          index,
+          queueOperation,
+          timestamp
+        );
+        if (fallbackMessage) {
+          messages.push(fallbackMessage);
+        }
       }
       return;
     }
@@ -120,6 +135,20 @@ export function parseClaudeSession(bundle: SessionBundle): Session {
               ? existingCall?.toolName ?? result.call.toolName
               : result.call.toolName
         });
+
+        const toolUseResult = row.toolUseResult && typeof row.toolUseResult === "object"
+          ? (row.toolUseResult as Record<string, unknown>)
+          : undefined;
+        if (toolUseResult && typeof toolUseResult.agentId === "string") {
+          const agentId = toolUseResult.agentId.trim();
+          const desc = typeof toolUseResult.description === "string" ? toolUseResult.description.trim() : "";
+          existingMessage.subagentNotification = {
+            agentPath: agentId,
+            status: "launched",
+            content: desc || "Async agent launched successfully."
+          };
+        }
+
         continue;
       }
 
@@ -134,13 +163,29 @@ export function parseClaudeSession(bundle: SessionBundle): Session {
       return;
     }
 
+    const toolUseResult = row.toolUseResult && typeof row.toolUseResult === "object"
+      ? (row.toolUseResult as Record<string, unknown>)
+      : undefined;
+
+    let subagentNotification = parseClaudeTaskNotification(text);
+    if (!subagentNotification && toolUseResult && typeof toolUseResult.agentId === "string") {
+      const agentId = toolUseResult.agentId.trim();
+      const desc = typeof toolUseResult.description === "string" ? toolUseResult.description.trim() : "";
+      subagentNotification = {
+        agentPath: agentId,
+        status: "launched",
+        content: desc || "Async agent launched successfully."
+      };
+    }
+
     messages.push({
       id: `${bundle.key}:${index}`,
       role,
       text,
       createdAt: timestamp,
       rawType: String(row.type ?? messageRecord?.type ?? "message"),
-      toolCalls: toolCalls.length > 0 ? toolCalls : undefined
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      subagentNotification
     });
 
     const messageIndex = messages.length - 1;
@@ -151,15 +196,21 @@ export function parseClaudeSession(bundle: SessionBundle): Session {
     }
   });
 
+  const claudeSessionId = extractClaudeSessionId(rows, bundle.primaryPath);
+  const claudeParentThreadId = extractClaudeParentThreadId(rows, bundle.primaryPath);
+
   const firstUserMessage = messages.find((message) => message.role === "user");
   const firstUserTitle = firstUserMessage ? previewText(firstUserMessage.text, 80) : undefined;
 
   return buildSession(bundle, "claude", {
+    id: claudeSessionId,
     title: firstUserTitle ?? (cwd ? `${basenameTitle(cwd) || "project"} · Claude` : undefined) ?? bundle.title,
     cwd,
     messages,
     metadata: {
-      cwd: cwd ?? null
+      cwd: cwd ?? null,
+      sessionId: claudeSessionId ?? null,
+      parentThreadId: claudeParentThreadId ?? null
     }
   });
 }
@@ -290,3 +341,30 @@ function buildQueueOperationFallbackMessage(
     rawType: "queue-operation"
   };
 }
+
+function parseClaudeTaskNotification(text: string): SubagentNotification | undefined {
+  const match = text.match(/<task-notification>([\s\S]*?)<\/task-notification>/i);
+  if (!match) {
+    return undefined;
+  }
+  const inner = match[1];
+  const taskIdMatch = inner.match(/<task-id>([\s\S]*?)<\/task-id>/i);
+  const statusMatch = inner.match(/<status>([\s\S]*?)<\/status>/i);
+  const summaryMatch = inner.match(/<summary>([\s\S]*?)<\/summary>/i);
+  const resultMatch = inner.match(/<result>([\s\S]*?)<\/result>/i);
+
+  const taskId = taskIdMatch ? taskIdMatch[1].trim() : undefined;
+  const status = statusMatch ? statusMatch[1].trim() : "unknown";
+  const summary = summaryMatch ? summaryMatch[1].trim() : "";
+  const result = resultMatch ? resultMatch[1].trim() : "";
+
+  if (taskId && summary.toLowerCase().includes("agent")) {
+    return {
+      agentPath: taskId,
+      status,
+      content: result || summary || undefined
+    };
+  }
+  return undefined;
+}
+

@@ -17,7 +17,7 @@ import {
 } from "./copilot.js";
 import { resolveLocalScanRoots } from "./platformRoots.js";
 import { compareDescriptors } from "../shared/descriptors.js";
-import { extractClaudeCwd, extractClaudePreviewTitle } from "../shared/extractors/claude.js";
+import { extractClaudeCwd, extractClaudePreviewTitle, extractClaudeParentThreadId, extractClaudeSessionId } from "../shared/extractors/claude.js";
 import { extractCodexCwd, extractCodexParentThreadId, extractCodexPreviewTitle, extractCodexSessionId } from "../shared/extractors/codex.js";
 import { parseJsonLines } from "../shared/jsonl.js";
 import { basenameFromAnyPath, isWithinPathRoot, normalizePathForMatch } from "../shared/pathUtils.js";
@@ -556,6 +556,9 @@ async function collectFiles(root: string, depth: number): Promise<string[]> {
 
 function isSessionLikeFile(absolutePath: string): boolean {
   const name = path.basename(absolutePath).toLowerCase();
+  if (name.endsWith(".meta.json")) {
+    return false;
+  }
   return (
     name === "opencode.db" ||
     name.endsWith(".jsonl") ||
@@ -648,11 +651,19 @@ function buildFileDescriptor(
   const codexSessionId =
     source === "codex" && parsedRows ? extractCodexSessionId(parsedRows, absolutePath) : undefined;
 
-  if (codexParentThreadId) {
-    metadata.parentThreadId = codexParentThreadId;
+  const claudeParentThreadId =
+    source === "claude" && parsedRows ? extractClaudeParentThreadId(parsedRows, absolutePath) : undefined;
+  const claudeSessionId =
+    source === "claude" && parsedRows ? extractClaudeSessionId(parsedRows, absolutePath) : undefined;
+
+  const parentThreadId = codexParentThreadId ?? claudeParentThreadId;
+  const sessionId = codexSessionId ?? claudeSessionId;
+
+  if (parentThreadId) {
+    metadata.parentThreadId = parentThreadId;
   }
-  if (codexSessionId) {
-    metadata.sessionId = codexSessionId;
+  if (sessionId) {
+    metadata.sessionId = sessionId;
   }
 
   return {

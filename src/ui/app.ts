@@ -39,6 +39,7 @@ export class ThreadAtlasApp {
   private timelineOpen = false;
   private viewportWidth = window.innerWidth;
   private sidebarScrollTop = 0;
+  private targetSubagentScrollId: string | undefined = undefined;
 
   constructor(
     private readonly root: HTMLElement,
@@ -185,8 +186,17 @@ export class ThreadAtlasApp {
             d => d.metadata?.sessionId === targetSessionId || d.key === targetSessionId
           );
           if (targetDescriptor) {
+            const currentSession = this.store.getSelectedSession();
+            if (
+              currentSession &&
+              currentSession.metadata.parentThreadId === targetDescriptor.metadata?.sessionId
+            ) {
+              this.targetSubagentScrollId = currentSession.id || currentSession.metadata.sessionId || undefined;
+            } else {
+              this.targetSubagentScrollId = undefined;
+            }
             void this.store.selectSession(targetDescriptor.key);
-            showToast("Switched to subagent session", "success");
+            showToast("Switched to session", "success");
           } else {
             showToast("Subagent session is not loaded in workspace", "error");
           }
@@ -482,6 +492,34 @@ export class ThreadAtlasApp {
 
     const key = this.store.getState().selectedKey;
     if (key) {
+      if (this.targetSubagentScrollId) {
+        const session = this.store.getSelectedSession();
+        if (session) {
+          let msgIndex = -1;
+          for (let i = session.messages.length - 1; i >= 0; i--) {
+            if (session.messages[i].subagentNotification?.agentPath === this.targetSubagentScrollId) {
+              msgIndex = i;
+              break;
+            }
+          }
+          if (msgIndex >= 0) {
+            const message = session.messages[msgIndex];
+            const normalized = `${message.id || msgIndex}`.replace(/[^a-zA-Z0-9_-]+/g, "-");
+            const anchorId = `message-${normalized}`;
+            const messageElement = list.querySelector(`#${anchorId}`) as HTMLElement | null;
+            if (messageElement) {
+              messageElement.scrollIntoView({
+                block: "start"
+              });
+              list.style.opacity = "1";
+              this.targetSubagentScrollId = undefined;
+              return;
+            }
+          }
+        }
+        this.targetSubagentScrollId = undefined;
+      }
+
       const savedScrollTop = getStoredScrollPosition(key);
       
       // Restore scroll position synchronously before browser paint to prevent any visual jump or flash

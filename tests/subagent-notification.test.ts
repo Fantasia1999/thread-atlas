@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import "./dom-mock.ts";
 import { parseCodexSession } from "../src/parsers/codex.ts";
+import { parseClaudeSession } from "../src/parsers/claude.ts";
 import { renderChatView } from "../src/ui/chatView.ts";
 import type { Session, SessionBundle, SessionDescriptor } from "../shared/types.ts";
 
@@ -363,3 +364,131 @@ test("renders history Back link in session header when previousKeys is not empty
   backLink.dispatchEvent("click");
   assert.ok(goBackCalled, "onGoBack should be called");
 });
+
+test("parseClaudeSession parses subagent notifications and parent/child IDs correctly", () => {
+  const parentBundle: SessionBundle = {
+    key: "file::/tmp/parent-session.jsonl",
+    source: "claude",
+    title: "Parent Session",
+    primaryPath: "/tmp/parent-session.jsonl",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 1,
+    size: 100,
+    mtimeMs: 100,
+    metadata: {},
+    files: [
+      {
+        path: "/tmp/parent-session.jsonl",
+        content: [
+          JSON.stringify({
+            type: "assistant",
+            timestamp: "2026-07-08T07:19:59.000Z",
+            sessionId: "parent-session-uuid",
+            message: {
+              role: "assistant",
+              content: [
+                {
+                  type: "tool_use",
+                  id: "toolu_01XDype",
+                  name: "Agent",
+                  input: { prompt: "Implement feature" }
+                }
+              ]
+            }
+          }),
+          JSON.stringify({
+            type: "user",
+            timestamp: "2026-07-08T07:20:00.000Z",
+            sessionId: "parent-session-uuid",
+            message: {
+              role: "user",
+              content: [
+                {
+                  tool_use_id: "toolu_01XDype",
+                  type: "tool_result",
+                  content: "Launched"
+                }
+              ]
+            },
+            toolUseResult: {
+              isAsync: true,
+              status: "async_launched",
+              agentId: "subagent-session-uuid",
+              description: "Implement feature"
+            }
+          }),
+          JSON.stringify({
+            type: "queue-operation",
+            operation: "enqueue",
+            timestamp: "2026-07-08T07:21:11.709Z",
+            sessionId: "parent-session-uuid",
+            content: [
+              "<task-notification>",
+              "<task-id>subagent-session-uuid</task-id>",
+              "<tool-use-id>toolu_01XDype</tool-use-id>",
+              "<status>completed</status>",
+              "<summary>Agent \"Implement feature\" finished</summary>",
+              "<result>Done successfully.</result>",
+              "</task-notification>"
+            ].join("\n")
+          })
+        ].join("\n")
+      }
+    ]
+  };
+
+  const subagentBundle: SessionBundle = {
+    key: "file::/tmp/parent-session-uuid/subagents/agent-subagent-session-uuid.jsonl",
+    source: "claude",
+    title: "Subagent Session",
+    primaryPath: "/tmp/parent-session-uuid/subagents/agent-subagent-session-uuid.jsonl",
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: 1,
+    size: 100,
+    mtimeMs: 100,
+    metadata: {},
+    files: [
+      {
+        path: "/tmp/parent-session-uuid/subagents/agent-subagent-session-uuid.jsonl",
+        content: [
+          JSON.stringify({
+            parentUuid: null,
+            isSidechain: true,
+            agentId: "subagent-session-uuid",
+            type: "user",
+            sessionId: "parent-session-uuid",
+            message: { role: "user", content: "Implement feature" }
+          })
+        ].join("\n")
+      }
+    ]
+  };
+
+  // Test parent parsing
+  const parentSession = parseClaudeSession(parentBundle);
+  assert.equal(parentSession.id, "parent-session-uuid");
+  assert.equal(parentSession.messages.length, 2);
+
+  const launchNotify = parentSession.messages[0].subagentNotification;
+  assert.ok(launchNotify, "Should extract subagent notification for launch");
+  assert.equal(launchNotify.agentPath, "subagent-session-uuid");
+  assert.equal(launchNotify.status, "launched");
+  assert.equal(launchNotify.content, "Implement feature");
+
+  const notify = parentSession.messages[1].subagentNotification;
+  assert.ok(notify, "Should extract subagent notification");
+  assert.equal(notify.agentPath, "subagent-session-uuid");
+  assert.equal(notify.status, "completed");
+  assert.equal(notify.content, "Done successfully.");
+
+  // Test subagent parsing
+  const subagentSession = parseClaudeSession(subagentBundle);
+  assert.equal(subagentSession.id, "subagent-session-uuid");
+  assert.equal(subagentSession.metadata.parentThreadId, "parent-session-uuid");
+  assert.equal(subagentSession.metadata.sessionId, "subagent-session-uuid");
+});
+
