@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import "./dom-mock.ts";
-import { renderSidebar } from "../src/ui/sidebar.ts";
+import { createSidebarView, renderSidebar } from "../src/ui/sidebar.ts";
 import type { SessionDescriptor } from "../shared/types.ts";
 
 function createSidebarOptions(overrides?: Partial<Parameters<typeof renderSidebar>[0]>) {
@@ -45,6 +45,65 @@ function createSidebarOptions(overrides?: Partial<Parameters<typeof renderSideba
     ...overrides
   };
 }
+
+test("createSidebarView keeps controls stable while updating sidebar content", () => {
+  const initialOptions = createSidebarOptions();
+  const view = createSidebarView(initialOptions);
+  const root = view.element;
+  const search = root.querySelector("input") as HTMLInputElement | null;
+  const filter = root.querySelector(".source-filter-dropdown");
+  const list = root.querySelector(".session-list");
+  const count = root.querySelector(".count-badge");
+
+  assert.ok(search);
+  assert.ok(filter);
+  assert.ok(list);
+  assert.ok(count);
+  assert.equal(count.textContent, "1");
+
+  const nextDescriptor: SessionDescriptor = {
+    ...initialOptions.descriptors[0],
+    key: "file::/path/to/second-session.jsonl",
+    title: "Session 2",
+    primaryPath: "/path/to/second-session.jsonl",
+    mtimeMs: initialOptions.descriptors[0].mtimeMs + 1
+  };
+  let selectedSource = "";
+
+  view.update(createSidebarOptions({
+    descriptors: [...initialOptions.descriptors, nextDescriptor],
+    search: "Session",
+    sourceFilter: "gemini",
+    open: false,
+    pinned: true,
+    onFilter: (value) => {
+      selectedSource = value;
+    }
+  }));
+
+  assert.equal(view.element, root);
+  assert.equal(root.querySelector("input"), search);
+  assert.equal(root.querySelector(".source-filter-dropdown"), filter);
+  assert.equal(root.querySelector(".session-list"), list);
+  assert.equal(search.isConnected, true);
+  assert.equal(list.isConnected, true);
+  assert.equal(root.classList.contains("open"), false);
+  assert.equal(root.classList.contains("pinned"), true);
+  assert.equal(search.value, "Session");
+  assert.equal(count.textContent, "2");
+  assert.ok(list.innerHTML.includes("Session 2"));
+
+  const filterTrigger = filter.querySelector(".custom-dropdown-trigger");
+  assert.ok(filterTrigger?.innerHTML.includes("Gemini"));
+  filterTrigger?.dispatchEvent("click");
+  const codexItem = filter
+    .querySelectorAll(".custom-dropdown-item")
+    .find((item) => item.textContent === "Codex");
+  assert.ok(codexItem);
+  codexItem.dispatchEvent("click");
+  assert.equal(selectedSource, "codex");
+  assert.ok(filterTrigger?.innerHTML.includes("Codex"));
+});
 
 test("renderSidebar renders search input and custom filter dropdown", () => {
   const options = createSidebarOptions();
@@ -595,5 +654,3 @@ test("renderSidebar groups and nests subagents under main agent sessions", () =>
   const sidebarSearch = renderSidebar(optionsSearch);
   assert.ok(!sidebarSearch.querySelector(".session-children-container"));
 });
-
-

@@ -29,13 +29,23 @@ interface SidebarOptions {
   onClearHiddenProjects: () => void;
 }
 
+export interface SidebarView {
+  element: HTMLElement;
+  update(options: SidebarOptions): void;
+}
+
 export function renderSidebar(options: SidebarOptions): HTMLElement {
+  return createSidebarView(options).element;
+}
+
+export function createSidebarView(options: SidebarOptions): SidebarView {
+  let currentOptions = options;
   let hoverTimeout: number | undefined;
   let leaveTimeout: number | undefined;
   let isMouseOver = false;
 
   const container = document.createElement("div");
-  container.className = `sidebar-dock${options.open ? " open" : ""}${options.pinned ? " pinned" : ""}`;
+  container.className = "sidebar-dock";
 
   const clearAllTimeouts = () => {
     if (hoverTimeout) {
@@ -62,7 +72,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
 
     if (isOpen && !isPinned) {
       leaveTimeout = window.setTimeout(() => {
-        options.onToggleOpen();
+        currentOptions.onToggleOpen();
       }, 80);
     }
   });
@@ -86,7 +96,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     if (isOpen && !isPinned && !isMouseOver) {
       clearAllTimeouts();
       leaveTimeout = window.setTimeout(() => {
-        options.onToggleOpen();
+        currentOptions.onToggleOpen();
       }, 80);
     }
   });
@@ -97,15 +107,13 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   const openButton = document.createElement("button");
   openButton.className = "rail-button";
   openButton.type = "button";
-  openButton.title = options.open ? "Collapse sessions" : "Open sessions";
-  openButton.setAttribute("aria-label", openButton.title);
   openButton.innerHTML = listIcon();
 
   openButton.addEventListener("click", () => {
     clearAllTimeouts();
     const isOpen = container.classList.contains("open");
     if (!isOpen) {
-      options.onToggleOpen();
+      currentOptions.onToggleOpen();
     }
   });
 
@@ -113,7 +121,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     const isOpen = container.classList.contains("open");
     if (!isOpen) {
       hoverTimeout = window.setTimeout(() => {
-        options.onToggleOpen();
+        currentOptions.onToggleOpen();
       }, 50);
     }
   });
@@ -132,24 +140,28 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
 
   const heading = document.createElement("div");
   heading.className = "panel-header";
-  heading.innerHTML = `
-    <div>
-      <p class="eyebrow">Session Index</p>
-      <h2>Local + Synced Logs</h2>
-    </div>
-    <div class="panel-header-actions">
-      <div class="count-badge">${options.descriptors.length}</div>
-    </div>
+
+  const headingCopy = document.createElement("div");
+  headingCopy.innerHTML = `
+    <p class="eyebrow">Session Index</p>
+    <h2>Local + Synced Logs</h2>
   `;
 
+  const headingActions = document.createElement("div");
+  headingActions.className = "panel-header-actions";
+
+  const countBadge = document.createElement("div");
+  countBadge.className = "count-badge";
+
   const pinButton = document.createElement("button");
-  pinButton.className = `panel-icon-button${options.pinned ? " active" : ""}`;
+  pinButton.className = "panel-icon-button";
   pinButton.type = "button";
-  pinButton.title = options.pinned ? "Unpin sessions" : "Pin sessions";
-  pinButton.setAttribute("aria-label", pinButton.title);
   pinButton.innerHTML = pinIcon();
-  pinButton.addEventListener("click", options.onTogglePin);
-  heading.querySelector(".panel-header-actions")?.append(pinButton);
+  pinButton.addEventListener("click", () => {
+    currentOptions.onTogglePin();
+  });
+  headingActions.append(countBadge, pinButton);
+  heading.append(headingCopy, headingActions);
 
   const controls = document.createElement("div");
   controls.className = "sidebar-controls";
@@ -158,29 +170,28 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   search.className = "text-input";
   search.type = "search";
   search.placeholder = "Search title or path";
-  search.value = options.search;
   search.addEventListener("input", () => {
-    options.onSearch(search.value);
+    currentOptions.onSearch(search.value);
   });
   search.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       const val = search.value.trim();
       if (val === ":hide") {
         event.preventDefault();
-        if (options.selectedKey) {
-          const currentDesc = options.descriptors.find(d => d.key === options.selectedKey);
+        if (currentOptions.selectedKey) {
+          const currentDesc = currentOptions.descriptors.find(d => d.key === currentOptions.selectedKey);
           if (currentDesc) {
             const wsPath = getWorkspaceFullPath(currentDesc);
             if (wsPath) {
-              options.onHideProject(wsPath);
-              options.onSearch("");
+              currentOptions.onHideProject(wsPath);
+              currentOptions.onSearch("");
             }
           }
         }
       } else if (val === ":unhide-all") {
         event.preventDefault();
-        options.onClearHiddenProjects();
-        options.onSearch("");
+        currentOptions.onClearHiddenProjects();
+        currentOptions.onSearch("");
       }
     }
   });
@@ -206,21 +217,22 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     selectedValue: options.sourceFilter,
     placeholder: "All sources",
     onChange: (value) => {
-      options.onFilter(value as SessionSource | "all");
+      currentOptions.onFilter(value as SessionSource | "all");
     }
   });
-  filter.classList.add("source-filter-dropdown");
+  filter.element.classList.add("source-filter-dropdown");
 
   // Render C.3 Quick Search Chips (Favorites Chip + Tag Select Dropdown)
   const chipsContainer = document.createElement("div");
   chipsContainer.className = "quick-chips-container";
 
   const renderChips = () => {
-    chipsContainer.innerHTML = "";
+    chipsContainer.replaceChildren();
+    const renderedOptions = currentOptions;
 
     // 1. Extract unique tags and Usage Counts from all annotated metadata (starred or not)
     const tagCounts = new Map<string, number>();
-    for (const [_, meta] of options.favoriteMetadata.entries()) {
+    for (const meta of renderedOptions.favoriteMetadata.values()) {
       if (meta && meta.tags) {
         for (const t of meta.tags) {
           const cleanT = t.trim();
@@ -231,7 +243,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       }
     }
 
-    const hasFavorites = options.favoriteKeys.size > 0;
+    const hasFavorites = renderedOptions.favoriteKeys.size > 0;
     const hasTags = tagCounts.size > 0;
     const showChips = hasFavorites || hasTags;
 
@@ -248,22 +260,26 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       const allFavChip = document.createElement("button");
       allFavChip.type = "button";
       const isFavSearchActive =
-        options.search.toLowerCase().includes("is:starred") ||
-        options.search.toLowerCase().includes("is:favorite");
+        renderedOptions.search.toLowerCase().includes("is:starred") ||
+        renderedOptions.search.toLowerCase().includes("is:favorite");
       allFavChip.className = `chip-btn star-chip${isFavSearchActive ? " active" : ""}`;
       allFavChip.textContent = `⭐ Favorites`;
       allFavChip.addEventListener("click", (e) => {
         e?.stopPropagation();
-        if (isFavSearchActive) {
-          const nextSearch = options.search
+        const searchValue = currentOptions.search;
+        const isActive =
+          searchValue.toLowerCase().includes("is:starred") ||
+          searchValue.toLowerCase().includes("is:favorite");
+        if (isActive) {
+          const nextSearch = searchValue
             .replace(/\bis:starred\b/gi, "")
             .replace(/\bis:favorite\b/gi, "")
             .trim()
             .replace(/\s+/g, " ");
-          options.onSearch(nextSearch);
+          currentOptions.onSearch(nextSearch);
         } else {
-          const nextSearch = (options.search ? options.search + " " : "") + "is:starred";
-          options.onSearch(nextSearch.trim());
+          const nextSearch = (searchValue ? searchValue + " " : "") + "is:starred";
+          currentOptions.onSearch(nextSearch.trim());
         }
       });
       chipsContainer.append(allFavChip);
@@ -273,7 +289,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     if (hasTags) {
       const tagItems: DropdownItem[] = [];
       let activeTagValue = "";
-      const searchLower = options.search.toLowerCase();
+      const searchLower = renderedOptions.search.toLowerCase();
 
       [...tagCounts.entries()]
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -295,8 +311,17 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
         placeholder: "🏷️ Filter by Tag",
         onChange: (selectedTag) => {
           // Clear existing tags from search query first
-          let nextSearch = options.search;
-          [...tagCounts.keys()].forEach((t) => {
+          let nextSearch = currentOptions.search;
+          const currentTags = new Set<string>();
+          for (const meta of currentOptions.favoriteMetadata.values()) {
+            for (const tag of meta.tags ?? []) {
+              const cleanTag = tag.trim();
+              if (cleanTag) {
+                currentTags.add(cleanTag);
+              }
+            }
+          }
+          currentTags.forEach((t) => {
             const regex = new RegExp(`#${t}\\b`, "gi");
             nextSearch = nextSearch.replace(regex, "");
           });
@@ -306,19 +331,52 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
             nextSearch = (nextSearch ? nextSearch + " " : "") + `#${selectedTag}`;
           }
 
-          options.onSearch(nextSearch.trim());
+          currentOptions.onSearch(nextSearch.trim());
         }
       });
-      tagSelect.classList.add("tag-filter-dropdown");
-      chipsContainer.append(tagSelect);
+      tagSelect.element.classList.add("tag-filter-dropdown");
+      chipsContainer.append(tagSelect.element);
     }
   };
 
-  renderChips();
-  controls.append(search, filter, chipsContainer);
+  controls.append(search, filter.element, chipsContainer);
 
   const list = document.createElement("div");
   list.className = "session-list";
+
+  const update = (nextOptions: SidebarOptions) => {
+    currentOptions = nextOptions;
+    container.className = `sidebar-dock${nextOptions.open ? " open" : ""}${nextOptions.pinned ? " pinned" : ""}`;
+
+    openButton.title = nextOptions.open ? "Collapse sessions" : "Open sessions";
+    openButton.setAttribute("aria-label", openButton.title);
+
+    pinButton.className = `panel-icon-button${nextOptions.pinned ? " active" : ""}`;
+    pinButton.title = nextOptions.pinned ? "Unpin sessions" : "Pin sessions";
+    pinButton.setAttribute("aria-label", pinButton.title);
+
+    countBadge.textContent = String(nextOptions.descriptors.length);
+    if (search.value !== nextOptions.search) {
+      search.value = nextOptions.search;
+    }
+    filter.updateSelectedValue(nextOptions.sourceFilter);
+    renderChips();
+    renderSessionList(list, nextOptions, () => currentOptions);
+  };
+
+  panel.append(heading, controls, list);
+  container.append(rail, panel);
+  update(options);
+
+  return { element: container, update };
+}
+
+function renderSessionList(
+  list: HTMLElement,
+  options: SidebarOptions,
+  getCurrentOptions: () => SidebarOptions
+): void {
+  list.replaceChildren();
 
   if (options.search.trim().toLowerCase() === ":hidden") {
     if (options.hiddenProjects.size === 0) {
@@ -351,7 +409,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
         `;
 
         button.addEventListener("click", () => {
-          options.onShowProject(projectPath);
+          getCurrentOptions().onShowProject(projectPath);
         });
 
         list.append(button);
@@ -388,7 +446,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       button.className = `session-row${descriptor.key === options.selectedKey ? " active" : ""}${isPinned ? " pinned-row" : ""}${isFavorited ? " favorite-row" : ""}`;
       button.type = "button";
       button.addEventListener("click", () => {
-        options.onSelect(descriptor.key);
+        getCurrentOptions().onSelect(descriptor.key);
       });
 
       const dateLabel = formatLocalDateTime(descriptor.mtimeMs, "Unknown time");
@@ -425,7 +483,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
         workspaceEl.textContent = workspaceLabel;
         workspaceEl.addEventListener("dblclick", (e) => {
           e.stopPropagation();
-          options.onHideProject(wsFullPath);
+          getCurrentOptions().onHideProject(wsFullPath);
         });
         pathRow.append(workspaceEl);
       }
@@ -456,7 +514,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       pinBtn.innerHTML = pinIconMini();
       pinBtn.addEventListener("click", (e) => {
         e?.stopPropagation();
-        options.onTogglePinSession(descriptor.key);
+        getCurrentOptions().onTogglePinSession(descriptor.key);
       });
 
       const favBtn = document.createElement("button");
@@ -466,7 +524,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       favBtn.innerHTML = starIconMini();
       favBtn.addEventListener("click", (e) => {
         e?.stopPropagation();
-        options.onToggleFavoriteSession(descriptor.key);
+        getCurrentOptions().onToggleFavoriteSession(descriptor.key);
       });
 
       actionsContainer.append(pinBtn, favBtn);
@@ -579,7 +637,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       button.className = btnClassName;
       button.type = "button";
       button.addEventListener("click", () => {
-        options.onSelect(descriptor.key);
+        getCurrentOptions().onSelect(descriptor.key);
       });
 
       const dateLabel = formatLocalDateTime(descriptor.mtimeMs, "Unknown time");
@@ -612,7 +670,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
         badge.title = isCollapsed ? "Expand subagents" : "Collapse subagents";
         badge.addEventListener("click", (e) => {
           e.stopPropagation();
-          options.onToggleSessionCollapse?.(descriptor.key);
+          getCurrentOptions().onToggleSessionCollapse?.(descriptor.key);
         });
         sourceAndDate.append(badge);
       }
@@ -641,7 +699,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
         workspaceEl.textContent = workspaceLabel;
         workspaceEl.addEventListener("dblclick", (e) => {
           e.stopPropagation();
-          options.onHideProject(wsFullPath);
+          getCurrentOptions().onHideProject(wsFullPath);
         });
         pathRow.append(workspaceEl);
       }
@@ -671,7 +729,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       pinBtn.innerHTML = pinIconMini();
       pinBtn.addEventListener("click", (e) => {
         e?.stopPropagation();
-        options.onTogglePinSession(descriptor.key);
+        getCurrentOptions().onTogglePinSession(descriptor.key);
       });
 
       const favBtn = document.createElement("button");
@@ -681,7 +739,7 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       favBtn.innerHTML = starIconMini();
       favBtn.addEventListener("click", (e) => {
         e?.stopPropagation();
-        options.onToggleFavoriteSession(descriptor.key);
+        getCurrentOptions().onToggleFavoriteSession(descriptor.key);
       });
 
       actionsContainer.append(pinBtn, favBtn);
@@ -781,6 +839,11 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       moreBtn.style.fontSize = "12px";
       moreBtn.textContent = `Show full history (+${pendingDescriptors.length} remaining)`;
       moreBtn.addEventListener("click", () => {
+        const latestOptions = getCurrentOptions();
+        if (latestOptions !== options) {
+          renderSessionList(list, latestOptions, getCurrentOptions);
+          return;
+        }
         moreBtn.remove();
         if (isSearching) {
           for (const descriptor of pendingDescriptors) {
@@ -803,10 +866,6 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       list.append(moreBtn);
     }
   }
-
-  panel.append(heading, controls, list);
-  container.append(rail, panel);
-  return container;
 }
 
 
@@ -871,39 +930,58 @@ interface DropdownItem {
   label: string;
 }
 
+interface CustomDropdown {
+  element: HTMLElement;
+  updateSelectedValue(value: string): void;
+}
+
 function createCustomDropdown(options: {
   items: DropdownItem[];
   selectedValue: string;
   placeholder: string;
   onChange: (value: string) => void;
-}): HTMLElement {
+}): CustomDropdown {
+  let selectedValue = options.selectedValue;
   const container = document.createElement("div");
   container.className = "custom-dropdown-container";
 
   const trigger = document.createElement("div");
   trigger.className = "custom-dropdown-trigger";
 
-  const currentItem = options.items.find((item) => item.value === options.selectedValue);
-  trigger.innerHTML = `
-    <span class="trigger-label">${escapeHtml(currentItem ? currentItem.label : options.placeholder)}</span>
-    <span class="trigger-arrow">
+  const triggerLabel = document.createElement("span");
+  triggerLabel.className = "trigger-label";
+
+  const triggerArrow = document.createElement("span");
+  triggerArrow.className = "trigger-arrow";
+  triggerArrow.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </span>
   `;
+  trigger.append(triggerLabel, triggerArrow);
   container.append(trigger);
 
   const menu = document.createElement("div");
   menu.className = "custom-dropdown-menu hidden";
 
+  const updateSelectedValue = (value: string) => {
+    selectedValue = value;
+    const currentItem = options.items.find((item) => item.value === selectedValue);
+    triggerLabel.textContent = currentItem ? currentItem.label : options.placeholder;
+    menu.querySelectorAll<HTMLButtonElement>(".custom-dropdown-item").forEach((item) => {
+      item.classList.toggle("active", item.dataset.value === selectedValue);
+    });
+  };
+
   const renderItems = () => {
-    menu.innerHTML = "";
+    menu.replaceChildren();
     for (const item of options.items) {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = `custom-dropdown-item${item.value === options.selectedValue ? " active" : ""}`;
+      btn.className = `custom-dropdown-item${item.value === selectedValue ? " active" : ""}`;
+      btn.dataset.value = item.value;
       btn.textContent = item.label;
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
+        updateSelectedValue(item.value);
         options.onChange(item.value);
         menu.classList.add("hidden");
         trigger.classList.remove("open");
@@ -946,5 +1024,6 @@ function createCustomDropdown(options: {
   document.addEventListener("click", clickOutsideHandler);
 
   container.append(menu);
-  return container;
+  updateSelectedValue(selectedValue);
+  return { element: container, updateSelectedValue };
 }
