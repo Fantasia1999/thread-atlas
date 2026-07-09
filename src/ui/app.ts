@@ -1,7 +1,7 @@
 import type { Session } from "../../shared/types.js";
-import { SessionStore, type StoreState } from "../store/sessionStore.js";
+import { SessionStore, type StateScope, type StoreState } from "../store/sessionStore.js";
 import { createImportModal } from "./importModal.js";
-import { renderSidebar } from "./sidebar.js";
+import { createSidebarView, type SidebarView } from "./sidebar.js";
 import { renderChatView } from "./chatView.js";
 import type { MessageViewFilter } from "./messageFilter.js";
 import { createSshModal } from "./sshModal.js";
@@ -25,6 +25,7 @@ export class ThreadAtlasApp {
   private readonly statusNode: HTMLElement;
   private readonly modalMount: HTMLElement;
   private readonly themeControls: HTMLElement;
+  private sidebarView: SidebarView | undefined;
   private messageFilter: MessageViewFilter = (() => {
     const val = localStorage.getItem(MESSAGE_FILTER_STORAGE_KEY);
     if (val === "raw" || val === "not-tool" || val === "pure" || val === "user" || val === "answer") {
@@ -38,7 +39,6 @@ export class ThreadAtlasApp {
   private timelinePinned = getStoredBoolean(TIMELINE_PIN_STORAGE_KEY, window.innerWidth >= 1200);
   private timelineOpen = false;
   private viewportWidth = window.innerWidth;
-  private sidebarScrollTop = 0;
   private targetSubagentScrollId: string | undefined = undefined;
 
   constructor(
@@ -126,8 +126,8 @@ export class ThreadAtlasApp {
     this.applyTheme();
     this.renderThemeControls();
 
-    this.store.subscribe((state) => {
-      this.render(state);
+    this.store.subscribe((state, scope: StateScope) => {
+      this.render(state, scope);
     });
 
     document.addEventListener("keydown", (event) => {
@@ -148,17 +148,25 @@ export class ThreadAtlasApp {
         }
       }
 
-      let changed = false;
+      let sidebarChanged = false;
+      let timelineChanged = false;
       if (!this.isSidebarPinned() && this.sidebarOpen) {
         this.sidebarOpen = false;
-        changed = true;
+        sidebarChanged = true;
       }
       if (!this.isTimelinePinned() && this.timelineOpen) {
         this.timelineOpen = false;
-        changed = true;
+        timelineChanged = true;
       }
-      if (changed) {
-        this.render(this.store.getState());
+      if (sidebarChanged || timelineChanged) {
+        const state = this.store.getState();
+        this.renderShellState(state);
+        if (sidebarChanged) {
+          this.renderSidebarRegion(state);
+        }
+        if (timelineChanged) {
+          this.renderMainRegion(state);
+        }
       }
     });
 
@@ -304,13 +312,19 @@ export class ThreadAtlasApp {
     ]);
   }
 
-  private render(state: StoreState): void {
-    this.captureSidebarScroll();
+  private render(state: StoreState, scope: StateScope = "all"): void {
+    this.renderShellState(state);
+    if (scope !== "session") {
+      this.renderSidebarRegion(state);
+    }
+    if (scope !== "sidebar") {
+      this.renderMainRegion(state);
+    }
+  }
 
+  private renderShellState(state: StoreState): void {
     const sidebarPinned = this.isSidebarPinned();
     const timelinePinned = this.isTimelinePinned();
-    const sidebarOpen = sidebarPinned || this.sidebarOpen;
-    const timelineOpen = timelinePinned || this.timelineOpen;
 
     this.shell.classList.toggle("sidebar-pinned", sidebarPinned);
     this.shell.classList.toggle("sidebar-open", this.sidebarOpen);
@@ -320,91 +334,84 @@ export class ThreadAtlasApp {
     const selectedDescriptor = this.store.getSelectedDescriptor();
     const currentPath = selectedDescriptor ? selectedDescriptor.primaryPath : state.status;
     this.statusNode.setAttribute("data-path", currentPath);
+    this.statusNode.textContent = currentPath;
+    this.statusNode.title = selectedDescriptor
+      ? "Double-click to copy absolute path\n" + currentPath
+      : currentPath;
+  }
 
-    if (!this.statusNode.classList.contains("copied")) {
-      this.statusNode.textContent = currentPath;
-      this.statusNode.title = selectedDescriptor 
-        ? "Double-click to copy absolute path\n" + currentPath 
-        : currentPath;
-    }
-
+  private renderSidebarRegion(state: StoreState): void {
+    const sidebarPinned = this.isSidebarPinned();
+    const sidebarOpen = sidebarPinned || this.sidebarOpen;
     const visibleDescriptors = this.store.getVisibleDescriptors();
-    const selectedSession = this.store.getSelectedSession();
-    // Record search focus and selection to prevent losing focus during keystrokes
-    const activeEl = document.activeElement as HTMLInputElement | null;
-    const isSearchActive = activeEl && activeEl.type === "search" && activeEl.className?.includes("text-input");
-    const selectionStart = isSearchActive ? activeEl.selectionStart : null;
-    const selectionEnd = isSearchActive ? activeEl.selectionEnd : null;
-
-    this.sidebarMount.replaceChildren(
-      renderSidebar({
-        descriptors: visibleDescriptors,
-        selectedKey: state.selectedKey,
-        sourceFilter: state.sourceFilter,
-        search: state.search,
-        loading: state.loadingScan,
-        pinned: sidebarPinned,
-        open: sidebarOpen,
-        pinnedKeys: state.pinnedKeys,
-        favoriteKeys: state.favoriteKeys,
-        favoriteMetadata: state.favoriteMetadata,
-        hiddenProjects: state.hiddenProjects,
-        expandedSessionKeys: state.expandedSessionKeys,
-        onTogglePinSession: (key) => {
-          this.store.togglePin(key);
-        },
-        onToggleFavoriteSession: (key) => {
-          this.store.toggleFavorite(key);
-        },
-        onToggleSessionCollapse: (key) => {
-          this.store.toggleSessionCollapse(key);
-        },
-        onToggleOpen: () => {
-          this.toggleSidebarOpen();
-        },
-        onTogglePin: () => {
-          this.toggleSidebarPin();
-        },
-        onSearch: (value) => {
-          this.store.setSearch(value);
-        },
-        onFilter: (value) => {
-          this.store.setSourceFilter(value);
-        },
-        onSelect: async (key) => {
-          await this.store.selectSession(key);
-          if (!this.isSidebarPinned()) {
-            this.toggleSidebarOpen(false);
-          }
-        },
-        onHideProject: (wsPath) => {
-          this.store.hideProject(wsPath);
-          showToast(`Workspace hidden: ${wsPath}`, "success");
-        },
-        onShowProject: (wsPath) => {
-          this.store.showProject(wsPath);
-          showToast(`Workspace restored: ${wsPath}`, "success");
-        },
-        onClearHiddenProjects: () => {
-          this.store.clearHiddenProjects();
-          showToast("All hidden workspaces restored", "success");
+    const options = {
+      descriptors: visibleDescriptors,
+      selectedKey: state.selectedKey,
+      sourceFilter: state.sourceFilter,
+      search: state.search,
+      loading: state.loadingScan,
+      pinned: sidebarPinned,
+      open: sidebarOpen,
+      pinnedKeys: state.pinnedKeys,
+      favoriteKeys: state.favoriteKeys,
+      favoriteMetadata: state.favoriteMetadata,
+      hiddenProjects: state.hiddenProjects,
+      expandedSessionKeys: state.expandedSessionKeys,
+      onTogglePinSession: (key: string) => {
+        this.store.togglePin(key);
+      },
+      onToggleFavoriteSession: (key: string) => {
+        this.store.toggleFavorite(key);
+      },
+      onToggleSessionCollapse: (key: string) => {
+        this.store.toggleSessionCollapse(key);
+      },
+      onToggleOpen: () => {
+        this.toggleSidebarOpen();
+      },
+      onTogglePin: () => {
+        this.toggleSidebarPin();
+      },
+      onSearch: (value: string) => {
+        this.store.setSearch(value);
+      },
+      onFilter: (value: StoreState["sourceFilter"]) => {
+        this.store.setSourceFilter(value);
+      },
+      onSelect: async (key: string) => {
+        await this.store.selectSession(key);
+        if (!this.isSidebarPinned()) {
+          this.toggleSidebarOpen(false);
         }
-      })
-    );
-
-    // Restore focus and selection
-    if (isSearchActive) {
-      const newSearch = this.sidebarMount.querySelector("input[type='search']") as HTMLInputElement | null;
-      if (newSearch) {
-        newSearch.focus();
-        if (selectionStart !== null && selectionEnd !== null) {
-          newSearch.setSelectionRange(selectionStart, selectionEnd);
-        }
+      },
+      onHideProject: (wsPath: string) => {
+        this.store.hideProject(wsPath);
+        showToast(`Workspace hidden: ${wsPath}`, "success");
+      },
+      onShowProject: (wsPath: string) => {
+        this.store.showProject(wsPath);
+        showToast(`Workspace restored: ${wsPath}`, "success");
+      },
+      onClearHiddenProjects: () => {
+        this.store.clearHiddenProjects();
+        showToast("All hidden workspaces restored", "success");
       }
+    };
+
+    if (this.sidebarView) {
+      this.sidebarView.update(options);
+      return;
     }
 
-    this.restoreSidebarScroll();
+    this.sidebarView = createSidebarView(options);
+    this.sidebarMount.replaceChildren(this.sidebarView.element);
+  }
 
+  private renderMainRegion(state: StoreState): void {
+    const timelinePinned = this.isTimelinePinned();
+    const timelineOpen = timelinePinned || this.timelineOpen;
+    const selectedDescriptor = this.store.getSelectedDescriptor();
+    const selectedSession = this.store.getSelectedSession();
     void cleanupMermaid();
 
     this.mainMount.replaceChildren(
@@ -430,7 +437,9 @@ export class ThreadAtlasApp {
         onFilterChange: (filter) => {
           this.messageFilter = filter;
           localStorage.setItem(MESSAGE_FILTER_STORAGE_KEY, filter);
-          this.render(this.store.getState());
+          const nextState = this.store.getState();
+          this.renderShellState(nextState);
+          this.renderMainRegion(nextState);
         },
         onTimelineToggleOpen: () => {
           this.toggleTimelineOpen();
@@ -462,26 +471,6 @@ export class ThreadAtlasApp {
 
   private isTimelinePinned(): boolean {
     return this.timelinePinned && this.viewportWidth >= 1200;
-  }
-
-  private captureSidebarScroll(): void {
-    const list = this.sidebarMount.querySelector<HTMLElement>(".session-list");
-    if (!list) {
-      return;
-    }
-    this.sidebarScrollTop = list.scrollTop;
-  }
-
-  private restoreSidebarScroll(): void {
-    const list = this.sidebarMount.querySelector<HTMLElement>(".session-list");
-    if (!list) {
-      return;
-    }
-
-    list.scrollTop = this.sidebarScrollTop;
-    list.addEventListener("scroll", () => {
-      this.sidebarScrollTop = list.scrollTop;
-    });
   }
 
   private restoreChatMessagesScroll(): void {
@@ -554,25 +543,9 @@ export class ThreadAtlasApp {
 
   private toggleSidebarOpen(force?: boolean): void {
     this.sidebarOpen = force !== undefined ? force : !this.sidebarOpen;
-    const isPinned = this.isSidebarPinned();
-    const open = isPinned || this.sidebarOpen;
-
-    // 1. Toggle class on shell
-    this.shell.classList.toggle("sidebar-open", this.sidebarOpen);
-
-    // 2. Toggle class on sidebar-dock
-    const dock = this.sidebarMount.querySelector(".sidebar-dock");
-    if (dock) {
-      dock.classList.toggle("open", open);
-    }
-
-    // 3. Update sidebar rail button title / aria-label
-    const toggleBtn = this.sidebarMount.querySelector(".sidebar-rail .rail-button") as HTMLButtonElement | null;
-    if (toggleBtn) {
-      const nextTitle = open ? "Collapse sessions" : "Open sessions";
-      toggleBtn.title = nextTitle;
-      toggleBtn.setAttribute("aria-label", nextTitle);
-    }
+    const state = this.store.getState();
+    this.renderShellState(state);
+    this.renderSidebarRegion(state);
   }
 
   private toggleSidebarPin(): void {
@@ -580,66 +553,16 @@ export class ThreadAtlasApp {
     this.sidebarPinned = nextPinned;
     this.sidebarOpen = !nextPinned;
     localStorage.setItem(SIDEBAR_PIN_STORAGE_KEY, String(this.sidebarPinned));
-
-    const isPinned = this.isSidebarPinned();
-    const open = isPinned || this.sidebarOpen;
-
-    // 1. Toggle classes on shell
-    this.shell.classList.toggle("sidebar-pinned", isPinned);
-    this.shell.classList.toggle("sidebar-open", this.sidebarOpen);
-
-    // 2. Toggle classes on sidebar-dock
-    const dock = this.sidebarMount.querySelector(".sidebar-dock");
-    if (dock) {
-      dock.classList.toggle("pinned", isPinned);
-      dock.classList.toggle("open", open);
-    }
-
-    // 3. Update pin button active class & title / aria-label
-    const pinBtn = this.sidebarMount.querySelector(".panel-header-actions .panel-icon-button") as HTMLButtonElement | null;
-    if (pinBtn) {
-      pinBtn.classList.toggle("active", isPinned);
-      const nextTitle = isPinned ? "Unpin sessions" : "Pin sessions";
-      pinBtn.title = nextTitle;
-      pinBtn.setAttribute("aria-label", nextTitle);
-    }
-
-    // 4. Update sidebar rail button title / aria-label
-    const toggleBtn = this.sidebarMount.querySelector(".sidebar-rail .rail-button") as HTMLButtonElement | null;
-    if (toggleBtn) {
-      const nextTitle = open ? "Collapse sessions" : "Open sessions";
-      toggleBtn.title = nextTitle;
-      toggleBtn.setAttribute("aria-label", nextTitle);
-    }
+    const state = this.store.getState();
+    this.renderShellState(state);
+    this.renderSidebarRegion(state);
   }
 
   private toggleTimelineOpen(force?: boolean): void {
     this.timelineOpen = force !== undefined ? force : !this.timelineOpen;
-    const isPinned = this.isTimelinePinned();
-    const open = isPinned || this.timelineOpen;
-
-    // 1. Toggle class on shell
-    this.shell.classList.toggle("timeline-open", open);
-
-    // 2. Toggle class on main-panel
-    const mainPanel = this.mainMount.querySelector(".main-panel");
-    if (mainPanel) {
-      mainPanel.classList.toggle("timeline-open", open);
-    }
-
-    // 3. Toggle class on timeline-dock
-    const dock = this.mainMount.querySelector(".timeline-dock");
-    if (dock) {
-      dock.classList.toggle("open", open);
-    }
-
-    // 4. Update timelineToggle title / aria-label
-    const toggleBtn = this.mainMount.querySelector(".timeline-rail .rail-button") as HTMLButtonElement | null;
-    if (toggleBtn) {
-      const nextTitle = open ? "Collapse timeline" : "Open timeline";
-      toggleBtn.title = nextTitle;
-      toggleBtn.setAttribute("aria-label", nextTitle);
-    }
+    const state = this.store.getState();
+    this.renderShellState(state);
+    this.renderMainRegion(state);
   }
 
   private toggleTimelinePin(): void {
@@ -647,44 +570,9 @@ export class ThreadAtlasApp {
     this.timelinePinned = nextPinned;
     this.timelineOpen = !nextPinned;
     localStorage.setItem(TIMELINE_PIN_STORAGE_KEY, String(this.timelinePinned));
-
-    const isPinned = this.isTimelinePinned();
-    const open = isPinned || this.timelineOpen;
-
-    // 1. Toggle classes on shell
-    this.shell.classList.toggle("timeline-pinned", isPinned);
-    this.shell.classList.toggle("timeline-open", open);
-
-    // 2. Toggle classes on main-panel
-    const mainPanel = this.mainMount.querySelector(".main-panel");
-    if (mainPanel) {
-      mainPanel.classList.toggle("timeline-pinned", isPinned);
-      mainPanel.classList.toggle("timeline-open", open);
-    }
-
-    // 3. Toggle classes on timeline-dock
-    const dock = this.mainMount.querySelector(".timeline-dock");
-    if (dock) {
-      dock.classList.toggle("pinned", isPinned);
-      dock.classList.toggle("open", open);
-    }
-
-    // 4. Update pin button
-    const pinBtn = this.mainMount.querySelector(".timeline-header .panel-icon-button") as HTMLButtonElement | null;
-    if (pinBtn) {
-      pinBtn.classList.toggle("active", isPinned);
-      const nextTitle = isPinned ? "Unpin timeline" : "Pin timeline";
-      pinBtn.title = nextTitle;
-      pinBtn.setAttribute("aria-label", nextTitle);
-    }
-
-    // 5. Update toggle button
-    const toggleBtn = this.mainMount.querySelector(".timeline-rail .rail-button") as HTMLButtonElement | null;
-    if (toggleBtn) {
-      const nextTitle = open ? "Collapse timeline" : "Open timeline";
-      toggleBtn.title = nextTitle;
-      toggleBtn.setAttribute("aria-label", nextTitle);
-    }
+    const state = this.store.getState();
+    this.renderShellState(state);
+    this.renderMainRegion(state);
   }
 
   private pushModal(createModalFn: (onClose: () => void) => HTMLElement): void {

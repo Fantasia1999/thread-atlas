@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import "./dom-mock.ts";
 import { SessionStore, type StateScope } from "../src/store/sessionStore.ts";
+import { ThreadAtlasApp } from "../src/ui/app.ts";
 import type { SessionBundle } from "../shared/types.ts";
 
 const localStore: Record<string, string> = {};
@@ -32,6 +34,50 @@ Object.defineProperty(globalThis, "localStorage", {
 test.beforeEach(() => {
   mockLocalStorage.clear();
 });
+
+globalThis.matchMedia = globalThis.matchMedia || (() => ({
+  matches: false,
+  addEventListener: () => {},
+  removeEventListener: () => {}
+} as MediaQueryList));
+
+globalThis.addEventListener = globalThis.addEventListener || (() => {});
+globalThis.removeEventListener = globalThis.removeEventListener || (() => {});
+
+(globalThis.document as any).documentElement = {
+  dataset: {}
+};
+
+function createImportedBundle(): SessionBundle {
+  return {
+    key: "import::session.jsonl",
+    source: "claude",
+    title: "Imported session",
+    primaryPath: "session.jsonl",
+    relatedPaths: [],
+    transport: "browser-file",
+    origin: "imported",
+    fileCount: 1,
+    size: 65,
+    mtimeMs: 1,
+    metadata: {},
+    files: [
+      {
+        path: "session.jsonl",
+        content: '{"type":"user","message":{"role":"user","content":"Hello"}}'
+      }
+    ]
+  };
+}
+
+function createRenderedApp(store: SessionStore): HTMLElement {
+  const root = document.createElement("div");
+  new ThreadAtlasApp(root, store);
+
+  const mainMount = root.querySelector(".main-mount") as HTMLElement | null;
+  assert.ok(mainMount);
+  return mainMount;
+}
 
 function collectScopes(store: SessionStore): Array<StateScope | undefined> {
   const scopes: Array<StateScope | undefined> = [];
@@ -78,25 +124,7 @@ test("SessionStore pin changes notify all renderers", () => {
 });
 
 test("SessionStore selection changes notify all renderers", async () => {
-  const bundle: SessionBundle = {
-    key: "import::session.jsonl",
-    source: "claude",
-    title: "Imported session",
-    primaryPath: "session.jsonl",
-    relatedPaths: [],
-    transport: "browser-file",
-    origin: "imported",
-    fileCount: 1,
-    size: 65,
-    mtimeMs: 1,
-    metadata: {},
-    files: [
-      {
-        path: "session.jsonl",
-        content: '{"type":"user","message":{"role":"user","content":"Hello"}}'
-      }
-    ]
-  };
+  const bundle = createImportedBundle();
   const store = new SessionStore();
   store.importBundles([bundle]);
   const scopes = collectScopes(store);
@@ -105,4 +133,29 @@ test("SessionStore selection changes notify all renderers", async () => {
   await store.selectSession(bundle.key);
 
   assert.deepEqual(scopes, ["all", "all"]);
+});
+
+test("search updates keep the rendered main child", () => {
+  const store = new SessionStore();
+  store.importBundles([createImportedBundle()]);
+  const mainMount = createRenderedApp(store);
+  const mainChild = mainMount.firstElementChild;
+  assert.ok(mainChild);
+
+  store.setSearch("needle");
+
+  assert.equal(mainMount.firstElementChild, mainChild);
+});
+
+test("session selection replaces the rendered main child", async () => {
+  const bundle = createImportedBundle();
+  const store = new SessionStore();
+  store.importBundles([bundle]);
+  const mainMount = createRenderedApp(store);
+  const mainChild = mainMount.firstElementChild;
+  assert.ok(mainChild);
+
+  await store.selectSession(bundle.key);
+
+  assert.notEqual(mainMount.firstElementChild, mainChild);
 });
