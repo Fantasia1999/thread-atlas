@@ -1,10 +1,6 @@
 import type { Session, SessionBundle, SessionSource } from "../../shared/types.js";
-import { parseAntigravitySession } from "./antigravity.js";
-import { parseClaudeSession } from "./claude.js";
-import { parseCopilotSession } from "./copilot.js";
-import { parseCodexSession } from "./codex.js";
-import { parseGeminiSession } from "./gemini.js";
-import { parseOpenCodeSession } from "./opencode.js";
+import { getAdapter, SOURCE_ADAPTERS } from "../sources/registry.js";
+import type { DetectContext } from "../sources/types.js";
 import { buildFallbackSession } from "./utils.js";
 import { normalizePathForMatch } from "../../shared/pathUtils.js";
 
@@ -13,68 +9,26 @@ export function detectSessionSource(bundle: SessionBundle): SessionSource {
     return bundle.source;
   }
 
-  const combinedPath = normalizePathForMatch(
-    `${bundle.primaryPath} ${bundle.files.map((file) => file.path).join(" ")}`
-  );
   const firstContent = bundle.files[0]?.content ?? "";
-  const trimmed = firstContent.trim();
+  const context: DetectContext = {
+    combinedPath: normalizePathForMatch(
+      `${bundle.primaryPath} ${bundle.files.map((file) => file.path).join(" ")}`
+    ),
+    firstContent,
+    trimmed: firstContent.trim()
+  };
 
-  if (
-    combinedPath.includes(".codex") ||
-    combinedPath.includes("rollout-") ||
-    firstContent.includes("\"type\":\"session_meta\"")
-  ) {
-    return "codex";
+  for (const adapter of SOURCE_ADAPTERS) {
+    if (adapter.detect(bundle, context)) {
+      return adapter.id;
+    }
   }
 
-  if (
-    combinedPath.includes(".copilot") ||
-    combinedPath.includes("/session-state/") ||
-    bundle.files.some((file) => file.path.endsWith("events.jsonl")) ||
-    (firstContent.includes("\"type\":\"session.start\"") &&
-      (firstContent.includes("\"producer\":\"copilot-agent\"") ||
-        firstContent.includes("\"type\":\"assistant.turn_start\"") ||
-        firstContent.includes("\"type\":\"tool.execution_start\"")))
-  ) {
-    return "copilot";
-  }
-
-  if (combinedPath.includes(".claude") || firstContent.includes("\"tool_use\"")) {
-    return "claude";
-  }
-
-  if (
-    combinedPath.includes("opencode") ||
-    bundle.files.some((file) => file.path.endsWith("#session.json")) ||
-    firstContent.includes("\"modelID\"") ||
-    firstContent.includes("\"providerID\"")
-  ) {
-    return "opencode";
-  }
-
-  if (
-    bundle.files.some((file) => file.path.endsWith("#chat.jsonl")) ||
-    combinedPath.includes("/antigravity/") ||
-    combinedPath.includes("/antigravity-cli/") ||
-    (firstContent.includes("\"record_type\":\"session_meta\"") &&
-      firstContent.includes("\"cascade_id\""))
-  ) {
-    return "antigravity";
-  }
-
-  if (
-    combinedPath.includes(".gemini") ||
-    firstContent.includes("\"functionCall\"") ||
-    firstContent.includes("\"functionResponse\"")
-  ) {
+  if (context.trimmed.startsWith("{") && firstContent.includes("\"messages\"")) {
     return "gemini";
   }
 
-  if (trimmed.startsWith("{") && firstContent.includes("\"messages\"")) {
-    return "gemini";
-  }
-
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+  if (context.trimmed.startsWith("{") || context.trimmed.startsWith("[")) {
     return "opencode";
   }
 
@@ -85,22 +39,11 @@ export function parseSessionBundle(bundle: SessionBundle): Session {
   const source = detectSessionSource(bundle);
 
   try {
-    switch (source) {
-      case "codex":
-        return parseCodexSession(bundle);
-      case "copilot":
-        return parseCopilotSession(bundle);
-      case "claude":
-        return parseClaudeSession(bundle);
-      case "opencode":
-        return parseOpenCodeSession(bundle);
-      case "gemini":
-        return parseGeminiSession(bundle);
-      case "antigravity":
-        return parseAntigravitySession(bundle);
-      default:
-        return buildFallbackSession(bundle, "unknown", "Unsupported session source.");
+    const adapter = getAdapter(source);
+    if (adapter) {
+      return adapter.parse(bundle);
     }
+    return buildFallbackSession(bundle, "unknown", "Unsupported session source.");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown parse failure.";
     return buildFallbackSession(bundle, source, message);
