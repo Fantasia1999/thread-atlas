@@ -26,6 +26,7 @@ export class ThreadAtlasApp {
   private readonly modalMount: HTMLElement;
   private readonly themeControls: HTMLElement;
   private sidebarView: SidebarView | undefined;
+  private statusCopyFeedbackActive = false;
   private messageFilter: MessageViewFilter = (() => {
     const val = localStorage.getItem(MESSAGE_FILTER_STORAGE_KEY);
     if (val === "raw" || val === "not-tool" || val === "pure" || val === "user" || val === "answer") {
@@ -87,16 +88,16 @@ export class ThreadAtlasApp {
 
       try {
         await copyText(textToCopy);
+        this.statusCopyFeedbackActive = true;
         this.statusNode.classList.add("copied");
         this.statusNode.textContent = "Copied! ✓";
         this.statusNode.title = "Successfully copied to clipboard";
         showToast("Path copied to clipboard!", "success");
         
         setTimeout(() => {
+          this.statusCopyFeedbackActive = false;
           this.statusNode.classList.remove("copied");
-          const latestPath = this.statusNode.getAttribute("data-path") || "";
-          this.statusNode.textContent = latestPath;
-          this.statusNode.title = "Double-click to copy absolute path\n" + latestPath;
+          this.renderShellState(this.store.getState());
         }, 1200);
       } catch (error) {
         showToast("Failed to copy path.", "error");
@@ -334,6 +335,9 @@ export class ThreadAtlasApp {
     const selectedDescriptor = this.store.getSelectedDescriptor();
     const currentPath = selectedDescriptor ? selectedDescriptor.primaryPath : state.status;
     this.statusNode.setAttribute("data-path", currentPath);
+    if (this.statusCopyFeedbackActive) {
+      return;
+    }
     this.statusNode.textContent = currentPath;
     this.statusNode.title = selectedDescriptor
       ? "Double-click to copy absolute path\n" + currentPath

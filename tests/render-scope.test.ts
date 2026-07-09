@@ -147,6 +147,56 @@ test("search updates keep the rendered main child", () => {
   assert.equal(mainMount.firstElementChild, mainChild);
 });
 
+test("search updates preserve copied status feedback until the latest status is restored", async () => {
+  Object.defineProperty(globalThis, "navigator", {
+    value: {
+      clipboard: {
+        writeText: async () => {}
+      }
+    },
+    configurable: true,
+    writable: true
+  });
+
+  const store = new SessionStore();
+  const root = document.createElement("div");
+  new ThreadAtlasApp(root, store);
+
+  const statusNode = root.querySelector(".status-pill") as HTMLElement | null;
+  const mainMount = root.querySelector(".main-mount") as HTMLElement | null;
+  assert.ok(statusNode);
+  assert.ok(mainMount);
+  const mainChild = mainMount.firstElementChild;
+  assert.ok(mainChild);
+
+  (statusNode as any).dispatchEvent("dblclick");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(statusNode.textContent, "Copied! ✓");
+  assert.equal(statusNode.title, "Successfully copied to clipboard");
+  assert.equal(statusNode.classList.contains("copied"), true);
+
+  store.setSearch("needle");
+
+  assert.equal(statusNode.textContent, "Copied! ✓");
+  assert.equal(statusNode.title, "Successfully copied to clipboard");
+  assert.equal(statusNode.classList.contains("copied"), true);
+  assert.equal(mainMount.firstElementChild, mainChild);
+
+  store.importBundles([]);
+  const latestStatus = store.getState().status;
+  assert.notEqual(latestStatus, "Ready.");
+  assert.equal(statusNode.textContent, "Copied! ✓");
+  assert.equal(statusNode.title, "Successfully copied to clipboard");
+  assert.equal(statusNode.classList.contains("copied"), true);
+
+  await new Promise((resolve) => setTimeout(resolve, 1250));
+
+  assert.equal(statusNode.textContent, latestStatus);
+  assert.equal(statusNode.title, latestStatus);
+  assert.equal(statusNode.classList.contains("copied"), false);
+});
+
 test("session selection replaces the rendered main child", async () => {
   const bundle = createImportedBundle();
   const store = new SessionStore();
