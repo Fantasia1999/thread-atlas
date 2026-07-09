@@ -35,7 +35,8 @@ interface CachedDescriptorsPayload {
 
 
 
-type Listener = (state: StoreState) => void;
+export type StateScope = "sidebar" | "session" | "all";
+type Listener = (state: StoreState, scope: StateScope) => void;
 
 export class SessionStore {
   private listeners = new Set<Listener>();
@@ -134,7 +135,7 @@ export class SessionStore {
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
-    listener(this.getState());
+    listener(this.getState(), "all");
     return () => {
       this.listeners.delete(listener);
     };
@@ -166,7 +167,7 @@ export class SessionStore {
     } else {
       nextExpanded.add(key);
     }
-    this.updateState({ expandedSessionKeys: nextExpanded });
+    this.updateState({ expandedSessionKeys: nextExpanded }, "sidebar");
   }
 
   getVisibleDescriptors(): SessionDescriptor[] {
@@ -254,12 +255,12 @@ export class SessionStore {
   }
 
   setSearch(search: string): void {
-    this.updateState({ search });
+    this.updateState({ search }, "sidebar");
   }
 
   setSourceFilter(sourceFilter: SessionSource | "all"): void {
     localStorage.setItem("thread-atlas-source-filter", sourceFilter);
-    this.updateState({ sourceFilter });
+    this.updateState({ sourceFilter }, "sidebar");
   }
 
   togglePin(key: string): void {
@@ -270,7 +271,7 @@ export class SessionStore {
       nextPinned.add(key);
     }
     localStorage.setItem("thread-atlas-pinned-sessions", JSON.stringify([...nextPinned]));
-    this.updateState({ pinnedKeys: nextPinned });
+    this.updateState({ pinnedKeys: nextPinned }, "all");
   }
 
   toggleFavorite(key: string): void {
@@ -281,7 +282,7 @@ export class SessionStore {
       nextFavorite.add(key);
     }
     localStorage.setItem("thread-atlas-favorite-sessions", JSON.stringify([...nextFavorite]));
-    this.updateState({ favoriteKeys: nextFavorite });
+    this.updateState({ favoriteKeys: nextFavorite }, "all");
   }
 
   updateFavoriteMetadata(key: string, metadata: { tags: string[]; notes: string }): void {
@@ -295,14 +296,14 @@ export class SessionStore {
     }
     localStorage.setItem("thread-atlas-favorite-metadata", JSON.stringify(obj));
 
-    this.updateState({ favoriteMetadata: nextMeta });
+    this.updateState({ favoriteMetadata: nextMeta }, "all");
   }
 
   async refreshLocalScan(): Promise<void> {
     this.updateState({
       loadingScan: true,
       status: "Scanning session directories across connections..."
-    });
+    }, "all");
 
     const targets = this.connection.getScanTargets();
     const collected: SessionDescriptor[] = [];
@@ -324,7 +325,7 @@ export class SessionStore {
         selectedKey: selectedKey ?? this.state.selectedKey,
         loadingScan: !isDone,
         status
-      });
+      }, "all");
 
       if (isDone && merged.length > 0) {
         try {
@@ -397,7 +398,7 @@ export class SessionStore {
       loadingSession: true,
       status: "Loading session...",
       previousKeys: nextPreviousKeys
-    });
+    }, "all");
 
     try {
       if (this.state.sessions.has(key)) {
@@ -411,7 +412,7 @@ export class SessionStore {
         this.updateState({
           loadingSession: false,
           status: "Session loaded."
-        });
+        }, "all");
         return;
       }
 
@@ -451,13 +452,13 @@ export class SessionStore {
         sessions: nextSessions,
         loadingSession: false,
         status: `Viewing ${session.title}.`
-      });
+      }, "all");
 
     } catch (error) {
       this.updateState({
         loadingSession: false,
         status: error instanceof Error ? error.message : "Failed to load session."
-      });
+      }, "all");
     }
   }
 
@@ -467,7 +468,7 @@ export class SessionStore {
     if (prevKey) {
       this.updateState({
         previousKeys: nextPreviousKeys
-      });
+      }, "session");
       void this.selectSession(prevKey, false);
     }
   }
@@ -514,7 +515,7 @@ export class SessionStore {
       sessions: nextSessions,
       selectedKey: bundles[0]?.key ?? this.state.selectedKey,
       status: `Imported ${bundles.length} file${bundles.length === 1 ? "" : "s"}.`
-    });
+    }, "all");
   }
 
   getSelectedDescriptor(): SessionDescriptor | undefined {
@@ -551,7 +552,7 @@ export class SessionStore {
       }
     }
 
-    this.updateState({ selectedKey });
+    this.updateState({ selectedKey }, "all");
     if (selectedKey && !this.state.sessions.has(selectedKey)) {
       void this.selectSession(selectedKey);
     }
@@ -561,13 +562,13 @@ export class SessionStore {
     const nextHidden = new Set(this.state.hiddenProjects);
     nextHidden.delete(projectPath);
     localStorage.setItem("thread-atlas-hidden-projects", JSON.stringify([...nextHidden]));
-    this.updateState({ hiddenProjects: nextHidden });
+    this.updateState({ hiddenProjects: nextHidden }, "sidebar");
   }
 
   clearHiddenProjects(): void {
     const nextHidden = new Set<string>();
     localStorage.setItem("thread-atlas-hidden-projects", JSON.stringify([]));
-    this.updateState({ hiddenProjects: nextHidden });
+    this.updateState({ hiddenProjects: nextHidden }, "sidebar");
   }
 
   private async fetchBundle(key: string): Promise<SessionBundle> {
@@ -588,14 +589,14 @@ export class SessionStore {
     return payload.bundle;
   }
 
-  private updateState(partial: Partial<StoreState>): void {
+  private updateState(partial: Partial<StoreState>, scope: StateScope): void {
     this.state = {
       ...this.state,
       ...partial
     };
 
     for (const listener of this.listeners) {
-      listener(this.getState());
+      listener(this.getState(), scope);
     }
   }
 }
