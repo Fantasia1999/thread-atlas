@@ -366,10 +366,10 @@ export interface ServerSourceAdapter {
 
 | 阶段 | 状态 | commit | 偏差/上报事项 |
 |---|---|---|---|
-| 1.1 | | | |
-| 1.2 | | | |
-| 1.3 | | | |
-| 2 | | | |
-| 3.1 | | | |
-| 3.2 | | | |
+| 1.1 | 完成 | `2d5a074` | 无 |
+| 1.2 | 完成 | `23be0c1` | 无 |
+| 1.3 | 完成 | `bbaf4db` | 无 |
+| 2 | 完成 | `d915fdb` | 无 |
+| 3.1 | 完成 | `f2d7e42`、`63624b7` | 为保留已有的 Default/Unsafe resume 下拉行为，`buildResumeCommand` 签名扩展为接收可选的 `ResumeCommandOptions`；除此之外无偏差。 |
+| 3.2 | 完成 | `a13af3b`、`6ebc1d6`、`4c86778` | 无 |
 | 4 | | | |

@@ -37,6 +37,7 @@
 - Avoid hidden app state outside `SessionStore`, except narrow UI-local state such as scroll position or modal internals.
 - Preserve dense log-viewer ergonomics over chat-bubble styling.
 - Keep parser behavior additive. Prefer partial readability plus metadata over strict schema rejection.
+- When adding a source, follow the registry and test flow in [docs/adding-a-source.md](../docs/adding-a-source.md).
 - When changing shared shapes, update `shared/types.ts` first and then adapt store and UI call sites.
 - Antigravity parser logic lives in `src/parsers/antigravity.ts`.
   - Treat the generated `chat JSONL` as the parser input.
