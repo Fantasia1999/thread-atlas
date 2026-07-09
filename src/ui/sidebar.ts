@@ -43,6 +43,7 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
   let hoverTimeout: number | undefined;
   let leaveTimeout: number | undefined;
   let isMouseOver = false;
+  let isOpenButtonHovered = false;
 
   const container = document.createElement("div");
   container.className = "sidebar-dock";
@@ -56,6 +57,18 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
       clearTimeout(leaveTimeout);
       leaveTimeout = undefined;
     }
+  };
+
+  const shouldCloseSidebar = () => {
+    if (
+      !container.classList.contains("open") ||
+      container.classList.contains("pinned") ||
+      isMouseOver
+    ) {
+      return false;
+    }
+    const activeEl = document.activeElement;
+    return !(activeEl && container.contains(activeEl));
   };
 
   container.addEventListener("mouseleave", () => {
@@ -72,7 +85,10 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
 
     if (isOpen && !isPinned) {
       leaveTimeout = window.setTimeout(() => {
-        currentOptions.onToggleOpen();
+        leaveTimeout = undefined;
+        if (shouldCloseSidebar()) {
+          currentOptions.onToggleOpen();
+        }
       }, 80);
     }
   });
@@ -96,7 +112,10 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
     if (isOpen && !isPinned && !isMouseOver) {
       clearAllTimeouts();
       leaveTimeout = window.setTimeout(() => {
-        currentOptions.onToggleOpen();
+        leaveTimeout = undefined;
+        if (shouldCloseSidebar()) {
+          currentOptions.onToggleOpen();
+        }
       }, 80);
     }
   });
@@ -118,15 +137,20 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
   });
 
   openButton.addEventListener("mouseenter", () => {
+    isOpenButtonHovered = true;
     const isOpen = container.classList.contains("open");
     if (!isOpen) {
       hoverTimeout = window.setTimeout(() => {
-        currentOptions.onToggleOpen();
+        hoverTimeout = undefined;
+        if (isOpenButtonHovered && !container.classList.contains("open")) {
+          currentOptions.onToggleOpen();
+        }
       }, 50);
     }
   });
 
   openButton.addEventListener("mouseleave", () => {
+    isOpenButtonHovered = false;
     if (hoverTimeout) {
       clearTimeout(hoverTimeout);
       hoverTimeout = undefined;

@@ -96,13 +96,21 @@ test("createSidebarView keeps controls stable while updating sidebar content", (
   const filterTrigger = filter.querySelector(".custom-dropdown-trigger");
   assert.ok(filterTrigger?.innerHTML.includes("Gemini"));
   filterTrigger?.dispatchEvent("click");
+  const geminiItem = filter
+    .querySelectorAll(".custom-dropdown-item")
+    .find((item) => item.textContent === "Gemini");
   const codexItem = filter
     .querySelectorAll(".custom-dropdown-item")
     .find((item) => item.textContent === "Codex");
+  assert.ok(geminiItem);
   assert.ok(codexItem);
+  assert.equal(geminiItem.classList.contains("active"), true);
+  assert.equal(codexItem.classList.contains("active"), false);
   codexItem.dispatchEvent("click");
   assert.equal(selectedSource, "codex");
   assert.ok(filterTrigger?.innerHTML.includes("Codex"));
+  assert.equal(geminiItem.classList.contains("active"), false);
+  assert.equal(codexItem.classList.contains("active"), true);
 });
 
 test("renderSidebar renders search input and custom filter dropdown", () => {
@@ -248,6 +256,60 @@ test("focusout does NOT close sidebar when focus moves to another element inside
   // Wait for the timeout (80ms + buffer)
   await new Promise((resolve) => setTimeout(resolve, 120));
   assert.equal(toggled, false);
+});
+
+test("pending hover open does not toggle after an update opens the sidebar", async () => {
+  let toggleCount = 0;
+  const view = createSidebarView(createSidebarOptions({ open: false }));
+  const openButton = view.element.querySelector(".rail-button");
+  assert.ok(openButton);
+
+  openButton.dispatchEvent("mouseenter");
+  view.update(createSidebarOptions({
+    open: true,
+    onToggleOpen: () => {
+      toggleCount++;
+    }
+  }));
+
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.equal(toggleCount, 0);
+});
+
+test("pending mouseleave close does not toggle after an update pins the sidebar", async () => {
+  let toggleCount = 0;
+  const view = createSidebarView(createSidebarOptions({ open: true, pinned: false }));
+  (globalThis.document as any).activeElement = undefined;
+
+  view.element.dispatchEvent("mouseleave");
+  view.update(createSidebarOptions({
+    open: true,
+    pinned: true,
+    onToggleOpen: () => {
+      toggleCount++;
+    }
+  }));
+
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.equal(toggleCount, 0);
+});
+
+test("pending focusout close does not toggle after an update closes the sidebar", async () => {
+  let toggleCount = 0;
+  const view = createSidebarView(createSidebarOptions({ open: true, pinned: false }));
+  (globalThis.document as any).activeElement = undefined;
+
+  view.element.dispatchEvent("focusout", { relatedTarget: null });
+  view.update(createSidebarOptions({
+    open: false,
+    pinned: false,
+    onToggleOpen: () => {
+      toggleCount++;
+    }
+  }));
+
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.equal(toggleCount, 0);
 });
 
 test("custom-dropdown-container handles toggles and click expands", () => {
