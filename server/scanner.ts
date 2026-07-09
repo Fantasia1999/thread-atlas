@@ -16,11 +16,12 @@ import {
   COPILOT_EVENTS_FILE
 } from "./copilot.js";
 import { resolveLocalScanRoots } from "./platformRoots.js";
+import { inferRegisteredSource } from "./sources/registry.js";
 import { compareDescriptors } from "../shared/descriptors.js";
 import { extractClaudeCwd, extractClaudePreviewTitle, extractClaudeParentThreadId, extractClaudeSessionId } from "../shared/extractors/claude.js";
 import { extractCodexCwd, extractCodexParentThreadId, extractCodexPreviewTitle, extractCodexSessionId } from "../shared/extractors/codex.js";
 import { parseJsonLines } from "../shared/jsonl.js";
-import { basenameFromAnyPath, isWithinPathRoot, normalizePathForMatch } from "../shared/pathUtils.js";
+import { basenameFromAnyPath, isWithinPathRoot } from "../shared/pathUtils.js";
 import type {
   MetadataValue,
   SessionBundle,
@@ -573,26 +574,7 @@ function shouldIncludeScannedFile(source: SessionSource): boolean {
 }
 
 export function inferSourceFromPath(absolutePath: string): SessionSource {
-  const normalized = normalizePathForMatch(absolutePath);
-  if (isAntigravityConversationPath(absolutePath) || isAntigravityTranscriptPath(absolutePath)) {
-    return "antigravity";
-  }
-  if (normalized.includes("/.codex/") || normalized.includes("/rollout-")) {
-    return "codex";
-  }
-  if (normalized.includes("/.claude/")) {
-    return "claude";
-  }
-  if (normalized.includes("/opencode")) {
-    return "opencode";
-  }
-  if (normalized.includes("/.copilot/")) {
-    return "copilot";
-  }
-  if (normalized.includes("/.gemini/")) {
-    return "gemini";
-  }
-  return "unknown";
+  return inferRegisteredSource(absolutePath);
 }
 
 function preferAntigravityPath(candidate: string, current: string): boolean {

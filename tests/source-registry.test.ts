@@ -2,6 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import type { MetadataValue, Session, SessionBundle, SessionSource } from "../shared/types.ts";
+import {
+  getServerAdapter,
+  inferRegisteredSource,
+  SERVER_SOURCE_ADAPTERS
+} from "../server/sources/registry.ts";
 import { detectSessionSource, parseSessionBundle } from "../src/parsers/detect.ts";
 import { getAdapter, getSourceLabel, SOURCE_ADAPTERS } from "../src/sources/registry.ts";
 
@@ -45,6 +50,69 @@ test("frontend source registry preserves detection priority", () => {
     SOURCE_ADAPTERS.map((adapter) => adapter.id),
     ["codex", "copilot", "claude", "opencode", "antigravity", "gemini"]
   );
+});
+
+test("backend source registry preserves path inference priority", () => {
+  assert.deepEqual(
+    SERVER_SOURCE_ADAPTERS.map((adapter) => adapter.id),
+    ["antigravity", "codex", "claude", "opencode", "copilot", "gemini"]
+  );
+});
+
+test("backend source registry exposes adapters and current scan roots", () => {
+  const roots = {
+    codexSessions: "/home/example/.codex/sessions",
+    claudeProjects: "/home/example/.claude/projects",
+    geminiTmp: "/home/example/.gemini/tmp",
+    antigravityRoots: [
+      "/home/example/.gemini/antigravity",
+      "/home/example/.gemini/antigravity-cli"
+    ],
+    antigravityCliHistory: "/home/example/.gemini/antigravity-cli/history.jsonl",
+    copilotSessionState: "/home/example/.copilot/session-state",
+    openCodeDb: "/home/example/.local/share/opencode/opencode.db"
+  };
+
+  assert.equal(getServerAdapter("codex")?.id, "codex");
+  assert.equal(getServerAdapter("unknown"), undefined);
+  assert.deepEqual(
+    Object.fromEntries(
+      SERVER_SOURCE_ADAPTERS.map((adapter) => [adapter.id, adapter.scanRoots(roots)])
+    ),
+    {
+      antigravity: roots.antigravityRoots,
+      codex: [roots.codexSessions],
+      claude: [roots.claudeProjects],
+      opencode: [roots.openCodeDb],
+      copilot: [roots.copilotSessionState],
+      gemini: [roots.geminiTmp]
+    }
+  );
+});
+
+test("backend source registry routes Windows paths with exact Antigravity matching", () => {
+  const cases: Array<[string, SessionSource]> = [
+    [
+      "C:\\Users\\example\\.gemini\\antigravity\\conversations\\abc.pb",
+      "antigravity"
+    ],
+    [
+      "C:\\Users\\example\\.gemini\\antigravity-cli\\brain\\abc\\.system_generated\\logs\\transcript_full.jsonl",
+      "antigravity"
+    ],
+    ["C:\\Users\\example\\.codex\\sessions\\rollout-1.jsonl", "codex"],
+    ["C:\\Users\\example\\rollout-2.jsonl", "codex"],
+    ["C:\\Users\\example\\.claude\\projects\\demo\\session.jsonl", "claude"],
+    ["C:\\Users\\example\\.local\\share\\opencode\\opencode.db", "opencode"],
+    ["C:\\Users\\example\\.copilot\\session-state\\demo\\events.jsonl", "copilot"],
+    ["C:\\Users\\example\\.gemini\\tmp\\chat.json", "gemini"],
+    ["C:\\Users\\example\\.gemini\\antigravity\\notes\\session.jsonl", "gemini"],
+    ["C:\\Users\\example\\sessions\\session.jsonl", "unknown"]
+  ];
+
+  for (const [absolutePath, expected] of cases) {
+    assert.equal(inferRegisteredSource(absolutePath), expected, absolutePath);
+  }
 });
 
 test("frontend source registry exposes adapters and current labels", () => {
