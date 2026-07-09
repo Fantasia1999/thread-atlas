@@ -62,6 +62,30 @@ test("renderSidebar renders search input and custom filter dropdown", () => {
   assert.equal(input.className, "text-input");
 });
 
+test("source filter lists every source with registry labels in sidebar order", () => {
+  const selectedValues: string[] = [];
+  const sidebar = renderSidebar(createSidebarOptions({
+    onFilter: (value) => selectedValues.push(value)
+  }));
+  const dropdown = sidebar.querySelector(".source-filter-dropdown") as any;
+  const trigger = dropdown.querySelector(".custom-dropdown-trigger") as any;
+  trigger.dispatchEvent("click");
+
+  const items = dropdown.querySelectorAll(".custom-dropdown-item") as any[];
+  assert.deepEqual(
+    items.map((item) => item.textContent),
+    ["All sources", "Codex", "Claude", "OpenCode", "Gemini", "Antigravity", "Copilot"]
+  );
+
+  for (const item of items) {
+    item.dispatchEvent("click");
+  }
+  assert.deepEqual(
+    selectedValues,
+    ["all", "codex", "claude", "opencode", "gemini", "antigravity", "copilot"]
+  );
+});
+
 test("mouseleave closes unpinned sidebar when there is no active focus", async () => {
   let toggled = false;
   const options = createSidebarOptions({
@@ -571,6 +595,5 @@ test("renderSidebar groups and nests subagents under main agent sessions", () =>
   const sidebarSearch = renderSidebar(optionsSearch);
   assert.ok(!sidebarSearch.querySelector(".session-children-container"));
 });
-
 
 

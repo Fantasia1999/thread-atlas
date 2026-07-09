@@ -1,9 +1,9 @@
 import type { Message, Session, SessionDescriptor } from "../../shared/types.js";
+import { getAdapter } from "../sources/registry.js";
 import { renderMermaidDiagrams } from "./mermaidRender.js";
 import { renderMessage } from "./messageRenderer.js";
 import { clipboardIcon, errorIcon, pinIcon, spinnerIcon, successIcon, timelineIcon } from "./icons.js";
 import { FILTER_OPTIONS, filterMessagesForView, getFinalAssistantMessageIds, partitionMessages, type MessageViewFilter } from "./messageFilter.js";
-import { buildAntigravityResumeCommand, buildClaudeResumeCommand, buildCodexResumeCommand, buildCopilotResumeCommand } from "./resumeCommands.js";
 import { buildAnchorId, previewText, renderTimelineButton } from "./timeline.js";
 import {
   copyText,
@@ -214,46 +214,18 @@ function renderSessionHeader(options: {
     actions.className = "chat-actions";
 
     const optionsList: { label: string; command: string }[] = [];
-    let triggerLabel = "Resume";
-
-    const codexCommand = buildCodexResumeCommand(session);
-    if (codexCommand) {
-      optionsList.push({ label: "Default", command: codexCommand });
-      const unsafeCodex = buildCodexResumeCommand(session, { unsafe: true });
-      if (unsafeCodex) {
-        optionsList.push({ label: "Unsafe", command: unsafeCodex });
+    const adapter = session ? getAdapter(session.source) : undefined;
+    const defaultCommand = adapter?.buildResumeCommand?.(session);
+    if (defaultCommand) {
+      optionsList.push({ label: "Default", command: defaultCommand });
+      const unsafeCommand = adapter?.buildResumeCommand?.(session, { unsafe: true });
+      if (unsafeCommand && unsafeCommand !== defaultCommand) {
+        optionsList.push({ label: "Unsafe", command: unsafeCommand });
       }
-      triggerLabel = "Resume";
-    }
-
-    const antigravityCommand = buildAntigravityResumeCommand(session);
-    if (antigravityCommand) {
-      optionsList.push({ label: "Default", command: antigravityCommand });
-      const unsafeAgy = buildAntigravityResumeCommand(session, { unsafe: true });
-      if (unsafeAgy) {
-        optionsList.push({ label: "Unsafe", command: unsafeAgy });
-      }
-      triggerLabel = "Resume";
-    }
-
-    const claudeCommand = buildClaudeResumeCommand(session);
-    if (claudeCommand) {
-      optionsList.push({ label: "Default", command: claudeCommand });
-      const unsafeClaude = buildClaudeResumeCommand(session, { unsafe: true });
-      if (unsafeClaude) {
-        optionsList.push({ label: "Unsafe", command: unsafeClaude });
-      }
-      triggerLabel = "Resume";
-    }
-
-    const copilotCommand = buildCopilotResumeCommand(session);
-    if (copilotCommand) {
-      optionsList.push({ label: "Default", command: copilotCommand });
-      triggerLabel = "Resume";
     }
 
     if (optionsList.length > 0) {
-      const copyBtn = createCopyResumeButton(optionsList, triggerLabel);
+      const copyBtn = createCopyResumeButton(optionsList, "Resume");
       actions.append(copyBtn);
     }
 

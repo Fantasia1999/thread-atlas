@@ -1,4 +1,5 @@
 import type { SessionDescriptor, SessionSource } from "../../shared/types.js";
+import { getSourceLabel } from "../sources/registry.js";
 import { escapeHtml, formatLocalDateTime, formatLocalDateTimeLong } from "./utils.js";
 import { getWorkspaceFullPath, getWorkspaceLabel } from "../store/sessionStore.js";
 
@@ -184,14 +185,20 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
     }
   });
 
+  const sidebarSourceOrder: SessionSource[] = [
+    "codex",
+    "claude",
+    "opencode",
+    "gemini",
+    "antigravity",
+    "copilot"
+  ];
   const sourceItems: DropdownItem[] = [
     { value: "all", label: "All sources" },
-    { value: "codex", label: "Codex" },
-    { value: "claude", label: "Claude" },
-    { value: "opencode", label: "OpenCode" },
-    { value: "gemini", label: "Gemini" },
-    { value: "antigravity", label: "Antigravity" },
-    { value: "copilot", label: "Copilot" }
+    ...sidebarSourceOrder.map((source) => ({
+      value: source,
+      label: getSourceLabel(source)
+    }))
   ];
 
   const filter = createCustomDropdown({

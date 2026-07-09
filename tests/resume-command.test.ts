@@ -2,14 +2,48 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import "./dom-mock.ts";
-import {
-  buildCodexResumeCommand,
-  buildAntigravityResumeCommand,
-  buildClaudeResumeCommand,
-  buildCopilotResumeCommand
-} from "../src/ui/resumeCommands.ts";
-import { createCopyResumeButton } from "../src/ui/chatView.ts";
-import type { Session } from "../shared/types.ts";
+import { buildAntigravityResumeCommand } from "../src/sources/antigravity.ts";
+import { buildClaudeResumeCommand } from "../src/sources/claude.ts";
+import { buildCodexResumeCommand } from "../src/sources/codex.ts";
+import { buildCopilotResumeCommand } from "../src/sources/copilot.ts";
+import { getAdapter } from "../src/sources/registry.ts";
+import { createCopyResumeButton, renderChatView } from "../src/ui/chatView.ts";
+import type { Session, SessionDescriptor } from "../shared/types.ts";
+
+function renderSession(session: Session): HTMLElement {
+  const descriptor: SessionDescriptor = {
+    key: `test::${session.id}`,
+    source: session.source,
+    title: session.title,
+    primaryPath: session.primaryPath,
+    relatedPaths: [],
+    transport: "local-scan",
+    origin: "local",
+    fileCount: session.rawFiles.length,
+    size: 0,
+    mtimeMs: 0,
+    metadata: session.metadata
+  };
+
+  return renderChatView({
+    descriptor,
+    session,
+    loading: false,
+    messageFilter: "pure",
+    timelinePinned: false,
+    timelineOpen: false,
+    pinnedKeys: new Set(),
+    favoriteKeys: new Set(),
+    favoriteMetadata: new Map(),
+    onFilterChange: () => {},
+    onTimelineToggleOpen: () => {},
+    onTimelineTogglePin: () => {},
+    onExport: () => {},
+    onTogglePinSession: () => {},
+    onToggleFavoriteSession: () => {},
+    onUpdateMetadata: () => {}
+  });
+}
 
 test("buildCodexResumeCommand builds command for Codex sessions with sessionId", () => {
   const session: Session = {
@@ -316,3 +350,61 @@ test("createCopyResumeButton renders dropdown when multiple options are passed",
   assert.equal(items[1].title, "codex resume 123 --yolo");
 });
 
+test("renderChatView gets resume commands from the session source adapter", () => {
+  const adapter = getAdapter("gemini");
+  assert.ok(adapter);
+  const originalBuilder = adapter.buildResumeCommand;
+  adapter.buildResumeCommand = (_session, options) =>
+    `gemini resume session-123${options?.unsafe ? " --unsafe" : ""}`;
+
+  try {
+    const session: Session = {
+      id: "session-123",
+      source: "gemini",
+      title: "Gemini Session",
+      summary: "",
+      primaryPath: "/some/path",
+      messageCount: 0,
+      messages: [],
+      metadata: {},
+      rawFiles: []
+    };
+
+    const view = renderSession(session);
+    const dropdown = view.querySelector(".copy-command-dropdown-container");
+    assert.ok(dropdown);
+    const items = dropdown.querySelectorAll(".custom-dropdown-item");
+    assert.deepEqual(
+      items.map((item) => [item.textContent, item.title]),
+      [
+        ["Default", "gemini resume session-123"],
+        ["Unsafe", "gemini resume session-123 --unsafe"]
+      ]
+    );
+  } finally {
+    adapter.buildResumeCommand = originalBuilder;
+  }
+});
+
+test("renderChatView keeps Copilot resume as a single option", () => {
+  const session: Session = {
+    id: "session-abc",
+    source: "copilot",
+    title: "Copilot Session",
+    summary: "",
+    primaryPath: "/some/path",
+    messageCount: 0,
+    messages: [],
+    metadata: {
+      sessionId: "0cb916db-26aa-40f2-86b5-1ba81b225fd2"
+    },
+    rawFiles: []
+  };
+
+  const view = renderSession(session);
+  const button = view.querySelector(".copy-command-button");
+  assert.ok(button);
+  assert.equal(button.tagName, "button");
+  assert.equal(button.title, "copilot --session-id=0cb916db-26aa-40f2-86b5-1ba81b225fd2");
+  assert.equal(view.querySelector(".copy-command-dropdown-container"), null);
+});
