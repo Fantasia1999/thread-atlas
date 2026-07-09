@@ -5,6 +5,7 @@ import path from "node:path";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 
 import { loadLocalSessionBundle } from "../server/scanner.ts";
+import { getServerAdapter } from "../server/sources/registry.ts";
 import { parseAntigravitySession } from "../src/parsers/antigravity.ts";
 import { extractAntigravityPreviewTitle } from "../shared/extractors/antigravity.ts";
 import type { SessionBundle } from "../shared/types.ts";
@@ -85,7 +86,11 @@ test("loadLocalSessionBundle uses Antigravity first prompt for bundle title", as
     await rm(baseDir, { recursive: true, force: true });
   });
 
-  const bundle = await loadLocalSessionBundle(`file::${sessionPath}`);
+  const key = `file::${sessionPath}`;
+  const routedBundle = await getServerAdapter("antigravity")?.loadBundle?.(key);
+  assert.equal(routedBundle?.key, key);
+
+  const bundle = await loadLocalSessionBundle(key);
   assert.equal(bundle.title, PROMPT_TITLE);
 });
 

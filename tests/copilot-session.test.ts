@@ -5,6 +5,7 @@ import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 
 import { loadLocalSessionBundle, scanLocalSessions } from "../server/scanner.ts";
+import { getServerAdapter } from "../server/sources/registry.ts";
 import { parseCopilotSession } from "../src/parsers/copilot.ts";
 import { detectSessionSource } from "../src/parsers/detect.ts";
 import type { SessionBundle } from "../shared/types.ts";
@@ -71,7 +72,11 @@ test("loadLocalSessionBundle loads Copilot session directories", async (t) => {
     await rm(fixtureRoot, { recursive: true, force: true });
   });
 
-  const bundle = await loadLocalSessionBundle(`copilot-dir::${sessionDir}`);
+  const key = `copilot-dir::${sessionDir}`;
+  const routedBundle = await getServerAdapter("copilot")?.loadBundle?.(key);
+  assert.equal(routedBundle?.key, key);
+
+  const bundle = await loadLocalSessionBundle(key);
 
   assert.equal(bundle.source, "copilot");
   assert.equal(bundle.title, "Demo Copilot Session");

@@ -5,6 +5,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { loadLocalSessionBundle, scanLocalSessions } from "../server/scanner.ts";
+import { getServerAdapter } from "../server/sources/registry.ts";
 
 test("OpenCode SQLite sessions are discovered and loaded from the remote mirror", async (t) => {
   const fixtureRoot = path.join(
@@ -102,6 +103,9 @@ test("OpenCode SQLite sessions are discovered and loaded from the remote mirror"
   assert.equal(descriptor.source, "opencode");
   assert.equal(descriptor.origin, "remote");
   assert.equal(descriptor.title, "Demo OpenCode Session");
+
+  const routedBundle = await getServerAdapter("opencode")?.loadBundle?.(descriptor.key);
+  assert.equal(routedBundle?.key, descriptor.key);
 
   const bundle = await loadLocalSessionBundle(descriptor.key);
   assert.equal(bundle.key, descriptor.key);

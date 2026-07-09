@@ -342,6 +342,7 @@ export function describeSshError(error: unknown, host: string, port: number): Er
 async function collectRemotePaths(
   client: Client
 ): Promise<Array<{ remotePath: string; source: SessionSource; kind: RemoteSessionEntryKind }>> {
+  // TODO: unify SSH source discovery with the server/sources registry.
   const scripts: Array<{ source: SessionSource; kind: RemoteSessionEntryKind; script: string }> = [
     {
       source: "codex",

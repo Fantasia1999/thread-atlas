@@ -3,6 +3,7 @@ import {
   isAntigravityConversationPath,
   isAntigravityTranscriptPath
 } from "../antigravity.js";
+import type { SessionSource } from "../../shared/types.js";
 import type { ServerSourceAdapter } from "./types.js";
 
 export const antigravityFileSource: ServerSourceAdapter = {
@@ -45,3 +46,16 @@ export const geminiFileSource: ServerSourceAdapter = {
   scanRoots: (roots) => [roots.geminiTmp],
   matchPath: (absolutePath) => normalizePathForMatch(absolutePath).includes("/.gemini/")
 };
+
+export const FILE_SOURCE_ADAPTERS: readonly ServerSourceAdapter[] = [
+  antigravityFileSource,
+  codexFileSource,
+  claudeFileSource,
+  opencodeFileSource,
+  copilotFileSource,
+  geminiFileSource
+];
+
+export function inferFileSource(absolutePath: string): SessionSource {
+  return FILE_SOURCE_ADAPTERS.find((adapter) => adapter.matchPath(absolutePath))?.id ?? "unknown";
+}
