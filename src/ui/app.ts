@@ -191,7 +191,10 @@ export class ThreadAtlasApp {
               currentSession &&
               currentSession.metadata.parentThreadId === targetDescriptor.metadata?.sessionId
             ) {
-              this.targetSubagentScrollId = currentSession.id || currentSession.metadata.sessionId || undefined;
+              const metadataSessionId = currentSession.metadata.sessionId;
+              this.targetSubagentScrollId =
+                currentSession.id ||
+                (typeof metadataSessionId === "string" ? metadataSessionId : undefined);
             } else {
               this.targetSubagentScrollId = undefined;
             }
