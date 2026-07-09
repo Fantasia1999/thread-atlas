@@ -372,4 +372,4 @@ export interface ServerSourceAdapter {
 | 2 | 完成 | `d915fdb` | 无 |
 | 3.1 | 完成 | `f2d7e42`、`63624b7` | 为保留已有的 Default/Unsafe resume 下拉行为，`buildResumeCommand` 签名扩展为接收可选的 `ResumeCommandOptions`；除此之外无偏差。 |
 | 3.2 | 完成 | `a13af3b`、`6ebc1d6`、`4c86778` | 无 |
-| 4 | | | |
+| 4 | 实现完成；手动回归受阻 | `6b28b25`、`03e63f0`、`9921daf`、`b69830e` | store 变更域、持久 sidebar、延迟 transition 重验与 app 分区渲染分四次提交落地。`npm run dev` 的 server 命令在当前 Node/tsx 环境把 `watch` 解析为入口模块，改用等价的 `NODE_OPTIONS=--max-old-space-size=256 npx tsx watch server/index.ts` 配合 `npm run dev:web` 后服务可启动；但 browser-client 未发现可用的 in-app browser（browser list 为空），因此步骤 D 的搜索 DOM identity、跨区联动、chat-local、modal/theme 与响应式检查均未执行、未标记通过，也未使用替代 browser automation。 |
