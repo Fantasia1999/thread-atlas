@@ -1,6 +1,6 @@
 import type { Session } from "../../shared/types.js";
 
-export function buildCodexResumeCommand(session: Session): string | null {
+export function buildCodexResumeCommand(session: Session, options?: { unsafe?: boolean }): string | null {
   if (session.source !== "codex") {
     return null;
   }
@@ -10,10 +10,10 @@ export function buildCodexResumeCommand(session: Session): string | null {
     return null;
   }
 
-  return `codex resume ${sessionId}`;
+  return `codex resume ${sessionId}${options?.unsafe ? " --yolo" : ""}`;
 }
 
-export function buildAntigravityResumeCommand(session: Session): string | null {
+export function buildAntigravityResumeCommand(session: Session, options?: { unsafe?: boolean }): string | null {
   if (session.source !== "antigravity") {
     return null;
   }
@@ -23,10 +23,10 @@ export function buildAntigravityResumeCommand(session: Session): string | null {
     return null;
   }
 
-  return `agy --conversation=${cascadeId}`;
+  return `agy --conversation=${cascadeId}${options?.unsafe ? " --dangerously-skip-permissions" : ""}`;
 }
 
-export function buildClaudeResumeCommand(session: Session): string | null {
+export function buildClaudeResumeCommand(session: Session, options?: { unsafe?: boolean }): string | null {
   if (session.source !== "claude") {
     return null;
   }
@@ -45,10 +45,10 @@ export function buildClaudeResumeCommand(session: Session): string | null {
     return null;
   }
 
-  return `claude --resume ${projectId}`;
+  return `claude --resume ${projectId}${options?.unsafe ? " --dangerously-skip-permissions" : ""}`;
 }
 
-export function buildCopilotResumeCommand(session: Session): string | null {
+export function buildCopilotResumeCommand(session: Session, options?: { unsafe?: boolean }): string | null {
   if (session.source !== "copilot") {
     return null;
   }

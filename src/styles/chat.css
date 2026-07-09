@@ -116,10 +116,33 @@
   align-items: center;
 }
 
-.chat-actions .button {
-  min-height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
+.chat-actions .button,
+.chat-actions .copy-command-dropdown-trigger {
+  min-height: 26px !important;
+  height: 26px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  gap: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+.chat-actions .button .trigger-icon,
+.chat-actions .copy-command-dropdown-trigger .trigger-icon {
+  margin-right: 4px !important;
+}
+
+.chat-actions .button svg,
+.chat-actions .copy-command-dropdown-trigger svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.chat-actions .button .trigger-arrow svg,
+.chat-actions .copy-command-dropdown-trigger .trigger-arrow svg {
+  width: 10px !important;
+  height: 10px !important;
 }
 
 .chat-filter-row {
@@ -773,13 +796,16 @@ a.citation-file:hover {
 }
 
 .header-fav-btn {
-  font-size: 12px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
-  padding: 6px 12px !important;
+  padding: 0 8px !important;
+  min-height: 26px !important;
+  height: 26px !important;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   transition: all var(--transition) !important;
+  box-sizing: border-box !important;
 }
 
 .header-fav-btn.pin-btn.active {

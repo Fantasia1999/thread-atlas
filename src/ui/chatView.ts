@@ -213,24 +213,48 @@ function renderSessionHeader(options: {
     const actions = document.createElement("div");
     actions.className = "chat-actions";
 
+    const optionsList: { label: string; command: string }[] = [];
+    let triggerLabel = "Resume";
+
     const codexCommand = buildCodexResumeCommand(session);
     if (codexCommand) {
-      actions.append(createCopyResumeButton(codexCommand, "Copy Codex resume command"));
+      optionsList.push({ label: "Default", command: codexCommand });
+      const unsafeCodex = buildCodexResumeCommand(session, { unsafe: true });
+      if (unsafeCodex) {
+        optionsList.push({ label: "Unsafe", command: unsafeCodex });
+      }
+      triggerLabel = "Resume";
     }
 
     const antigravityCommand = buildAntigravityResumeCommand(session);
     if (antigravityCommand) {
-      actions.append(createCopyResumeButton(antigravityCommand, "Copy Antigravity resume command"));
+      optionsList.push({ label: "Default", command: antigravityCommand });
+      const unsafeAgy = buildAntigravityResumeCommand(session, { unsafe: true });
+      if (unsafeAgy) {
+        optionsList.push({ label: "Unsafe", command: unsafeAgy });
+      }
+      triggerLabel = "Resume";
     }
 
     const claudeCommand = buildClaudeResumeCommand(session);
     if (claudeCommand) {
-      actions.append(createCopyResumeButton(claudeCommand, "Copy Claude resume command"));
+      optionsList.push({ label: "Default", command: claudeCommand });
+      const unsafeClaude = buildClaudeResumeCommand(session, { unsafe: true });
+      if (unsafeClaude) {
+        optionsList.push({ label: "Unsafe", command: unsafeClaude });
+      }
+      triggerLabel = "Resume";
     }
 
     const copilotCommand = buildCopilotResumeCommand(session);
     if (copilotCommand) {
-      actions.append(createCopyResumeButton(copilotCommand, "Copy Copilot resume command"));
+      optionsList.push({ label: "Default", command: copilotCommand });
+      triggerLabel = "Resume";
+    }
+
+    if (optionsList.length > 0) {
+      const copyBtn = createCopyResumeButton(optionsList, triggerLabel);
+      actions.append(copyBtn);
     }
 
     const exportContainer = document.createElement("div");
@@ -249,9 +273,6 @@ function renderSessionHeader(options: {
 
     const exportMenu = document.createElement("div");
     exportMenu.className = "custom-dropdown-menu hidden";
-    exportMenu.style.minWidth = "120px";
-    exportMenu.style.right = "0";
-    exportMenu.style.left = "auto";
 
     const jsonBtn = document.createElement("button");
     jsonBtn.type = "button";
@@ -515,39 +536,191 @@ function renderSessionHeader(options: {
   return header;
 }
 
-export function createCopyResumeButton(command: string, label: string): HTMLButtonElement {
-  const button = document.createElement("button");
+export function createCopyResumeButton(
+  commandOrOptions: string | (() => string) | { label: string; command: string }[],
+  label: string
+): HTMLElement {
+  if (typeof commandOrOptions === "string" || typeof commandOrOptions === "function") {
+    const button = document.createElement("button");
+    let resetTimer = 0;
+
+    button.className = "button secondary copy-command-button icon-button";
+    button.type = "button";
+    button.innerHTML = clipboardIcon();
+
+    const getCommand = typeof commandOrOptions === "function" ? commandOrOptions : () => commandOrOptions;
+    button.title = getCommand();
+    button.setAttribute("aria-label", label);
+
+    button.addEventListener("click", async () => {
+      window.clearTimeout(resetTimer);
+      button.disabled = true;
+      button.dataset.state = "";
+      button.innerHTML = spinnerIcon();
+
+      try {
+        await copyText(getCommand());
+        button.dataset.state = "success";
+        button.innerHTML = successIcon();
+      } catch {
+        button.dataset.state = "error";
+        button.innerHTML = errorIcon();
+      }
+
+      resetTimer = window.setTimeout(() => {
+        button.disabled = false;
+        button.dataset.state = "";
+        button.innerHTML = clipboardIcon();
+      }, 1600);
+    });
+
+    return button;
+  }
+
+  // Handle options list
+  if (commandOrOptions.length === 1) {
+    const button = document.createElement("button");
+    let resetTimer = 0;
+
+    button.className = "button secondary copy-command-button";
+    button.type = "button";
+    button.style.display = "inline-flex";
+    button.style.alignItems = "center";
+    
+    const opt = commandOrOptions[0];
+    const defaultInner = `
+      <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px;">${clipboardIcon()}</span>
+      <span class="trigger-label">${label}</span>
+    `;
+    button.innerHTML = defaultInner;
+    button.title = opt.command;
+
+    button.addEventListener("click", async () => {
+      window.clearTimeout(resetTimer);
+      button.disabled = true;
+      button.innerHTML = `
+        <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px;">${spinnerIcon()}</span>
+        <span class="trigger-label">Copying...</span>
+      `;
+
+      try {
+        await copyText(opt.command);
+        button.innerHTML = `
+          <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px; color: var(--success-color, #0070f3);">${successIcon()}</span>
+          <span class="trigger-label" style="color: var(--success-color, #0070f3);">Copied!</span>
+        `;
+      } catch {
+        button.innerHTML = `
+          <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px; color: var(--error-color, #ee0000);">${errorIcon()}</span>
+          <span class="trigger-label" style="color: var(--error-color, #ee0000);">Error!</span>
+        `;
+      }
+
+      resetTimer = window.setTimeout(() => {
+        button.disabled = false;
+        button.innerHTML = defaultInner;
+      }, 1600);
+    });
+
+    return button;
+  }
+
+  // Multiple options: act as a dropdown
+  const container = document.createElement("div");
+  container.className = "custom-dropdown-container copy-command-dropdown-container";
+  container.style.width = "auto";
+
+  const triggerBtn = document.createElement("button");
+  triggerBtn.className = "button secondary custom-dropdown-trigger copy-command-dropdown-trigger";
+  triggerBtn.type = "button";
+  
+  const defaultInner = `
+    <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px;">${clipboardIcon()}</span>
+    <span class="trigger-label">${label}</span>
+    <span class="trigger-arrow" style="margin-left: 4px; display: inline-flex; align-items: center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </span>
+  `;
+  triggerBtn.innerHTML = defaultInner;
+
+  const menu = document.createElement("div");
+  menu.className = "custom-dropdown-menu hidden";
+
   let resetTimer = 0;
 
-  button.className = "button secondary copy-command-button icon-button";
-  button.type = "button";
-  button.innerHTML = clipboardIcon();
-  button.title = command;
-  button.setAttribute("aria-label", label);
+  for (const opt of commandOrOptions) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "custom-dropdown-item";
+    item.textContent = opt.label;
+    item.title = opt.command;
 
-  button.addEventListener("click", async () => {
-    window.clearTimeout(resetTimer);
-    button.disabled = true;
-    button.dataset.state = "";
-    button.innerHTML = spinnerIcon();
+    item.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      menu.classList.add("hidden");
+      triggerBtn.classList.remove("open");
 
-    try {
-      await copyText(command);
-      button.dataset.state = "success";
-      button.innerHTML = successIcon();
-    } catch {
-      button.dataset.state = "error";
-      button.innerHTML = errorIcon();
-    }
+      window.clearTimeout(resetTimer);
+      triggerBtn.disabled = true;
+      triggerBtn.innerHTML = `
+        <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px;">${spinnerIcon()}</span>
+        <span class="trigger-label">Copying...</span>
+      `;
 
-    resetTimer = window.setTimeout(() => {
-      button.disabled = false;
-      button.dataset.state = "";
-      button.innerHTML = clipboardIcon();
-    }, 1600);
+      try {
+        await copyText(opt.command);
+        triggerBtn.innerHTML = `
+          <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px; color: var(--success-color, #0070f3);">${successIcon()}</span>
+          <span class="trigger-label" style="color: var(--success-color, #0070f3);">Copied!</span>
+        `;
+      } catch {
+        triggerBtn.innerHTML = `
+          <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px; color: var(--error-color, #ee0000);">${errorIcon()}</span>
+          <span class="trigger-label" style="color: var(--error-color, #ee0000);">Error!</span>
+        `;
+      }
+
+      resetTimer = window.setTimeout(() => {
+        triggerBtn.disabled = false;
+        triggerBtn.innerHTML = defaultInner;
+      }, 1600);
+    });
+
+    menu.append(item);
+  }
+
+  triggerBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isHidden = menu.classList.contains("hidden");
+
+    // Close other dropdowns
+    document.querySelectorAll(".custom-dropdown-menu").forEach((m) => {
+      if (m !== menu) {
+        m.classList.add("hidden");
+        m.parentElement?.querySelector(".custom-dropdown-trigger")?.classList.remove("open");
+      }
+    });
+
+    menu.classList.toggle("hidden", !isHidden);
+    triggerBtn.classList.toggle("open", isHidden);
   });
 
-  return button;
+  const clickOutsideHandler = (e: MouseEvent) => {
+    const isConnected = container.isConnected !== false;
+    if (!isConnected) {
+      document.removeEventListener("click", clickOutsideHandler);
+      return;
+    }
+    const target = e.target as HTMLElement | null;
+    if (!container.contains(target)) {
+      menu.classList.add("hidden");
+      triggerBtn.classList.remove("open");
+    }
+  };
+  document.addEventListener("click", clickOutsideHandler);
+
+  container.append(triggerBtn, menu);
+  return container;
 }
 
 function renderCommentaryGroup(
