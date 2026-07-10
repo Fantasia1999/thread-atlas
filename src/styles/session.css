@@ -36,7 +36,7 @@
 }
 .chat-title-row, .chat-meta-row {
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 .chat-meta-row {
   flex-wrap: wrap;
@@ -69,7 +69,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   color: var(--text-secondary);
   font-size: 12px;
 }
@@ -77,7 +77,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 18px;
-  padding: 1px 6px;
+  padding: 1px var(--space-1);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-control);
   background: var(--bg-muted);
@@ -121,11 +121,34 @@
 }
 .chat-filter-row {
   gap: var(--space-3);
+  margin-left: auto;
 }
 .filter-chip-row {
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-1);
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-panel);
+  background: var(--bg-muted);
+}
+.filter-chip {
+  min-height: 20px;
+  padding-inline: 6px;
+  border-color: transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+}
+.filter-chip:hover, .message-copy-button:hover {
+  border-color: var(--border-default);
+  background: var(--bg-panel);
+}
+.filter-chip.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-inverse);
 }
 .parent-session-backlink {
   color: var(--text-muted);
@@ -293,12 +316,41 @@
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border-default);
 }
+.log-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.log-entry-meta .log-role-badge {
+  min-height: 24px;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-control);
+}
 .message-copy-actions {
-  gap: var(--space-1);
+  gap: 0;
   margin-left: auto;
+  padding: 2px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-panel);
+  background: var(--bg-muted);
+}
+.message-copy-button {
+  min-height: var(--control-compact);
+  gap: 6px;
+  padding-inline: 9px;
+  border-color: transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+}
+.message-copy-button + .message-copy-button {
+  border-left: 1px solid var(--border-default);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 .message-copy-button svg {
-  width: 12px;
+  width: 13px;
   fill: currentColor;
 }
 .log-role-badge.user {

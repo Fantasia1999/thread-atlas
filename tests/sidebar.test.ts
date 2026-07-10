@@ -466,12 +466,14 @@ test("renderSidebar renders quick search chips when favorites exist", () => {
   const chipBtn = chipsContainer.querySelector(".chip-btn") as any;
   assert.ok(chipBtn);
   assert.ok(chipBtn.textContent?.includes("Favorites"));
+  assert.equal(chipBtn.classList.contains("ui-chip"), true);
 
   const customDropdown = chipsContainer.querySelector(".tag-filter-dropdown") as any;
   assert.ok(customDropdown);
 
   const trigger = customDropdown.querySelector(".custom-dropdown-trigger") as any;
   assert.ok(trigger);
+  assert.equal(trigger.classList.contains("ui-menu-trigger"), true);
   assert.ok(trigger.innerHTML?.includes("Filter by Tag"));
 
   const menu = customDropdown.querySelector(".custom-dropdown-menu") as any;

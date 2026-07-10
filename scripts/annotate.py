@@ -198,7 +198,7 @@ features = [
         "key": "filterTabs",
         "fallback_box": (1329, 102, 1580, 128),
         "fallback_marker": (1454, 115),
-        "label": "Message filters (pure / raw / not tool / user / answer)"
+        "label": "Message filters (Pure / Raw / No tools / User / Answer)"
     },
     {
         "key": "toolRows",

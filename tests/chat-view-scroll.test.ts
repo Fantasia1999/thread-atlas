@@ -59,6 +59,10 @@ test("scroll to bottom button behavior", () => {
   assert.ok(messageList, "messageList should exist");
   assert.ok(btnBottom, "btnBottom should exist");
   assert.equal(container.querySelector(".filter-chip")?.classList.contains("ui-chip"), true);
+  assert.deepEqual(
+    container.querySelectorAll(".filter-chip").map((chip) => chip.textContent),
+    ["Pure", "Raw", "No tools", "User", "Answer"]
+  );
   assert.equal(container.querySelector(".log-entry")?.classList.contains("ui-panel"), true);
   assert.equal(btnBottom.classList.contains("ui-icon-button"), true);
 

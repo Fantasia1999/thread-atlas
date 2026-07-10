@@ -55,13 +55,20 @@ function renderCopyableMessage(overrides: Partial<Message> = {}): HTMLElement {
 
 test("each rendered message content has Markdown and rich-text copy actions", () => {
   const entry = renderCopyableMessage();
+  const meta = entry.querySelector(".log-entry-meta");
   const actions = entry.querySelector(".message-copy-actions");
+  assert.ok(meta);
   assert.ok(actions);
+  assert.ok(meta.querySelector(".log-role-badge"));
+  assert.ok(meta.querySelector(".message-type"));
+  assert.ok(meta.querySelector(".message-time"));
 
   const buttons = actions.querySelectorAll("button");
   assert.equal(buttons.length, 2);
   assert.equal(buttons[0].getAttribute("aria-label"), "Copy Markdown source");
   assert.equal(buttons[1].getAttribute("aria-label"), "Copy rendered rich text");
+  assert.equal(buttons[0].getAttribute("data-copy-label"), "Markdown");
+  assert.equal(buttons[1].getAttribute("data-copy-label"), "Rich text");
   assert.equal(buttons.every((button) => button.classList.contains("ui-chip")), true);
 });
 

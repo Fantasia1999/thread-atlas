@@ -237,13 +237,7 @@ export function renderMessage(
 
     const header = document.createElement("div");
     header.className = "log-entry-header";
-    const messageTime = formatDisplayTime(message.createdAt);
-    const messageTimeTitle = formatDateTimeLong(message.createdAt);
-    header.innerHTML = `
-      <span class="log-role-badge ui-badge ${message.role}">${escapeHtml(message.role)}</span>
-      <span class="message-type">${escapeHtml(message.rawType ?? "message")}</span>
-      <span class="message-time" title="${escapeHtml(messageTimeTitle)}">${escapeHtml(messageTime)}</span>
-    `;
+    header.append(createLogEntryMeta(message));
     contentWrapper.append(header);
 
     if (displayHTML) {
@@ -270,13 +264,7 @@ export function renderMessage(
 
   const header = document.createElement("div");
   header.className = "log-entry-header";
-  const messageTime = formatDisplayTime(message.createdAt);
-  const messageTimeTitle = formatDateTimeLong(message.createdAt);
-  header.innerHTML = `
-    <span class="log-role-badge ui-badge ${message.role}">${escapeHtml(message.role)}</span>
-    <span class="message-type">${escapeHtml(message.rawType ?? "message")}</span>
-    <span class="message-time" title="${escapeHtml(messageTimeTitle)}">${escapeHtml(messageTime)}</span>
-  `;
+  header.append(createLogEntryMeta(message));
 
   entry.append(header);
 
@@ -334,6 +322,29 @@ export function renderMessage(
   return entry;
 }
 
+function createLogEntryMeta(message: Message): HTMLElement {
+  const meta = document.createElement("div");
+  meta.className = "log-entry-meta";
+  const messageTime = formatDisplayTime(message.createdAt);
+  const messageTimeTitle = formatDateTimeLong(message.createdAt);
+
+  const role = document.createElement("span");
+  role.className = `log-role-badge ui-badge ${message.role}`;
+  role.textContent = message.role;
+
+  const type = document.createElement("span");
+  type.className = "message-type";
+  type.textContent = message.rawType ?? "message";
+
+  const time = document.createElement("span");
+  time.className = "message-time";
+  time.title = messageTimeTitle;
+  time.textContent = messageTime;
+
+  meta.append(role, type, time);
+  return meta;
+}
+
 function createMessageCopyActions(markdownSource: string, content: HTMLElement): HTMLElement {
   const actions = document.createElement("div");
   actions.className = "message-copy-actions";
@@ -341,8 +352,8 @@ function createMessageCopyActions(markdownSource: string, content: HTMLElement):
   actions.setAttribute("aria-label", "Copy message content");
 
   actions.append(
-    createMessageCopyButton("MD", "Copy Markdown source", () => copyText(markdownSource)),
-    createMessageCopyButton("Rich", "Copy rendered rich text", () => copyRichText(content))
+    createMessageCopyButton("Markdown", "Copy Markdown source", () => copyText(markdownSource)),
+    createMessageCopyButton("Rich text", "Copy rendered rich text", () => copyRichText(content))
   );
   return actions;
 }
@@ -356,6 +367,7 @@ function createMessageCopyButton(label: string, title: string, copy: () => Promi
   button.className = "message-copy-button ui-chip";
   button.title = title;
   button.setAttribute("aria-label", title);
+  button.setAttribute("data-copy-label", label);
   button.innerHTML = defaultContent;
 
   button.addEventListener("click", async (event) => {
@@ -366,10 +378,10 @@ function createMessageCopyButton(label: string, title: string, copy: () => Promi
     try {
       await copy();
       button.dataset.state = "success";
-      button.innerHTML = `${successIcon()}<span>${label}</span>`;
+      button.innerHTML = `${successIcon()}<span>Copied</span>`;
     } catch {
       button.dataset.state = "error";
-      button.innerHTML = `${errorIcon()}<span>${label}</span>`;
+      button.innerHTML = `${errorIcon()}<span>Retry</span>`;
     }
 
     resetTimer = window.setTimeout(() => {

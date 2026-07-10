@@ -244,14 +244,18 @@ async function main() {
 
     // Keep the documentation capture deterministic and expose tool calls that are
     // hidden by the application's default "pure" message filter.
-    await page.evaluateOnNewDocument((selectedTheme) => {
+    await page.evaluateOnNewDocument(({ selectedTheme, favoriteKey }) => {
       localStorage.setItem("thread-atlas-message-filter", "raw");
       localStorage.setItem("thread-atlas-sidebar-pinned", "true");
       localStorage.setItem("thread-atlas-timeline-pinned", "true");
+      localStorage.setItem("thread-atlas-favorite-sessions", JSON.stringify([favoriteKey]));
+      localStorage.setItem("thread-atlas-favorite-metadata", JSON.stringify({
+        [favoriteKey]: { tags: ["typescript", "docs"], notes: "" }
+      }));
       if (selectedTheme) {
         localStorage.setItem("thread-atlas-theme", selectedTheme);
       }
-    }, theme);
+    }, { selectedTheme: theme, favoriteKey: mockDescriptors[1].key });
 
     // Enable request interception to mock API calls containing sensitive local information
     await page.setRequestInterception(true);

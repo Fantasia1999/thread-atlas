@@ -3,11 +3,11 @@ import type { Message } from "../../shared/types.js";
 export type MessageViewFilter = "raw" | "not-tool" | "pure" | "user" | "answer";
 
 export const FILTER_OPTIONS: Array<{ key: MessageViewFilter; label: string }> = [
-  { key: "pure", label: "pure" },
-  { key: "raw", label: "raw" },
-  { key: "not-tool", label: "not tool" },
-  { key: "user", label: "user" },
-  { key: "answer", label: "answer" }
+  { key: "pure", label: "Pure" },
+  { key: "raw", label: "Raw" },
+  { key: "not-tool", label: "No tools" },
+  { key: "user", label: "User" },
+  { key: "answer", label: "Answer" }
 ];
 
 export function getFinalAssistantMessageIds(messages: Message[]): Set<string> {

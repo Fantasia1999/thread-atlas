@@ -123,6 +123,8 @@ test("navigation side panels use dedicated surface and divider tokens", () => {
   assert.match(layout, /\.sidebar-mount\s*{[^}]*background:\s*var\(--bg-sidebar\)/s);
   assert.match(sidebar, /\.sidebar\s*{[^}]*background:\s*var\(--bg-sidebar\)/s);
   assert.match(session, /\.timeline-panel\s*{[^}]*background:\s*var\(--bg-sidebar\)/s);
+  assert.match(session, /\.filter-chip-row\s*{[^}]*padding:\s*2px/s);
+  assert.match(session, /\.filter-chip\.active\s*{[^}]*background:\s*var\(--accent\)/s);
 });
 
 test("legacy style modules and confirmed obsolete selectors are gone", () => {

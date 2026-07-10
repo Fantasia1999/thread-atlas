@@ -53,9 +53,9 @@
   },
   "sessionList": {
     "x": 0,
-    "y": 374,
+    "y": 464,
     "w": 798,
-    "h": 5026,
+    "h": 4936,
     "selector": ".session-list"
   },
   "sessionCount": {
@@ -73,14 +73,14 @@
     "selector": ".sidebar .panel-header .panel-icon-button"
   },
   "sessionPin": {
-    "x": 2253,
+    "x": 2263,
     "y": 166,
     "w": 126,
     "h": 65,
     "selector": ".chat-fav-actions .pin-btn"
   },
   "sessionFavorite": {
-    "x": 2399,
+    "x": 2409,
     "y": 166,
     "w": 189,
     "h": 65,
@@ -101,16 +101,16 @@
     "selector": ".export-dropdown-container .ui-menu-trigger"
   },
   "filterTabs": {
-    "x": 2374,
+    "x": 2398,
     "y": 253,
-    "w": 616,
-    "h": 50,
+    "w": 592,
+    "h": 64,
     "selector": ".filter-chip-row"
   },
   "toolRows": [
     {
       "x": 902,
-      "y": 1246,
+      "y": 1338,
       "w": 2036,
       "h": 89,
       "text": "view_file · completedinput/workspace/markdown-view",
