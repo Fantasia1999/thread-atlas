@@ -566,19 +566,7 @@ export class ThreadAtlasApp {
     this.timelineOpen = force !== undefined ? force : !this.timelineOpen;
     const state = this.store.getState();
     this.renderShellState(state);
-
-    const timelineOpen = this.isTimelinePinned() || this.timelineOpen;
-    const mainPanel = this.mainMount.querySelector<HTMLElement>(".main-panel");
-    const timelineDock = this.mainMount.querySelector<HTMLElement>(".timeline-dock");
-    const timelineToggle = timelineDock?.querySelector<HTMLButtonElement>(".rail-button");
-
-    mainPanel?.classList.toggle("timeline-open", timelineOpen);
-    timelineDock?.classList.toggle("open", timelineOpen);
-    if (timelineToggle) {
-      const label = timelineOpen ? "Collapse timeline" : "Open timeline";
-      timelineToggle.title = label;
-      timelineToggle.setAttribute("aria-label", label);
-    }
+    this.syncTimelinePresentation();
   }
 
   private toggleTimelinePin(): void {
@@ -588,7 +576,34 @@ export class ThreadAtlasApp {
     localStorage.setItem(TIMELINE_PIN_STORAGE_KEY, String(this.timelinePinned));
     const state = this.store.getState();
     this.renderShellState(state);
-    this.renderMainRegion(state);
+    this.syncTimelinePresentation();
+  }
+
+  private syncTimelinePresentation(): void {
+    const timelinePinned = this.isTimelinePinned();
+    const timelineOpen = timelinePinned || this.timelineOpen;
+    const mainPanel = this.mainMount.querySelector<HTMLElement>(".main-panel");
+    const timelineDock = this.mainMount.querySelector<HTMLElement>(".timeline-dock");
+
+    mainPanel?.classList.toggle("timeline-pinned", timelinePinned);
+    mainPanel?.classList.toggle("timeline-open", timelineOpen);
+    timelineDock?.classList.toggle("pinned", timelinePinned);
+    timelineDock?.classList.toggle("open", timelineOpen);
+
+    const timelineToggle = timelineDock?.querySelector<HTMLButtonElement>(".rail-button");
+    if (timelineToggle) {
+      const label = timelineOpen ? "Collapse timeline" : "Open timeline";
+      timelineToggle.title = label;
+      timelineToggle.setAttribute("aria-label", label);
+    }
+
+    const timelinePin = timelineDock?.querySelector<HTMLButtonElement>(".panel-icon-button");
+    if (timelinePin) {
+      const label = timelinePinned ? "Unpin timeline" : "Pin timeline";
+      timelinePin.classList.toggle("active", timelinePinned);
+      timelinePin.title = label;
+      timelinePin.setAttribute("aria-label", label);
+    }
   }
 
   private pushModal(createModalFn: (onClose: () => void) => HTMLElement): void {

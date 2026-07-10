@@ -265,3 +265,28 @@ test("timeline hover does not redraw the message list", async () => {
   assert.equal(timelineDock.classList.contains("open"), false);
   assert.equal(timelineToggle.getAttribute("title"), "Open timeline");
 });
+
+test("pinning the timeline does not redraw the message list", async () => {
+  Object.defineProperty(globalThis, "innerWidth", {
+    value: 1300,
+    writable: true,
+    configurable: true
+  });
+  localStorage.setItem("thread-atlas-timeline-pinned", "false");
+
+  const root = await createSelectedApp();
+  const messageList = root.querySelector(".chat-messages");
+  const timelineDock = root.querySelector(".timeline-dock") as HTMLElement | null;
+  const pinButton = timelineDock?.querySelector(".panel-icon-button") as HTMLElement | null;
+  assert.ok(messageList);
+  assert.ok(timelineDock);
+  assert.ok(pinButton);
+
+  (pinButton as any).click();
+
+  assert.equal(root.querySelector(".chat-messages"), messageList);
+  assert.equal(timelineDock.classList.contains("pinned"), true);
+  assert.equal(timelineDock.classList.contains("open"), true);
+  assert.equal(pinButton.classList.contains("active"), true);
+  assert.equal(pinButton.getAttribute("title"), "Unpin timeline");
+});
