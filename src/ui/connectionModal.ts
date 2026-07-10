@@ -29,7 +29,7 @@ export function createConnectionModal(options: ConnectionModalOptions): HTMLElem
   overlay.className = "modal-overlay";
 
   const card = document.createElement("div");
-  card.className = "modal-card modal-wide";
+  card.className = "modal-card modal-wide ui-modal";
 
   const header = document.createElement("div");
   header.className = "modal-header";
@@ -41,7 +41,7 @@ export function createConnectionModal(options: ConnectionModalOptions): HTMLElem
   `;
 
   const closeButton = document.createElement("button");
-  closeButton.className = "button ghost";
+  closeButton.className = "button ghost ui-button ui-button--ghost";
   closeButton.type = "button";
   closeButton.textContent = "Close";
   closeButton.addEventListener("click", options.onClose);
@@ -51,7 +51,7 @@ export function createConnectionModal(options: ConnectionModalOptions): HTMLElem
   body.className = "modal-body";
 
   const status = document.createElement("p");
-  status.className = "connection-status";
+  status.className = "connection-status ui-status";
 
   function renderStatus(): void {
     const targets = connection.getScanTargets();
@@ -124,10 +124,10 @@ function buildLocalSection(
   tokenInput.type = "password";
   tokenInput.placeholder = "Local agent token (optional)";
   tokenInput.value = connection.getToken();
-  tokenInput.className = "input";
+  tokenInput.className = "input ui-input";
 
   const saveToken = document.createElement("button");
-  saveToken.className = "button";
+  saveToken.className = "button ui-button";
   saveToken.type = "button";
   saveToken.textContent = "Save token";
   saveToken.addEventListener("click", () => {
@@ -184,7 +184,7 @@ function buildRemoteRow(
   label.title = `${remote.username}@${remote.host}`;
 
   const removeButton = document.createElement("button");
-  removeButton.className = "button ghost";
+  removeButton.className = "button ghost ui-button ui-button--ghost";
   removeButton.type = "button";
   removeButton.textContent = "Disconnect";
   removeButton.addEventListener("click", async () => {
@@ -245,12 +245,12 @@ function buildSavedRow(
   label.textContent = profile.label;
 
   const connectButton = document.createElement("button");
-  connectButton.className = "button primary";
+  connectButton.className = "button primary ui-button ui-button--primary";
   connectButton.type = "button";
   connectButton.textContent = "Connect";
 
   const feedback = document.createElement("p");
-  feedback.className = "connection-feedback";
+  feedback.className = "connection-feedback ui-status";
 
   connectButton.addEventListener("click", async () => {
     connectButton.disabled = true;
@@ -273,7 +273,7 @@ function buildSavedRow(
   });
 
   const editButton = document.createElement("button");
-  editButton.className = "button ghost";
+  editButton.className = "button ghost ui-button ui-button--ghost";
   editButton.type = "button";
   editButton.textContent = "Edit";
   editButton.addEventListener("click", () => {
@@ -281,7 +281,7 @@ function buildSavedRow(
   });
 
   const deleteButton = document.createElement("button");
-  deleteButton.className = "button ghost";
+  deleteButton.className = "button ghost ui-button ui-button--ghost";
   deleteButton.type = "button";
   deleteButton.textContent = "Delete";
   deleteButton.addEventListener("click", () => {
@@ -308,30 +308,30 @@ function buildRemoteForm(
 
   form.innerHTML = `
     <h3>${editingId ? "Edit connection" : "New connection"}</h3>
-    <input class="input" name="label" placeholder="Name (optional)" autocomplete="off" value="${escapeHtml(prefill?.label ?? "")}" />
+    <input class="input ui-input" name="label" placeholder="Name (optional)" autocomplete="off" value="${escapeHtml(prefill?.label ?? "")}" />
     <div class="connection-grid">
-      <input class="input" name="host" placeholder="Host" autocomplete="off" value="${escapeHtml(prefill?.host ?? "")}" />
-      <input class="input" name="port" placeholder="Port (22)" autocomplete="off" value="${escapeHtml(portValue)}" />
-      <input class="input" name="username" placeholder="Username" autocomplete="off" value="${escapeHtml(prefill?.username ?? "")}" />
-      <input class="input" name="password" type="password" placeholder="Password (optional)" autocomplete="off" value="${escapeHtml(prefill?.password ?? "")}" />
+      <input class="input ui-input" name="host" placeholder="Host" autocomplete="off" value="${escapeHtml(prefill?.host ?? "")}" />
+      <input class="input ui-input" name="port" placeholder="Port (22)" autocomplete="off" value="${escapeHtml(portValue)}" />
+      <input class="input ui-input" name="username" placeholder="Username" autocomplete="off" value="${escapeHtml(prefill?.username ?? "")}" />
+      <input class="input ui-input" name="password" type="password" placeholder="Password (optional)" autocomplete="off" value="${escapeHtml(prefill?.password ?? "")}" />
     </div>
-    <textarea class="input" name="privateKey" placeholder="Private key (optional)" rows="3">${escapeHtml(prefill?.privateKey ?? "")}</textarea>
-    <input class="input" name="passphrase" type="password" placeholder="Passphrase (optional)" autocomplete="off" value="${escapeHtml(prefill?.passphrase ?? "")}" />
+    <textarea class="input ui-input ui-textarea" name="privateKey" placeholder="Private key (optional)" rows="3">${escapeHtml(prefill?.privateKey ?? "")}</textarea>
+    <input class="input ui-input" name="passphrase" type="password" placeholder="Passphrase (optional)" autocomplete="off" value="${escapeHtml(prefill?.passphrase ?? "")}" />
   `;
 
   const feedback = document.createElement("p");
-  feedback.className = "connection-feedback";
+  feedback.className = "connection-feedback ui-status";
 
   const actions = document.createElement("div");
   actions.className = "connection-row";
 
   const saveButton = document.createElement("button");
-  saveButton.className = "button";
+  saveButton.className = "button ui-button";
   saveButton.type = "button";
   saveButton.textContent = "Save";
 
   const submit = document.createElement("button");
-  submit.className = "button primary";
+  submit.className = "button primary ui-button ui-button--primary";
   submit.type = "submit";
   submit.textContent = "Save & connect";
 
@@ -423,7 +423,7 @@ async function deployAndConnect(
 }
 
 function setFeedback(element: HTMLElement, message: string, kind: FeedbackKind): void {
-  element.className = `connection-feedback ${kind}`;
+  element.className = `connection-feedback ui-status ${kind}`;
   element.textContent = message;
 }
 

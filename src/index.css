@@ -7,8 +7,8 @@
 @import "./styles/sidebar.css" layer(features);
 @import "./styles/session.css" layer(features);
 @import "./styles/content.css" layer(features);
-@import "./styles/modals.css" layer(features);
+@import "./styles/dialogs.css" layer(features);
 @import "./styles/vendor.css" layer(vendor);
-@import "./styles/misc.css" layer(utilities);
+@import "./styles/utilities.css" layer(utilities);
 
 @layer tokens, base, primitives, layout, features, vendor, utilities;

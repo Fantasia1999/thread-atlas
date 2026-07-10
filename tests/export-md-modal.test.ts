@@ -74,6 +74,10 @@ test("export md modal renders and defaults all messages checked", () => {
   // Renders two messages (pure filter excludes tool)
   const items = overlay.querySelectorAll(".export-message-item");
   assert.equal(items.length, 2);
+  assert.equal(overlay.querySelector(".modal-card")?.classList.contains("ui-modal"), true);
+  assert.equal(overlay.querySelector(".button")?.classList.contains("ui-button"), true);
+  assert.equal(overlay.querySelector(".export-filter-chip")?.classList.contains("ui-chip"), true);
+  assert.equal(items[0].classList.contains("ui-panel"), true);
 
   // Checkboxes are checked by default
   const checkboxes = overlay.querySelectorAll(".export-message-checkbox") as any[];
@@ -368,6 +372,5 @@ test("export md modal truncates long titles to 40 characters in filename", () =>
   assert.ok(text.includes("This_is_an_extremely_long_title_that_exc"));
   assert.ok(!text.includes("exceeds_the_limit"));
 });
-
 
 

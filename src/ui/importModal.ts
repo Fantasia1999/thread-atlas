@@ -11,7 +11,7 @@ export function createImportModal(options: ImportModalOptions): HTMLElement {
   overlay.className = "modal-overlay";
 
   const card = document.createElement("div");
-  card.className = "modal-card";
+  card.className = "modal-card ui-modal";
 
   const header = document.createElement("div");
   header.className = "modal-header";
@@ -23,14 +23,14 @@ export function createImportModal(options: ImportModalOptions): HTMLElement {
   `;
 
   const closeButton = document.createElement("button");
-  closeButton.className = "button ghost";
+  closeButton.className = "button ghost ui-button ui-button--ghost";
   closeButton.type = "button";
   closeButton.textContent = "Close";
   closeButton.addEventListener("click", options.onClose);
   header.append(closeButton);
 
   const status = document.createElement("div");
-  status.className = "status-inline";
+  status.className = "status-inline ui-status";
   status.textContent = "Drop JSON / JSONL files or choose files from disk.";
 
   const dropzone = document.createElement("label");

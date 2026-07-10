@@ -55,6 +55,8 @@ test("file preview modal renders loading state initially", () => {
   const loadingStatus = overlay.querySelector(".loading-status");
   assert.ok(loadingStatus);
   assert.equal(loadingStatus.textContent, "Loading file content...");
+  assert.equal(overlay.querySelector(".modal-card")?.classList.contains("ui-modal"), true);
+  assert.equal(overlay.querySelector(".button")?.classList.contains("ui-button"), true);
 });
 
 test("file preview modal renders markdown content correctly upon successful fetch", async () => {
@@ -517,4 +519,3 @@ test("ThreadAtlasApp link click handles absolute path links without file:/// pro
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.equal(copiedText, "/home/wcl/workspace/sourceCode/lance/rust/lance/src/index.rs");
 });
-

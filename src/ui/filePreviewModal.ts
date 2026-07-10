@@ -88,7 +88,7 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
   }
 
   const card = document.createElement("div");
-  card.className = "modal-card modal-preview-card";
+  card.className = "modal-card modal-preview-card ui-modal";
 
   // Parse filename from path
   const filename = filePath.split(/[/\\]/).pop() || filePath;
@@ -131,7 +131,7 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
   `;
 
   const closeButton = document.createElement("button");
-  closeButton.className = "button ghost";
+  closeButton.className = "button ghost ui-button ui-button--ghost";
   closeButton.type = "button";
   closeButton.textContent = "Close";
   header.append(closeButton);
@@ -140,7 +140,7 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
   body.className = "modal-body modal-preview-body";
 
   const status = document.createElement("div");
-  status.className = "status-inline loading-status";
+  status.className = "status-inline loading-status status-loading ui-status";
   status.textContent = "Loading file content...";
   body.append(status);
 
@@ -320,9 +320,9 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
       }
       body.replaceChildren();
       const errEl = document.createElement("div");
-      errEl.className = "status-inline error-status";
+      errEl.className = "status-inline error-status status-error ui-status";
       errEl.innerHTML = `
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="12" y1="8" x2="12" y2="12"></line>
           <line x1="12" y1="16" x2="12.01" y2="16"></line>
@@ -334,4 +334,3 @@ export function createFilePreviewModal(options: FilePreviewModalOptions): HTMLEl
 
   return overlay;
 }
-

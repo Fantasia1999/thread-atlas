@@ -28,7 +28,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   };
 
   const card = document.createElement("div");
-  card.className = "modal-card modal-wide";
+  card.className = "modal-card modal-wide ui-modal";
 
   const header = document.createElement("div");
   header.className = "modal-header";
@@ -40,7 +40,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   `;
 
   const closeButton = document.createElement("button");
-  closeButton.className = "button ghost";
+  closeButton.className = "button ghost ui-button ui-button--ghost";
   closeButton.type = "button";
   closeButton.textContent = "Close";
   closeButton.addEventListener("click", handleClose);
@@ -80,7 +80,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
   filters.forEach((f) => {
     const chip = document.createElement("button");
     chip.type = "button";
-    chip.className = "export-filter-chip";
+    chip.className = "export-filter-chip ui-chip";
     chip.textContent = f.label;
     chip.dataset.filter = f.key;
     if (f.key === currentFilter) {
@@ -100,7 +100,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
 
   const selectAllBtn = document.createElement("button");
   selectAllBtn.type = "button";
-  selectAllBtn.className = "button secondary";
+  selectAllBtn.className = "button secondary ui-button ui-button--secondary";
   selectAllBtn.textContent = "Select All";
   selectAllBtn.addEventListener("click", () => {
     const filtered = filterMessagesForView(session.messages, currentFilter);
@@ -110,7 +110,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
 
   const deselectAllBtn = document.createElement("button");
   deselectAllBtn.type = "button";
-  deselectAllBtn.className = "button secondary";
+  deselectAllBtn.className = "button secondary ui-button ui-button--secondary";
   deselectAllBtn.textContent = "Deselect All";
   deselectAllBtn.addEventListener("click", () => {
     const filtered = filterMessagesForView(session.messages, currentFilter);
@@ -142,16 +142,10 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
       const isChecked = checkedIds.has(message.id);
 
       const item = document.createElement("div");
-      item.className = "export-message-item";
+      item.className = "export-message-item ui-panel";
 
       const checkboxLabel = document.createElement("label");
       checkboxLabel.className = "export-message-checkbox-label";
-      checkboxLabel.style.display = "flex";
-      checkboxLabel.style.alignItems = "center";
-      checkboxLabel.style.gap = "8px";
-      checkboxLabel.style.cursor = "pointer";
-      checkboxLabel.style.userSelect = "none";
-      checkboxLabel.style.marginTop = "2px";
       checkboxLabel.addEventListener("click", (e) => {
         e.stopPropagation();
       });
@@ -160,8 +154,6 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
       checkbox.type = "checkbox";
       checkbox.className = "export-message-checkbox";
       checkbox.checked = isChecked;
-      checkbox.style.margin = "0";
-      checkbox.style.cursor = "pointer";
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) {
           checkedIds.add(message.id);
@@ -184,7 +176,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
       itemHeader.className = "export-message-header";
 
       const roleBadge = document.createElement("span");
-      roleBadge.className = `export-message-role-badge ${message.role}`;
+      roleBadge.className = `export-message-role-badge ui-badge ${message.role}`;
       roleBadge.textContent = `${getRoleEmoji(message.role)} ${message.role}`;
 
       const previewSpan = document.createElement("strong");
@@ -206,8 +198,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
         detailsDiv.append(renderMarkdown(message.text));
       } else if (message.toolCalls && message.toolCalls.length > 0) {
         const toolCallsDiv = document.createElement("div");
-        toolCallsDiv.style.fontFamily = "var(--font-mono)";
-        toolCallsDiv.style.fontSize = "11px";
+        toolCallsDiv.className = "export-tool-calls";
         toolCallsDiv.innerHTML = message.toolCalls.map(t => 
           `<div>🛠️ <strong>${escapeHtml(t.toolName)}</strong> (${escapeHtml(t.status)})</div>`
         ).join("");
@@ -246,7 +237,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
 
   const configTrigger = document.createElement("button");
   configTrigger.type = "button";
-  configTrigger.className = "button secondary xs filename-config-trigger";
+  configTrigger.className = "button secondary xs filename-config-trigger ui-button ui-button--secondary ui-button--compact";
   configTrigger.textContent = "⚙️ Configure";
 
   const configDropdown = document.createElement("div");
@@ -351,7 +342,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
 
       const upBtn = document.createElement("button");
       upBtn.type = "button";
-      upBtn.className = "filename-config-btn";
+      upBtn.className = "filename-config-btn ui-icon-button";
       upBtn.textContent = "↑";
       upBtn.disabled = index === 0;
       upBtn.addEventListener("click", () => {
@@ -367,7 +358,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
 
       const downBtn = document.createElement("button");
       downBtn.type = "button";
-      downBtn.className = "filename-config-btn";
+      downBtn.className = "filename-config-btn ui-icon-button";
       downBtn.textContent = "↓";
       downBtn.disabled = index === filenameConfig.length - 1;
       downBtn.addEventListener("click", () => {
@@ -400,13 +391,13 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
 
   const cancelBtn = document.createElement("button");
   cancelBtn.type = "button";
-  cancelBtn.className = "button secondary";
+  cancelBtn.className = "button secondary ui-button ui-button--secondary";
   cancelBtn.textContent = "Cancel";
   cancelBtn.addEventListener("click", handleClose);
 
   const exportBtn = document.createElement("button");
   exportBtn.type = "button";
-  exportBtn.className = "button primary";
+  exportBtn.className = "button primary ui-button ui-button--primary";
   exportBtn.textContent = "Export MD";
   exportBtn.addEventListener("click", () => {
     // Generate Markdown for the checked messages matching the current filter scope

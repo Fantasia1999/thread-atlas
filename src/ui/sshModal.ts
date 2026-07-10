@@ -40,7 +40,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   overlay.className = "modal-overlay";
 
   const card = document.createElement("div");
-  card.className = "modal-card modal-wide";
+  card.className = "modal-card modal-wide ui-modal";
 
   const header = document.createElement("div");
   header.className = "modal-header";
@@ -52,7 +52,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   `;
 
   const closeButton = document.createElement("button");
-  closeButton.className = "button ghost";
+  closeButton.className = "button ghost ui-button ui-button--ghost";
   closeButton.type = "button";
   closeButton.textContent = "Close";
   closeButton.addEventListener("click", options.onClose);
@@ -62,9 +62,9 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   const tabHeader = document.createElement("div");
   tabHeader.className = "modal-tabs";
   tabHeader.innerHTML = `
-    <button class="tab-btn active" data-tab="saved" type="button">📂 Saved Connections</button>
-    <button class="tab-btn" data-tab="configure" type="button">⚙️ New Connection</button>
-    <button class="tab-btn" data-tab="results" id="tab-results-btn" type="button">📡 Discovered Sessions</button>
+    <button class="tab-btn ui-chip active" data-tab="saved" type="button">📂 Saved Connections</button>
+    <button class="tab-btn ui-chip" data-tab="configure" type="button">⚙️ New Connection</button>
+    <button class="tab-btn ui-chip" data-tab="results" id="tab-results-btn" type="button">📡 Discovered Sessions</button>
   `;
 
   // Tab 1: Saved Connections panel
@@ -91,7 +91,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   savedActions.append(saveCurrentButton, syncSavedButton);
 
   const savedStatus = document.createElement("div");
-  savedStatus.className = "saved-status-inline";
+  savedStatus.className = "saved-status-inline ui-status";
   savedStatus.textContent = "Select saved connections to sync in batch.";
 
   const savedList = document.createElement("div");
@@ -108,37 +108,37 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   form.className = "form-grid";
   form.innerHTML = `
     <div class="auth-mode-selector field-span-2">
-      <button class="auth-mode-btn active" data-mode="password" type="button">🔑 Password Auth</button>
-      <button class="auth-mode-btn" data-mode="privateKey" type="button">🔒 Private Key Auth</button>
+      <button class="auth-mode-btn ui-chip active" data-mode="password" type="button">🔑 Password Auth</button>
+      <button class="auth-mode-btn ui-chip" data-mode="privateKey" type="button">🔒 Private Key Auth</button>
     </div>
     <label>
       <span>Host</span>
-      <input class="text-input" name="host" placeholder="example.com" />
+      <input class="text-input ui-input" name="host" placeholder="example.com" />
     </label>
     <label>
       <span>Port</span>
-      <input class="text-input" name="port" type="number" value="22" />
+      <input class="text-input ui-input" name="port" type="number" value="22" />
     </label>
     <label>
       <span>Username</span>
-      <input class="text-input" name="username" placeholder="root" />
+      <input class="text-input ui-input" name="username" placeholder="root" />
     </label>
     <label>
       <span>Password</span>
-      <input class="text-input" name="password" type="password" />
+      <input class="text-input ui-input" name="password" type="password" />
     </label>
     <label class="field-span-2">
       <span>Private key</span>
-      <textarea class="text-area" name="privateKey" rows="5" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+      <textarea class="text-area ui-input ui-textarea" name="privateKey" rows="5" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
     </label>
     <label>
       <span>Passphrase</span>
-      <input class="text-input" name="passphrase" type="password" />
+      <input class="text-input ui-input" name="passphrase" type="password" />
     </label>
   `;
 
   const status = document.createElement("div");
-  status.className = "status-inline status-info";
+  status.className = "status-inline status-info ui-status";
   status.textContent = "Fill host and username, then test or scan.";
 
   const controls = document.createElement("div");
@@ -162,7 +162,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   resultsToolbar.className = "results-toolbar";
 
   const searchInput = document.createElement("input");
-  searchInput.className = "text-input search-input";
+  searchInput.className = "text-input search-input ui-input";
   searchInput.placeholder = "🔍 Search remote paths...";
 
   const selectAllLabel = document.createElement("label");
@@ -186,7 +186,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   resultsFooter.className = "results-footer";
   
   const resultsStatus = document.createElement("div");
-  resultsStatus.className = "results-status-inline";
+  resultsStatus.className = "results-status-inline ui-status";
   resultsStatus.textContent = "Scan remote sessions first.";
 
   const inlineSyncButton = button("Sync Selected", "primary");
@@ -229,19 +229,13 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
       btn.classList.toggle("active", isTarget);
     });
 
-    if (mode === "password") {
-      if (passwordLabel) passwordLabel.style.display = "";
-      if (privateKeyLabel) privateKeyLabel.style.display = "none";
-      if (passphraseLabel) passphraseLabel.style.display = "none";
-    } else {
-      if (passwordLabel) passwordLabel.style.display = "none";
-      if (privateKeyLabel) privateKeyLabel.style.display = "";
-      if (passphraseLabel) passphraseLabel.style.display = "";
-    }
+    passwordLabel?.classList.toggle("hidden", mode !== "password");
+    privateKeyLabel?.classList.toggle("hidden", mode !== "privateKey");
+    passphraseLabel?.classList.toggle("hidden", mode !== "privateKey");
   }
 
   function updateStatus(message: string, type: "info" | "success" | "error" | "loading" = "info") {
-    status.className = `status-inline status-${type}`;
+    status.className = `status-inline ui-status status-${type}`;
     status.innerHTML = "";
     
     let icon = "⚙️";
@@ -264,7 +258,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
     sourceFilterContainer.replaceChildren();
 
     const allPill = document.createElement("button");
-    allPill.className = `filter-pill ${activeSourceFilter === null ? "active" : ""}`;
+    allPill.className = `filter-pill ui-chip ${activeSourceFilter === null ? "active" : ""}`;
     allPill.textContent = "All";
     allPill.type = "button";
     allPill.addEventListener("click", () => {
@@ -276,7 +270,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
     for (const src of SUPPORTED_SOURCES) {
       const pill = document.createElement("button");
-      pill.className = `filter-pill ${activeSourceFilter === src ? "active" : ""} filter-pill-${src}`;
+      pill.className = `filter-pill ui-chip ${activeSourceFilter === src ? "active" : ""} filter-pill-${src}`;
       pill.textContent = src;
       pill.type = "button";
       pill.addEventListener("click", () => {
@@ -315,9 +309,9 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
     for (const file of filteredFiles) {
       const row = document.createElement("label");
-      row.className = `remote-row ${selected.has(file.path) ? "selected" : ""}`;
+      row.className = `remote-row ui-panel ${selected.has(file.path) ? "selected" : ""}`;
       
-      const sourceClass = `source-badge ${file.source}`;
+      const sourceClass = `source-badge ui-badge ${file.source}`;
       
       row.innerHTML = `
         <input type="checkbox" ${selected.has(file.path) ? "checked" : ""} />
@@ -393,10 +387,10 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   saveCurrentButton.addEventListener("click", () => {
     try {
       const server = rememberServer(readCredentialsForm());
-      savedStatus.className = "saved-status-inline status-success";
+      savedStatus.className = "saved-status-inline ui-status status-success";
       savedStatus.textContent = `Saved ${formatServerLabel(server)} in this browser.`;
     } catch (error) {
-      savedStatus.className = "saved-status-inline status-error";
+      savedStatus.className = "saved-status-inline ui-status status-error";
       savedStatus.textContent = error instanceof Error ? error.message : "Failed to save server.";
     }
   });
@@ -405,14 +399,14 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   syncSavedButton.addEventListener("click", async () => {
     const servers = savedServers.filter((server) => selectedSavedIds.has(server.id));
     if (servers.length === 0) {
-      savedStatus.className = "saved-status-inline status-error";
+      savedStatus.className = "saved-status-inline ui-status status-error";
       savedStatus.textContent = "Select at least one saved server to sync.";
       return;
     }
 
     syncSavedButton.disabled = true;
     saveCurrentButton.disabled = true;
-    savedStatus.className = "saved-status-inline status-loading";
+    savedStatus.className = "saved-status-inline ui-status status-loading";
 
     let checkedServers = 0;
     let emptyServers = 0;
@@ -464,7 +458,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
     saveCurrentButton.disabled = false;
 
     if (errors.length === 0 && totalDownloads > 0) {
-      savedStatus.className = "saved-status-inline status-success";
+      savedStatus.className = "saved-status-inline ui-status status-success";
       savedStatus.textContent =
         `Synced ${syncedServers} saved servers, downloaded ${totalDownloads} files.`;
       
@@ -475,7 +469,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
     }
 
     if (errors.length === 0) {
-      savedStatus.className = "saved-status-inline";
+      savedStatus.className = "saved-status-inline ui-status";
       savedStatus.textContent =
         emptyServers === servers.length
           ? "No sessions found in the selected saved servers."
@@ -483,7 +477,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
       return;
     }
 
-    savedStatus.className = "saved-status-inline status-error";
+    savedStatus.className = "saved-status-inline ui-status status-error";
     savedStatus.textContent = errors.join(" | ");
   });
 
@@ -643,7 +637,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
     for (const server of savedServers) {
       const row = document.createElement("div");
-      row.className = "saved-server-row";
+      row.className = "saved-server-row ui-panel";
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
@@ -687,7 +681,7 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
         savedServers = savedServers.filter((entry) => entry.id !== server.id);
         writeSavedServers(savedServers);
         renderSavedServers();
-        savedStatus.className = "saved-status-inline";
+        savedStatus.className = "saved-status-inline ui-status";
         savedStatus.textContent = `Removed ${formatServerLabel(server)} from saved servers.`;
       });
 
@@ -721,7 +715,12 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
 function button(label: string, variant: string): HTMLButtonElement {
   const element = document.createElement("button");
-  element.className = `button ${variant}`.trim();
+  const modifier = variant === "primary"
+    ? "ui-button--primary"
+    : variant === "secondary"
+      ? "ui-button--secondary"
+      : "";
+  element.className = `button ${variant} ui-button ${modifier}`.trim();
   element.type = "button";
   element.textContent = label;
   return element;

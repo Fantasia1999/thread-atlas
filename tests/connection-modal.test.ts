@@ -60,6 +60,10 @@ test("connection modal renders saved connection rows", () => {
   assert.equal(savedRows.length, 1);
   assert.ok(savedRows[0].textContent.includes("bob@box"));
   assert.ok(findByText(overlay, ".button", "Connect"));
+  assert.equal(overlay.querySelector(".modal-card")?.classList.contains("ui-modal"), true);
+  assert.equal(overlay.querySelector(".button")?.classList.contains("ui-button"), true);
+  assert.equal(overlay.querySelector(".input")?.classList.contains("ui-input"), true);
+  assert.equal(overlay.querySelector(".connection-feedback")?.classList.contains("ui-status"), true);
 });
 
 test("deleting a saved connection removes it from storage and the list", () => {
