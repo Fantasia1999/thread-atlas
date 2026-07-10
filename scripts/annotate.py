@@ -125,6 +125,12 @@ features = [
         "label": "SSH sync to remote host"
     },
     {
+        "key": "connectionsBtn",
+        "fallback_box": (1798, 11, 1900, 41),
+        "fallback_marker": (1849, 26),
+        "label": "Manage local and remote connections"
+    },
+    {
         "key": "pathDisplay",
         "fallback_box": (140, 13, 1470, 39),
         "fallback_marker": (805, 26),
@@ -151,10 +157,10 @@ features = [
         "label": "Session count badge"
     },
     {
-        "key": "sortToggle",
+        "key": "sidebarPin",
         "fallback_box": (275, 64, 303, 92),
         "fallback_marker": (289, 78),
-        "label": "Sort order toggle"
+        "label": "Pin or collapse the session index"
     },
     {
         "key": "sessionList",
@@ -165,22 +171,34 @@ features = [
 
     # ---- Detail panel ----
     {
-        "key": "filterTabs",
-        "fallback_box": (1329, 102, 1580, 128),
-        "fallback_marker": (1454, 115),
-        "label": "Message filter tabs (default / not tool / user / answer)"
+        "key": "sessionPin",
+        "fallback_box": (1284, 66, 1332, 94),
+        "fallback_marker": (1308, 80),
+        "label": "Pin the selected session"
+    },
+    {
+        "key": "sessionFavorite",
+        "fallback_box": (1338, 66, 1418, 94),
+        "fallback_marker": (1378, 80),
+        "label": "Favorite and annotate the selected session"
+    },
+    {
+        "key": "resumeBtn",
+        "fallback_box": (1424, 66, 1500, 94),
+        "fallback_marker": (1462, 80),
+        "label": "Copy a resume command"
     },
     {
         "key": "exportBtn",
-        "fallback_box": (1484, 66, 1580, 94),
-        "fallback_marker": (1532, 80),
-        "label": "Export session as JSON"
+        "fallback_box": (1506, 66, 1580, 94),
+        "fallback_marker": (1543, 80),
+        "label": "Export session as JSON or Markdown"
     },
     {
-        "key": "copyBtn",
-        "fallback_box": (1446, 66, 1478, 94),
-        "fallback_marker": (1462, 80),
-        "label": "Copy to clipboard"
+        "key": "filterTabs",
+        "fallback_box": (1329, 102, 1580, 128),
+        "fallback_marker": (1454, 115),
+        "label": "Message filters (pure / raw / not tool / user / answer)"
     },
     {
         "key": "toolRows",
@@ -190,6 +208,12 @@ features = [
     },
 
     # ---- Timeline panel ----
+    {
+        "key": "timelinePin",
+        "fallback_box": (1870, 66, 1900, 94),
+        "fallback_marker": (1885, 80),
+        "label": "Pin or collapse the timeline"
+    },
     {
         "key": "timeline",
         "fallback_box": (1600, 52, 1920, 1080),
@@ -230,8 +254,12 @@ def main():
     # Calculate layout scale factor relative to 1920x1080 (our baseline resolution)
     scale = W / 1920.0
 
-    # Legend area height at the bottom (scaled proportionally)
-    legend_h = int(240 * scale)
+    cols = 4
+    items_per_col = (len(features) + cols - 1) // cols
+
+    # Size the legend from the current feature count. The annotated derivative
+    # does not need to preserve the raw screenshot's aspect ratio.
+    legend_h = int((88 + items_per_col * 32) * scale)
     canvas = Image.new("RGBA", (W, H + legend_h), (255, 255, 255, 255))
     canvas.paste(img, (0, 0))
 
@@ -287,8 +315,6 @@ def main():
 
     legend_body_top = legend_top + int(36 * scale) * SS
 
-    cols = 3
-    items_per_col = (len(features) + cols - 1) // cols
     col_w = (W * SS) // cols
     row_h = int(32 * scale) * SS
     marker_r_legend = max(5, int(10 * scale)) * SS

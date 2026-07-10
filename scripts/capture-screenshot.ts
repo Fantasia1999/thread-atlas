@@ -240,6 +240,18 @@ async function main() {
 
     const page = await browser.newPage();
     await page.setViewport({ width: config.width, height: config.height, deviceScaleFactor: 1 });
+    await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+
+    // Keep the documentation capture deterministic and expose tool calls that are
+    // hidden by the application's default "pure" message filter.
+    await page.evaluateOnNewDocument((selectedTheme) => {
+      localStorage.setItem("thread-atlas-message-filter", "raw");
+      localStorage.setItem("thread-atlas-sidebar-pinned", "true");
+      localStorage.setItem("thread-atlas-timeline-pinned", "true");
+      if (selectedTheme) {
+        localStorage.setItem("thread-atlas-theme", selectedTheme);
+      }
+    }, theme);
 
     // Enable request interception to mock API calls containing sensitive local information
     await page.setRequestInterception(true);
@@ -273,14 +285,6 @@ async function main() {
 
     console.log(`Navigating to ${baseUrl}...`);
     await page.goto(baseUrl, { waitUntil: "networkidle0" });
-
-    if (theme) {
-      console.log(`Applying ${theme} theme...`);
-      await page.evaluate((value) => {
-        localStorage.setItem("thread-atlas-theme", value);
-      }, theme);
-      await page.reload({ waitUntil: "networkidle0" });
-    }
   
     console.log(`Setting page zoom to ${zoomFactor}...`);
     await page.evaluate(`document.documentElement.style.zoom = '${zoomFactor}'`);
@@ -299,9 +303,11 @@ async function main() {
 
     console.log("Waiting for chat messages to load and render...");
     await page.waitForSelector(".chat-messages", { timeout: 10000 });
+    await page.waitForSelector(".tool-call-block", { timeout: 10000 });
 
-    // Wait extra time for syntax highlight and fonts to fully load
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // Wait for web fonts and the final layout pass before measuring annotations.
+    await page.evaluate(() => document.fonts.ready);
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     const screenshotPath = path.resolve(process.cwd(), "docs/screenshot.png");
     console.log(`Saving screenshot to ${screenshotPath}...`);
@@ -345,26 +351,21 @@ async function main() {
           rescanBtn: getBtnByText("Rescan local"),
           importBtn: getBtnByText("Import files"),
           sshBtn: getBtnByText("SSH sync"),
+          connectionsBtn: getBtnByText("Connections"),
           pathDisplay: getRect(".status-pill"),
           searchInput: getRect(".sidebar-controls .text-input"),
-          sourceFilter: getRect(".source-filter-dropdown .custom-dropdown-trigger"),
-          sidebarHeader: getRect(".sidebar .panel-header"),
+          sourceFilter: getRect(".source-filter-dropdown .ui-menu-trigger"),
           sessionList: getRect(".session-list"),
           sessionCount: getRect(".sidebar .panel-header .count-badge"),
-          sortToggle: getRect(".sidebar .panel-header .panel-icon-button"),
-          chatHeader: getRect(".chat-header"),
-          chatTitleRow: getRect(".chat-title-row"),
-          chatActions: getRect(".chat-actions"),
-          chatMeta: getRect(".chat-meta"),
+          sidebarPin: getRect(".sidebar .panel-header .panel-icon-button"),
+          sessionPin: getRect(".chat-fav-actions .pin-btn"),
+          sessionFavorite: getRect(".chat-fav-actions .favorite-btn"),
+          resumeBtn: getRect(".chat-actions .copy-command-dropdown-trigger, .chat-actions .copy-command-button"),
+          exportBtn: getRect(".export-dropdown-container .ui-menu-trigger"),
           filterTabs: getRect(".filter-chip-row"),
-          actionButtons: getAllRects(".chat-actions button"),
           toolRows: getAllRects(".tool-call-block"),
           timeline: getRect(".timeline-panel"),
-          timelineEntries: getAllRects(".timeline-item"),
-          exportBtn: getBtnByText("Export JSON"),
-          copyBtn: getRect(".chat-actions .copy-command-button"),
-          pinBtn: getRect(".timeline-header .panel-icon-button"),
-          allButtons: getAllRects("button"),
+          timelinePin: getRect(".timeline-header .panel-icon-button"),
         };
       })()
     `) as any;
