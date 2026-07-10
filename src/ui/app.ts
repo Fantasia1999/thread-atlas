@@ -566,7 +566,19 @@ export class ThreadAtlasApp {
     this.timelineOpen = force !== undefined ? force : !this.timelineOpen;
     const state = this.store.getState();
     this.renderShellState(state);
-    this.renderMainRegion(state);
+
+    const timelineOpen = this.isTimelinePinned() || this.timelineOpen;
+    const mainPanel = this.mainMount.querySelector<HTMLElement>(".main-panel");
+    const timelineDock = this.mainMount.querySelector<HTMLElement>(".timeline-dock");
+    const timelineToggle = timelineDock?.querySelector<HTMLButtonElement>(".rail-button");
+
+    mainPanel?.classList.toggle("timeline-open", timelineOpen);
+    timelineDock?.classList.toggle("open", timelineOpen);
+    if (timelineToggle) {
+      const label = timelineOpen ? "Collapse timeline" : "Open timeline";
+      timelineToggle.title = label;
+      timelineToggle.setAttribute("aria-label", label);
+    }
   }
 
   private toggleTimelinePin(): void {

@@ -79,6 +79,17 @@ function createRenderedApp(store: SessionStore): HTMLElement {
   return mainMount;
 }
 
+async function createSelectedApp(): Promise<HTMLElement> {
+  const bundle = createImportedBundle();
+  const store = new SessionStore();
+  store.importBundles([bundle]);
+  await store.selectSession(bundle.key);
+
+  const root = document.createElement("div");
+  new ThreadAtlasApp(root, store);
+  return root;
+}
+
 function collectScopes(store: SessionStore): Array<StateScope | undefined> {
   const scopes: Array<StateScope | undefined> = [];
   store.subscribe((_state, scope) => {
@@ -222,4 +233,35 @@ test("session selection replaces the rendered main child", async () => {
   await store.selectSession(bundle.key);
 
   assert.notEqual(mainMount.firstElementChild, mainChild);
+});
+
+test("timeline hover does not redraw the message list", async () => {
+  Object.defineProperty(globalThis, "innerWidth", {
+    value: 1000,
+    writable: true,
+    configurable: true
+  });
+  localStorage.setItem("thread-atlas-timeline-pinned", "false");
+
+  const root = await createSelectedApp();
+  const messageList = root.querySelector(".chat-messages");
+  const timelineDock = root.querySelector(".timeline-dock") as HTMLElement | null;
+  const timelineToggle = timelineDock?.querySelector(".rail-button") as HTMLElement | null;
+  assert.ok(messageList);
+  assert.ok(timelineDock);
+  assert.ok(timelineToggle);
+
+  (timelineToggle as any).dispatchEvent("mouseenter");
+  await new Promise((resolve) => setTimeout(resolve, 60));
+
+  assert.equal(root.querySelector(".chat-messages"), messageList);
+  assert.equal(timelineDock.classList.contains("open"), true);
+  assert.equal(timelineToggle.getAttribute("title"), "Collapse timeline");
+
+  (timelineDock as any).dispatchEvent("mouseleave");
+  await new Promise((resolve) => setTimeout(resolve, 90));
+
+  assert.equal(root.querySelector(".chat-messages"), messageList);
+  assert.equal(timelineDock.classList.contains("open"), false);
+  assert.equal(timelineToggle.getAttribute("title"), "Open timeline");
 });
