@@ -26,7 +26,8 @@ test("renderMarkdown treats indented fenced code as a block", () => {
   const figure = findElementsByTag(fragment, "figure")[0];
 
   assert.ok(figure);
-  assert.equal(figure.className, "md-code-frame");
+  assert.equal(figure.classList.contains("md-code-frame"), true);
+  assert.equal(figure.classList.contains("ui-panel"), true);
   assert.equal(figure.dataset.language, "bash");
 
   const caption = figure.childNodes.find(
@@ -216,8 +217,9 @@ test("renderMarkdown renders mermaid code blocks as premium interactive cards wi
     ].join("\n")
   ) as any;
 
-  const card = fragment.childNodes.find((node: any) => node.className === "mermaid-diagram-card");
+  const card = fragment.childNodes.find((node: any) => node.classList?.contains("mermaid-diagram-card"));
   assert.ok(card);
+  assert.equal(card.classList.contains("ui-panel"), true);
 
   // Validate header and tab buttons
   const header = card.childNodes.find((node: any) => node.className === "mermaid-card-header");
@@ -229,6 +231,7 @@ test("renderMarkdown renders mermaid code blocks as premium interactive cards wi
   const btnCode = tabs.childNodes.find((node: any) => node.textContent === "Code");
   assert.ok(btnPreview);
   assert.ok(btnCode);
+  assert.equal(tabs.childNodes.every((button: any) => button.classList.contains("ui-chip")), true);
 
   // Validate body and tab contents
   const body = card.childNodes.find((node: any) => node.className === "mermaid-card-body");
@@ -254,22 +257,22 @@ test("renderMarkdown renders mermaid code blocks as premium interactive cards wi
   // Validate tab toggle behavior on click events
   assert.equal(btnPreview.classList.contains("active"), true);
   assert.equal(btnCode.classList.contains("active"), false);
-  assert.ok(previewContainer.style.display === undefined || previewContainer.style.display === "");
-  assert.equal(codeContainer.style.display, "none");
+  assert.equal(previewContainer.classList.contains("hidden"), false);
+  assert.equal(codeContainer.classList.contains("hidden"), true);
 
   // Click Code Tab
   btnCode.dispatchEvent("click");
   assert.equal(btnPreview.classList.contains("active"), false);
   assert.equal(btnCode.classList.contains("active"), true);
-  assert.equal(previewContainer.style.display, "none");
-  assert.equal(codeContainer.style.display, "");
+  assert.equal(previewContainer.classList.contains("hidden"), true);
+  assert.equal(codeContainer.classList.contains("hidden"), false);
 
   // Click Preview Tab
   btnPreview.dispatchEvent("click");
   assert.equal(btnPreview.classList.contains("active"), true);
   assert.equal(btnCode.classList.contains("active"), false);
-  assert.equal(previewContainer.style.display, "");
-  assert.equal(codeContainer.style.display, "none");
+  assert.equal(previewContainer.classList.contains("hidden"), false);
+  assert.equal(codeContainer.classList.contains("hidden"), true);
 });
 
 test("renderMarkdown renders local file:// links as anchor elements", () => {

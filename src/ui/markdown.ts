@@ -105,7 +105,7 @@ export function renderMarkdown(text: string): DocumentFragment {
 
       if (openingFence.language.trim().toLowerCase() === "mermaid") {
         const card = document.createElement("div");
-        card.className = "mermaid-diagram-card";
+        card.className = "mermaid-diagram-card ui-panel";
 
         // Header
         const header = document.createElement("div");
@@ -126,12 +126,12 @@ export function renderMarkdown(text: string): DocumentFragment {
         tabs.className = "mermaid-card-tabs";
 
         const btnPreview = document.createElement("button");
-        btnPreview.className = "mermaid-tab-btn active";
+        btnPreview.className = "mermaid-tab-btn ui-chip active";
         btnPreview.type = "button";
         btnPreview.textContent = "Preview";
 
         const btnCode = document.createElement("button");
-        btnCode.className = "mermaid-tab-btn";
+        btnCode.className = "mermaid-tab-btn ui-chip";
         btnCode.type = "button";
         btnCode.textContent = "Code";
 
@@ -151,8 +151,7 @@ export function renderMarkdown(text: string): DocumentFragment {
         previewContainer.append(preMermaid);
 
         const codeContainer = document.createElement("div");
-        codeContainer.className = "mermaid-code-content";
-        codeContainer.style.display = "none";
+        codeContainer.className = "mermaid-code-content hidden";
 
         const preCode = document.createElement("pre");
         preCode.className = "code-block";
@@ -169,15 +168,15 @@ export function renderMarkdown(text: string): DocumentFragment {
         btnPreview.addEventListener("click", () => {
           btnPreview.classList.add("active");
           btnCode.classList.remove("active");
-          previewContainer.style.display = "";
-          codeContainer.style.display = "none";
+          previewContainer.classList.remove("hidden");
+          codeContainer.classList.add("hidden");
         });
 
         btnCode.addEventListener("click", () => {
           btnCode.classList.add("active");
           btnPreview.classList.remove("active");
-          previewContainer.style.display = "none";
-          codeContainer.style.display = "";
+          previewContainer.classList.add("hidden");
+          codeContainer.classList.remove("hidden");
         });
 
         fragment.append(card);
@@ -185,7 +184,7 @@ export function renderMarkdown(text: string): DocumentFragment {
       }
 
       const figure = document.createElement("figure");
-      figure.className = "md-code-frame";
+      figure.className = "md-code-frame ui-panel";
 
       if (normalizedLanguage) {
         figure.dataset.language = normalizedLanguage;

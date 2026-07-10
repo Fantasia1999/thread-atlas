@@ -329,7 +329,7 @@ export function renderMessage(
 
 function renderBackgroundTask(toolCall: ToolCall): HTMLElement {
   const container = document.createElement("div");
-  container.className = "tool-call-task";
+  container.className = "tool-call-task ui-panel";
 
   const header = document.createElement("div");
   header.className = "tool-call-task-header";
@@ -339,7 +339,7 @@ function renderBackgroundTask(toolCall: ToolCall): HTMLElement {
   label.textContent = "background task";
 
   const status = document.createElement("span");
-  status.className = "tool-call-task-status";
+  status.className = "tool-call-task-status ui-badge";
   status.textContent = toolCall.backgroundTask?.status ?? "unknown";
 
   header.append(label, status);
