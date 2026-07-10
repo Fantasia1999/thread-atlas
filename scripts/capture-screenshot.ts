@@ -3,6 +3,8 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";
 
+import { findAvailablePort, waitForHttpServer } from "./screenshotRuntime.js";
+
 const mockDescriptors = [
   {
     key: "file::/home/user/projects/markdown-viewer/src/renderer.ts",
@@ -207,182 +209,193 @@ async function main() {
 
   console.log(`[Screenshot Orchestrator] Selected Resolution: ${resKey.toUpperCase()} (${config.width}x${config.height}), Zoom: ${zoomFactor}`);
 
-  console.log("Starting ThreadAtlas Express server...");
-  const server = spawn("node", ["dist/server/server/index.js"], {
-    stdio: "inherit",
-    shell: true
+  const port = await findAvailablePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  console.log(`Starting ThreadAtlas Express server at ${baseUrl}...`);
+  const server = spawn(process.execPath, ["dist/server/server/index.js", `--port=${port}`], {
+    stdio: "inherit"
   });
 
-  await new Promise((resolve) => setTimeout(resolve, 3000));
-
-  console.log("Launching headless browser via Puppeteer...");
   let browser;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-    });
-  } catch (error) {
-    console.error("Failed to launch browser with default puppeteer. Attempting download...", error);
-    const installProcess = spawn("npx", ["puppeteer", "browsers", "install", "chrome"], {
-      stdio: "inherit",
-      shell: true
-    });
-    await new Promise((resolve) => installProcess.on("exit", resolve));
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-    });
-  }
-
-  const page = await browser.newPage();
-  await page.setViewport({ width: config.width, height: config.height, deviceScaleFactor: 1 });
-
-  // Enable request interception to mock API calls containing sensitive local information
-  await page.setRequestInterception(true);
-  page.on("request", (request) => {
-    const url = request.url();
-    if (url.includes("/api/local/scan")) {
-      console.log("Mocking API response for /api/local/scan");
-      request.respond({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          ok: true,
-          files: mockDescriptors
-        })
+    await waitForHttpServer(baseUrl, server);
+    console.log("Launching headless browser via Puppeteer...");
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
       });
-    } else if (url.includes("/api/local/session")) {
-      console.log(`Mocking API response for /api/local/session: ${url}`);
-      const key = new URL(url).searchParams.get("key") || "";
-      request.respond({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          ok: true,
-          bundle: getMockBundle(key)
-        })
+    } catch (error) {
+      console.error("Failed to launch browser with default puppeteer. Attempting download...", error);
+      const installProcess = spawn("npx", ["puppeteer", "browsers", "install", "chrome"], {
+        stdio: "inherit",
+        shell: true
       });
-    } else {
-      request.continue();
+      await new Promise((resolve) => installProcess.on("exit", resolve));
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+      });
     }
-  });
 
-  console.log("Navigating to http://localhost:3030...");
-  await page.goto("http://localhost:3030", { waitUntil: "networkidle0" });
+    const page = await browser.newPage();
+    await page.setViewport({ width: config.width, height: config.height, deviceScaleFactor: 1 });
 
-  if (theme) {
-    console.log(`Applying ${theme} theme...`);
-    await page.evaluate((value) => {
-      localStorage.setItem("thread-atlas-theme", value);
-    }, theme);
-    await page.reload({ waitUntil: "networkidle0" });
-  }
+    // Enable request interception to mock API calls containing sensitive local information
+    await page.setRequestInterception(true);
+    page.on("request", (request) => {
+      const url = request.url();
+      if (url.includes("/api/local/scan")) {
+        console.log("Mocking API response for /api/local/scan");
+        request.respond({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            files: mockDescriptors
+          })
+        });
+      } else if (url.includes("/api/local/session")) {
+        console.log(`Mocking API response for /api/local/session: ${url}`);
+        const key = new URL(url).searchParams.get("key") || "";
+        request.respond({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            bundle: getMockBundle(key)
+          })
+        });
+      } else {
+        request.continue();
+      }
+    });
+
+    console.log(`Navigating to ${baseUrl}...`);
+    await page.goto(baseUrl, { waitUntil: "networkidle0" });
+
+    if (theme) {
+      console.log(`Applying ${theme} theme...`);
+      await page.evaluate((value) => {
+        localStorage.setItem("thread-atlas-theme", value);
+      }, theme);
+      await page.reload({ waitUntil: "networkidle0" });
+    }
   
-  console.log(`Setting page zoom to ${zoomFactor}...`);
-  await page.evaluate(`document.documentElement.style.zoom = '${zoomFactor}'`);
+    console.log(`Setting page zoom to ${zoomFactor}...`);
+    await page.evaluate(`document.documentElement.style.zoom = '${zoomFactor}'`);
 
-  console.log("Waiting for sessions to load...");
-  await page.waitForSelector(".session-row", { timeout: 15000 });
+    console.log("Waiting for sessions to load...");
+    await page.waitForSelector(".session-row", { timeout: 15000 });
 
-  const sessions = await page.$$(".session-row");
-  console.log(`Found ${sessions.length} sessions.`);
+    const sessions = await page.$$(".session-row");
+    console.log(`Found ${sessions.length} sessions.`);
 
-  // Click on the first session which is our mocked antigravity session
-  if (sessions.length > 0) {
-    console.log("Clicking the mock session.");
-    await sessions[0].click();
-  }
+    // Click on the first session which is our mocked antigravity session
+    if (sessions.length > 0) {
+      console.log("Clicking the mock session.");
+      await sessions[0].click();
+    }
 
-  console.log("Waiting for chat messages to load and render...");
-  await page.waitForSelector(".chat-messages", { timeout: 10000 });
+    console.log("Waiting for chat messages to load and render...");
+    await page.waitForSelector(".chat-messages", { timeout: 10000 });
 
-  // Wait extra time for syntax highlight and fonts to fully load
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+    // Wait extra time for syntax highlight and fonts to fully load
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
-  const screenshotPath = path.resolve(process.cwd(), "docs/screenshot.png");
-  console.log(`Saving screenshot to ${screenshotPath}...`);
-  await page.screenshot({ path: screenshotPath });
+    const screenshotPath = path.resolve(process.cwd(), "docs/screenshot.png");
+    console.log(`Saving screenshot to ${screenshotPath}...`);
+    await page.screenshot({ path: screenshotPath });
 
-  console.log("Extracting element positions for annotation alignment...");
-  const positions = await page.evaluate(`
-    (function() {
-      function getRect(selector) {
-        var el = document.querySelector(selector);
-        if (!el) return null;
-        var r = el.getBoundingClientRect();
-        return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), selector: selector };
-      }
-      
-      function getBtnByText(text) {
-        var btns = Array.from(document.querySelectorAll("button"));
-        var el = btns.find(function(b) {
-          return b.textContent && b.textContent.trim().includes(text);
-        });
-        if (!el) return null;
-        var r = el.getBoundingClientRect();
-        return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
-      }
-      
-      function getAllRects(selector) {
-        var els = document.querySelectorAll(selector);
-        return Array.from(els).map(function(el, i) {
+    console.log("Extracting element positions for annotation alignment...");
+    const positions = await page.evaluate(`
+      (function() {
+        function getRect(selector) {
+          var el = document.querySelector(selector);
+          if (!el) return null;
           var r = el.getBoundingClientRect();
-          return { 
-            x: Math.round(r.x), y: Math.round(r.y), 
-            w: Math.round(r.width), h: Math.round(r.height),
-            text: (el.textContent || "").slice(0, 50),
-            index: i
-          };
-        });
+          return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), selector: selector };
+        }
+
+        function getBtnByText(text) {
+          var btns = Array.from(document.querySelectorAll("button"));
+          var el = btns.find(function(b) {
+            return b.textContent && b.textContent.trim().includes(text);
+          });
+          if (!el) return null;
+          var r = el.getBoundingClientRect();
+          return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+        }
+
+        function getAllRects(selector) {
+          var els = document.querySelectorAll(selector);
+          return Array.from(els).map(function(el, i) {
+            var r = el.getBoundingClientRect();
+            return {
+              x: Math.round(r.x), y: Math.round(r.y),
+              w: Math.round(r.width), h: Math.round(r.height),
+              text: (el.textContent || "").slice(0, 50),
+              index: i
+            };
+          });
+        }
+
+        return {
+          themeToggle: getRect(".theme-toggle"),
+          rescanBtn: getBtnByText("Rescan local"),
+          importBtn: getBtnByText("Import files"),
+          sshBtn: getBtnByText("SSH sync"),
+          pathDisplay: getRect(".status-pill"),
+          searchInput: getRect(".sidebar-controls .text-input"),
+          sourceFilter: getRect(".source-filter-dropdown .custom-dropdown-trigger"),
+          sidebarHeader: getRect(".sidebar .panel-header"),
+          sessionList: getRect(".session-list"),
+          sessionCount: getRect(".sidebar .panel-header .count-badge"),
+          sortToggle: getRect(".sidebar .panel-header .panel-icon-button"),
+          chatHeader: getRect(".chat-header"),
+          chatTitleRow: getRect(".chat-title-row"),
+          chatActions: getRect(".chat-actions"),
+          chatMeta: getRect(".chat-meta"),
+          filterTabs: getRect(".filter-chip-row"),
+          actionButtons: getAllRects(".chat-actions button"),
+          toolRows: getAllRects(".tool-call-block"),
+          timeline: getRect(".timeline-panel"),
+          timelineEntries: getAllRects(".timeline-item"),
+          exportBtn: getBtnByText("Export JSON"),
+          copyBtn: getRect(".chat-actions .copy-command-button"),
+          pinBtn: getRect(".timeline-header .panel-icon-button"),
+          allButtons: getAllRects("button"),
+        };
+      })()
+    `) as any;
+
+    const outPath = path.resolve(process.cwd(), "docs/element-positions.json");
+    fs.writeFileSync(outPath, JSON.stringify(positions, null, 2));
+    console.log(`Saved dynamic positions to ${outPath}`);
+
+  } finally {
+    try {
+      if (browser) {
+        console.log("Closing browser...");
+        await browser.close();
       }
-
-      return {
-        themeToggle: getRect(".theme-toggle"),
-        rescanBtn: getBtnByText("Rescan local"),
-        importBtn: getBtnByText("Import files"),
-        sshBtn: getBtnByText("SSH sync"),
-        pathDisplay: getRect(".status-pill"),
-        searchInput: getRect(".sidebar-controls .text-input"),
-        sourceFilter: getRect(".sidebar-controls .select-input"),
-        sidebarHeader: getRect(".sidebar .panel-header"),
-        sessionList: getRect(".session-list"),
-        sessionCount: getRect(".sidebar .panel-header .count-badge"),
-        sortToggle: getRect(".sidebar .panel-header .panel-icon-button"),
-        chatHeader: getRect(".chat-header"),
-        chatTitleRow: getRect(".chat-title-row"),
-        chatActions: getRect(".chat-actions"),
-        chatMeta: getRect(".chat-meta"),
-        filterTabs: getRect(".filter-chip-row"),
-        actionButtons: getAllRects(".chat-actions button"),
-        toolRows: getAllRects(".tool-call-block"),
-        timeline: getRect(".timeline-panel"),
-        timelineEntries: getAllRects(".timeline-item"),
-        exportBtn: getBtnByText("Export JSON"),
-        copyBtn: getRect(".chat-actions .copy-command-button"),
-        pinBtn: getRect(".timeline-header .panel-icon-button"),
-        allButtons: getAllRects("button"),
-      };
-    })()
-  `) as any;
-
-  const outPath = path.resolve(process.cwd(), "docs/element-positions.json");
-  fs.writeFileSync(outPath, JSON.stringify(positions, null, 2));
-  console.log(`Saved dynamic positions to ${outPath}`);
-
-  console.log("Closing browser...");
-  await browser.close();
-
-  console.log("Stopping ThreadAtlas server...");
-  server.kill("SIGTERM");
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+    } finally {
+      if (server.exitCode === null) {
+        console.log("Stopping ThreadAtlas server...");
+        server.kill("SIGTERM");
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
 
   console.log("Running python annotation script...");
   const annotateProcess = spawn("python3", ["scripts/annotate.py"], {
-    stdio: "inherit",
-    shell: true
+    stdio: "inherit"
   });
-  await new Promise((resolve) => annotateProcess.on("exit", resolve));
+  const annotationExit = await new Promise<number | null>((resolve) => annotateProcess.on("exit", resolve));
+  if (annotationExit !== 0) {
+    throw new Error(`Screenshot annotation failed with exit code ${annotationExit}.`);
+  }
 
   console.log("All done!");
   process.exit(0);
