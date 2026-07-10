@@ -100,8 +100,8 @@
 .sidebar-mount {
   z-index: var(--z-rail);
   overflow: visible;
-  border-right: 1px solid var(--border-default);
-  background: var(--bg-muted);
+  border-right: 1px solid var(--border-sidebar);
+  background: var(--bg-sidebar);
 }
 .main-mount {
   overflow: hidden;
@@ -141,12 +141,12 @@
   align-items: center;
   gap: var(--space-2);
   padding: 10px var(--space-1);
-  border-right: 1px solid var(--border-default);
-  background: var(--bg-muted);
+  border-right: 1px solid var(--border-sidebar);
+  background: var(--bg-sidebar);
 }
 .timeline-rail {
   border-right: 0;
-  border-left: 1px solid var(--border-default);
+  border-left: 1px solid var(--border-sidebar);
 }
 .sidebar-dock.pinned .sidebar-rail {
   display: none;

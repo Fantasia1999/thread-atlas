@@ -183,8 +183,8 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  border-left: 1px solid var(--border-default);
-  background: var(--bg-muted);
+  border-left: 1px solid var(--border-sidebar);
+  background: var(--bg-sidebar);
   box-shadow: var(--shadow-float);
   opacity: 0;
   pointer-events: none;
