@@ -126,7 +126,23 @@ test("renderSidebar renders search input and custom filter dropdown", () => {
 
   const input = sidebar.querySelector("input");
   assert.ok(input);
-  assert.equal(input.className, "text-input");
+  assert.ok(input.classList.contains("text-input"));
+  assert.ok(input.classList.contains("ui-input"));
+});
+
+test("sidebar composes shared controls and panels", () => {
+  const sidebar = renderSidebar(createSidebarOptions());
+
+  assert.equal(sidebar.querySelector(".rail-button")?.classList.contains("ui-icon-button"), true);
+  assert.equal(sidebar.querySelector(".panel-icon-button")?.classList.contains("ui-icon-button"), true);
+  assert.equal(sidebar.querySelector(".count-badge")?.classList.contains("ui-badge"), true);
+  assert.equal(sidebar.querySelector(".session-row")?.classList.contains("ui-panel"), true);
+  assert.equal(sidebar.querySelector(".source-badge")?.classList.contains("ui-badge"), true);
+
+  const dropdown = sidebar.querySelector(".source-filter-dropdown");
+  assert.equal(dropdown?.classList.contains("ui-menu-root"), true);
+  assert.equal(dropdown?.querySelector(".custom-dropdown-trigger")?.classList.contains("ui-menu-trigger"), true);
+  assert.equal(dropdown?.querySelector(".custom-dropdown-menu")?.classList.contains("ui-menu"), true);
 });
 
 test("source filter lists every source with registry labels in sidebar order", () => {

@@ -124,7 +124,7 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
   rail.className = "sidebar-rail";
 
   const openButton = document.createElement("button");
-  openButton.className = "rail-button";
+  openButton.className = "rail-button ui-icon-button";
   openButton.type = "button";
   openButton.innerHTML = listIcon();
 
@@ -175,10 +175,10 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
   headingActions.className = "panel-header-actions";
 
   const countBadge = document.createElement("div");
-  countBadge.className = "count-badge";
+  countBadge.className = "count-badge ui-badge";
 
   const pinButton = document.createElement("button");
-  pinButton.className = "panel-icon-button";
+  pinButton.className = "panel-icon-button ui-icon-button";
   pinButton.type = "button";
   pinButton.innerHTML = pinIcon();
   pinButton.addEventListener("click", () => {
@@ -191,7 +191,7 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
   controls.className = "sidebar-controls";
 
   const search = document.createElement("input");
-  search.className = "text-input";
+  search.className = "text-input ui-input";
   search.type = "search";
   search.placeholder = "Search title or path";
   search.addEventListener("input", () => {
@@ -271,9 +271,6 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
     const hasTags = tagCounts.size > 0;
     const showChips = hasFavorites || hasTags;
 
-    if (chipsContainer.style) {
-      chipsContainer.style.display = showChips ? "flex" : "none";
-    }
     chipsContainer.classList.toggle("hidden", !showChips);
     if (!showChips) {
       return;
@@ -286,7 +283,7 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
       const isFavSearchActive =
         renderedOptions.search.toLowerCase().includes("is:starred") ||
         renderedOptions.search.toLowerCase().includes("is:favorite");
-      allFavChip.className = `chip-btn star-chip${isFavSearchActive ? " active" : ""}`;
+      allFavChip.className = `chip-btn ui-chip star-chip${isFavSearchActive ? " active" : ""}`;
       allFavChip.textContent = `⭐ Favorites`;
       allFavChip.addEventListener("click", (e) => {
         e?.stopPropagation();
@@ -375,7 +372,7 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
     openButton.title = nextOptions.open ? "Collapse sessions" : "Open sessions";
     openButton.setAttribute("aria-label", openButton.title);
 
-    pinButton.className = `panel-icon-button${nextOptions.pinned ? " active" : ""}`;
+    pinButton.className = `panel-icon-button ui-icon-button${nextOptions.pinned ? " active" : ""}`;
     pinButton.title = nextOptions.pinned ? "Unpin sessions" : "Pin sessions";
     pinButton.setAttribute("aria-label", pinButton.title);
 
@@ -413,7 +410,7 @@ function renderSessionList(
 
       for (const projectPath of options.hiddenProjects) {
         const button = document.createElement("button");
-        button.className = "session-row";
+        button.className = "session-row ui-panel";
         button.type = "button";
         button.title = "Click to restore workspace";
 
@@ -423,7 +420,7 @@ function renderSessionList(
         button.innerHTML = `
           <div class="session-row-top">
             <div class="source-and-date">
-              <span class="source-badge unknown">hidden</span>
+              <span class="source-badge ui-badge unknown">hidden</span>
             </div>
           </div>
           <strong class="session-title">${escapeHtml(label)}</strong>
@@ -467,7 +464,7 @@ function renderSessionList(
       }
 
       const button = document.createElement("button");
-      button.className = `session-row${descriptor.key === options.selectedKey ? " active" : ""}${isPinned ? " pinned-row" : ""}${isFavorited ? " favorite-row" : ""}`;
+      button.className = `session-row ui-panel${descriptor.key === options.selectedKey ? " active" : ""}${isPinned ? " pinned-row" : ""}${isFavorited ? " favorite-row" : ""}`;
       button.type = "button";
       button.addEventListener("click", () => {
         getCurrentOptions().onSelect(descriptor.key);
@@ -486,7 +483,7 @@ function renderSessionList(
       const sourceAndDate = document.createElement("div");
       sourceAndDate.className = "source-and-date";
       sourceAndDate.innerHTML = `
-        <span class="source-badge ${descriptor.source}">${descriptor.source}</span>
+        <span class="source-badge ui-badge ${descriptor.source}">${descriptor.source}</span>
         <span class="session-date" title="${escapeHtml(hoverDateLabel)}">${dateLabel}</span>
       `;
       rowTop.append(sourceAndDate);
@@ -514,7 +511,7 @@ function renderSessionList(
 
       if (descriptor.origin === "remote" && descriptor.connectionLabel) {
         const connectionBadgeEl = document.createElement("span");
-        connectionBadgeEl.className = "connection-badge";
+        connectionBadgeEl.className = "connection-badge ui-badge";
         connectionBadgeEl.title = descriptor.connectionDetail ?? descriptor.connectionLabel;
         connectionBadgeEl.textContent = descriptor.connectionLabel;
         pathRow.append(connectionBadgeEl);
@@ -533,7 +530,7 @@ function renderSessionList(
 
       const pinBtn = document.createElement("button");
       pinBtn.type = "button";
-      pinBtn.className = `session-action-btn pin-btn${isPinned ? " active" : ""}`;
+      pinBtn.className = `session-action-btn ui-icon-button pin-btn${isPinned ? " active" : ""}`;
       pinBtn.title = isPinned ? "Unpin session" : "Pin session";
       pinBtn.innerHTML = pinIconMini();
       pinBtn.addEventListener("click", (e) => {
@@ -543,7 +540,7 @@ function renderSessionList(
 
       const favBtn = document.createElement("button");
       favBtn.type = "button";
-      favBtn.className = `session-action-btn favorite-btn${isFavorited ? " active" : ""}`;
+      favBtn.className = `session-action-btn ui-icon-button favorite-btn${isFavorited ? " active" : ""}`;
       favBtn.title = isFavorited ? "Remove from Favorites" : "Add to Favorites";
       favBtn.innerHTML = starIconMini();
       favBtn.addEventListener("click", (e) => {
@@ -560,7 +557,7 @@ function renderSessionList(
         tagsContainer.className = "session-row-tags";
         for (const t of meta.tags) {
           const pill = document.createElement("span");
-          pill.className = "tag-pill";
+          pill.className = "tag-pill ui-badge";
           pill.textContent = t;
           tagsContainer.append(pill);
         }
@@ -654,7 +651,7 @@ function renderSessionList(
       const isCollapsed = !(options.expandedSessionKeys?.has(descriptor.key) ?? false) && !isDescendantSelected(node);
 
       const button = document.createElement("button");
-      let btnClassName = `session-row${descriptor.key === options.selectedKey ? " active" : ""}${isPinned ? " pinned-row" : ""}${isFavorited ? " favorite-row" : ""}`;
+      let btnClassName = `session-row ui-panel${descriptor.key === options.selectedKey ? " active" : ""}${isPinned ? " pinned-row" : ""}${isFavorited ? " favorite-row" : ""}`;
       if (depth > 0) {
         btnClassName += ` subagent-row subagent-row-depth-${depth}`;
       }
@@ -676,7 +673,7 @@ function renderSessionList(
       sourceAndDate.className = "source-and-date";
 
       const badgeSpan = document.createElement("span");
-      badgeSpan.className = `source-badge ${descriptor.source}`;
+      badgeSpan.className = `source-badge ui-badge ${descriptor.source}`;
       badgeSpan.textContent = descriptor.source;
 
       const dateSpan = document.createElement("span");
@@ -689,7 +686,7 @@ function renderSessionList(
       if (hasChildren) {
         const badge = document.createElement("button");
         badge.type = "button";
-        badge.className = "subagent-count-badge";
+        badge.className = "subagent-count-badge ui-badge";
         badge.textContent = String(node.children.length);
         badge.title = isCollapsed ? "Expand subagents" : "Collapse subagents";
         badge.addEventListener("click", (e) => {
@@ -730,7 +727,7 @@ function renderSessionList(
 
       if (descriptor.origin === "remote" && descriptor.connectionLabel) {
         const connectionBadgeEl = document.createElement("span");
-        connectionBadgeEl.className = "connection-badge";
+        connectionBadgeEl.className = "connection-badge ui-badge";
         connectionBadgeEl.title = descriptor.connectionDetail ?? descriptor.connectionLabel;
         connectionBadgeEl.textContent = descriptor.connectionLabel;
         pathRow.append(connectionBadgeEl);
@@ -748,7 +745,7 @@ function renderSessionList(
 
       const pinBtn = document.createElement("button");
       pinBtn.type = "button";
-      pinBtn.className = `session-action-btn pin-btn${isPinned ? " active" : ""}`;
+      pinBtn.className = `session-action-btn ui-icon-button pin-btn${isPinned ? " active" : ""}`;
       pinBtn.title = isPinned ? "Unpin session" : "Pin session";
       pinBtn.innerHTML = pinIconMini();
       pinBtn.addEventListener("click", (e) => {
@@ -758,7 +755,7 @@ function renderSessionList(
 
       const favBtn = document.createElement("button");
       favBtn.type = "button";
-      favBtn.className = `session-action-btn favorite-btn${isFavorited ? " active" : ""}`;
+      favBtn.className = `session-action-btn ui-icon-button favorite-btn${isFavorited ? " active" : ""}`;
       favBtn.title = isFavorited ? "Remove from Favorites" : "Add to Favorites";
       favBtn.innerHTML = starIconMini();
       favBtn.addEventListener("click", (e) => {
@@ -774,7 +771,7 @@ function renderSessionList(
         tagsContainer.className = "session-row-tags";
         for (const t of meta.tags) {
           const pill = document.createElement("span");
-          pill.className = "tag-pill";
+          pill.className = "tag-pill ui-badge";
           pill.textContent = t;
           tagsContainer.append(pill);
         }
@@ -856,11 +853,7 @@ function renderSessionList(
     if (pendingDescriptors.length > 0) {
       const moreBtn = document.createElement("button");
       moreBtn.type = "button";
-      moreBtn.className = "button secondary show-more-sessions-btn";
-      moreBtn.style.width = "calc(100% - 16px)";
-      moreBtn.style.margin = "12px 8px";
-      moreBtn.style.padding = "8px 12px";
-      moreBtn.style.fontSize = "12px";
+      moreBtn.className = "button secondary ui-button ui-button--secondary show-more-sessions-btn";
       moreBtn.textContent = `Show full history (+${pendingDescriptors.length} remaining)`;
       moreBtn.addEventListener("click", () => {
         const latestOptions = getCurrentOptions();
@@ -935,7 +928,7 @@ function starIconMini(): string {
 
 function caretRightIcon(): string {
   return `
-    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="display: block;">
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
       <path d="M5.72 13.47a.75.75 0 0 1 0-1.06L9.66 8.5 5.72 4.59a.75.75 0 1 1 1.06-1.06l4.47 4.47a.75.75 0 0 1 0 1.06l-4.47 4.47a.75.75 0 0 1-1.06 0Z"/>
     </svg>
   `;
@@ -943,7 +936,7 @@ function caretRightIcon(): string {
 
 function caretDownIcon(): string {
   return `
-    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="display: block;">
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
       <path d="M3.47 5.72a.75.75 0 0 1 1.06 0L8 9.19l3.47-3.47a.75.75 0 1 1 1.06 1.06l-4 4a.75.75 0 0 1-1.06 0l-4-4a.75.75 0 0 1 0-1.06Z"/>
     </svg>
   `;
@@ -967,10 +960,10 @@ function createCustomDropdown(options: {
 }): CustomDropdown {
   let selectedValue = options.selectedValue;
   const container = document.createElement("div");
-  container.className = "custom-dropdown-container";
+  container.className = "custom-dropdown-container ui-menu-root";
 
   const trigger = document.createElement("div");
-  trigger.className = "custom-dropdown-trigger";
+  trigger.className = "custom-dropdown-trigger ui-menu-trigger";
 
   const triggerLabel = document.createElement("span");
   triggerLabel.className = "trigger-label";
@@ -984,7 +977,7 @@ function createCustomDropdown(options: {
   container.append(trigger);
 
   const menu = document.createElement("div");
-  menu.className = "custom-dropdown-menu hidden";
+  menu.className = "custom-dropdown-menu ui-menu hidden";
 
   const updateSelectedValue = (value: string) => {
     selectedValue = value;
@@ -1000,7 +993,7 @@ function createCustomDropdown(options: {
     for (const item of options.items) {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = `custom-dropdown-item${item.value === selectedValue ? " active" : ""}`;
+      btn.className = `custom-dropdown-item ui-menu-item${item.value === selectedValue ? " active" : ""}`;
       btn.dataset.value = item.value;
       btn.textContent = item.label;
       btn.addEventListener("click", (e) => {

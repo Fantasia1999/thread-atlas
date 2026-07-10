@@ -1,54 +1,144 @@
-/* Layout Shells & Rails */
+.topbar {
+  position: relative;
+  z-index: var(--z-topbar);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 52px;
+  padding: var(--space-2) 20px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-panel);
+}
+
+.brand-block,
+.topbar-actions,
+.topbar-side,
+.theme-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.brand-block {
+  min-width: 0;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.brand-block h1 {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.04em;
+}
+
+.eyebrow {
+  display: none;
+}
+
+.topbar-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.topbar-side {
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 10px;
+}
+
+.topbar .ui-button {
+  min-height: 30px;
+}
+
+.status-pill {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 26px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.status-pill:hover {
+  --badge-color: var(--text-primary);
+}
+
+.status-pill.copied {
+  --badge-color: var(--status-success);
+  font-weight: 600;
+}
+
+.theme-toggle {
+  padding: 2px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--bg-muted);
+}
+
+.theme-toggle-button {
+  min-width: 52px;
+  min-height: 26px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .content-grid {
+  position: relative;
   display: grid;
   grid-template-columns: var(--rail-width) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
-  position: relative;
 }
 
 .app-shell.sidebar-pinned .content-grid {
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
-.sidebar-mount {
+.sidebar-mount,
+.main-mount {
   position: relative;
+  display: flex;
   min-width: 0;
   min-height: 0;
-  display: flex;
   flex-direction: column;
+}
+
+.sidebar-mount {
+  z-index: var(--z-rail);
   overflow: visible;
   border-right: 1px solid var(--border-default);
-  background: var(--bg-panel-muted);
-  z-index: 8; /* Set higher than chat-header to float on top in drawer mode */
+  background: var(--bg-muted);
 }
 
 .main-mount {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   background: var(--bg-app);
-  position: relative;
 }
 
 .main-mount::before {
-  content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 400px;
-  background: radial-gradient(circle at 50% -120px, var(--mesh-color-1), transparent 50%),
-              radial-gradient(circle at 10% -50px, var(--mesh-color-2), transparent 35%),
-              radial-gradient(circle at 90% -50px, var(--mesh-color-3), transparent 35%),
-              radial-gradient(circle at 30% 180px, var(--mesh-color-4), transparent 25%),
-              radial-gradient(circle at 75% 150px, var(--mesh-color-5), transparent 25%);
-  pointer-events: none;
+  inset: 0 0 auto;
   z-index: 0;
+  height: 400px;
+  background:
+    radial-gradient(circle at 50% -120px, var(--mesh-color-1), transparent 50%),
+    radial-gradient(circle at 10% -50px, var(--mesh-color-2), transparent 35%),
+    radial-gradient(circle at 90% -50px, var(--mesh-color-3), transparent 35%),
+    radial-gradient(circle at 30% 180px, var(--mesh-color-4), transparent 25%),
+    radial-gradient(circle at 75% 150px, var(--mesh-color-5), transparent 25%);
   opacity: var(--mesh-opacity);
-  transition: opacity var(--transition);
+  pointer-events: none;
+  content: "";
 }
 
 .sidebar-dock {
@@ -60,25 +150,20 @@
   min-height: 0;
 }
 
-.sidebar-dock.open {
-  width: var(--rail-width);
-}
-
 .sidebar-dock.pinned {
-  width: 100%;
   grid-template-columns: 0 minmax(0, 1fr);
+  width: 100%;
 }
 
-/* Ultra-slim, precise Rails */
 .sidebar-rail,
 .timeline-rail {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 10px 4px;
+  gap: var(--space-2);
+  padding: 10px var(--space-1);
   border-right: 1px solid var(--border-default);
-  background: var(--bg-panel-muted);
+  background: var(--bg-muted);
 }
 
 .timeline-rail {
@@ -92,23 +177,12 @@
 
 .rail-button,
 .panel-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
   color: var(--text-secondary);
-  transition: all var(--transition);
 }
 
-.rail-button:hover,
-.panel-icon-button:hover,
 .panel-icon-button.active {
   border-color: var(--border-strong);
-  background: var(--bg-surface-active);
+  background: var(--bg-muted);
   color: var(--text-primary);
 }
 
@@ -119,7 +193,6 @@
   fill: currentColor;
 }
 
-/* Responsive Styles */
 @media (max-width: 1200px) {
   .chat-layout {
     display: contents;
@@ -131,27 +204,19 @@
     --sidebar-width: 280px;
   }
 
-  .content-grid {
-    grid-template-columns: var(--rail-width) minmax(0, 1fr);
-  }
-
-  .app-shell.sidebar-pinned .content-grid {
-    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  }
-
-  .chat-messages {
-    padding: 16px;
-  }
-
   .topbar {
     grid-template-columns: minmax(0, 1fr);
-    padding: 12px 16px;
     gap: 10px;
+    padding: var(--space-3) var(--space-4);
   }
 
   .topbar-side {
-    justify-self: stretch;
     justify-content: space-between;
+    justify-self: stretch;
+  }
+
+  .chat-messages {
+    padding: var(--space-4);
   }
 }
 
@@ -166,29 +231,20 @@
     min-height: 100vh;
   }
 
-  .content-grid {
-    grid-template-columns: var(--rail-width) minmax(0, 1fr);
-  }
-
   .sidebar-mount {
-    border-right: 1px solid var(--border-default);
-    border-bottom: 0;
     max-height: none;
   }
 
   .chat-title-row,
   .chat-meta-row,
   .chat-filter-row {
-    flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    flex-direction: column;
+    gap: var(--space-3);
   }
 
   .topbar-actions,
-  .chat-actions {
-    justify-content: flex-start;
-  }
-
+  .chat-actions,
   .chat-filter-row .filter-chip-row {
     justify-content: flex-start;
   }
@@ -202,7 +258,6 @@
   }
 
   .modal-overlay {
-    padding: 12px;
+    padding: var(--space-3);
   }
 }
-
