@@ -13,7 +13,7 @@ export function renderMessage(
   }
 ): HTMLElement {
   const entry = document.createElement("article");
-  entry.className = "log-entry";
+  entry.className = "log-entry ui-panel";
   entry.id = options.anchorId;
   entry.setAttribute("data-message-anchor", options.anchorId);
 
@@ -27,11 +27,11 @@ export function renderMessage(
     cardHeader.className = "subagent-notification-header";
     
     const badge = document.createElement("span");
-    badge.className = "subagent-badge";
+    badge.className = "subagent-badge ui-badge";
     badge.innerHTML = `<span>Subagent Event</span>`;
     
     const statusPill = document.createElement("span");
-    statusPill.className = `subagent-status-pill ${notify.status}`;
+    statusPill.className = `subagent-status-pill ui-badge ${notify.status}`;
     statusPill.textContent = notify.status;
     
     cardHeader.append(badge, statusPill);
@@ -235,7 +235,7 @@ export function renderMessage(
     const messageTime = formatDisplayTime(message.createdAt);
     const messageTimeTitle = formatDateTimeLong(message.createdAt);
     header.innerHTML = `
-      <span class="log-role-badge ${message.role}">${escapeHtml(message.role)}</span>
+      <span class="log-role-badge ui-badge ${message.role}">${escapeHtml(message.role)}</span>
       <span class="message-type">${escapeHtml(message.rawType ?? "message")}</span>
       <span class="message-time" title="${escapeHtml(messageTimeTitle)}">${escapeHtml(messageTime)}</span>
     `;
@@ -267,7 +267,7 @@ export function renderMessage(
   const messageTime = formatDisplayTime(message.createdAt);
   const messageTimeTitle = formatDateTimeLong(message.createdAt);
   header.innerHTML = `
-    <span class="log-role-badge ${message.role}">${escapeHtml(message.role)}</span>
+    <span class="log-role-badge ui-badge ${message.role}">${escapeHtml(message.role)}</span>
     <span class="message-type">${escapeHtml(message.rawType ?? "message")}</span>
     <span class="message-time" title="${escapeHtml(messageTimeTitle)}">${escapeHtml(messageTime)}</span>
   `;
@@ -291,7 +291,7 @@ export function renderMessage(
 
   for (const toolCall of message.toolCalls ?? []) {
     const block = document.createElement("details");
-    block.className = "tool-call-block";
+    block.className = "tool-call-block ui-panel";
 
     const summary = document.createElement("summary");
     summary.className = "tool-call-header";
@@ -400,13 +400,8 @@ function renderTruncatedPre(parent: HTMLElement, text: string): void {
   }
 
   const toggleButton = document.createElement("button");
-  toggleButton.className = "button secondary message-expand-button";
+  toggleButton.className = "button secondary message-expand-button ui-button ui-button--secondary ui-button--compact";
   toggleButton.type = "button";
-  toggleButton.style.marginTop = "6px";
-  toggleButton.style.padding = "4px 8px";
-  toggleButton.style.fontSize = "11px";
-  toggleButton.style.height = "auto";
-  toggleButton.style.display = "inline-block";
   toggleButton.textContent = `Show full output (+${lines.length - 100} lines)`;
 
   let isExpanded = false;

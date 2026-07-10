@@ -127,7 +127,10 @@ test("createCopyResumeButton sets correct class, title and aria-label", () => {
   const button = createCopyResumeButton(command, label) as any;
 
   assert.equal(button.tagName, "button");
-  assert.equal(button.className, "button secondary copy-command-button icon-button");
+  assert.ok(button.classList.contains("button"));
+  assert.ok(button.classList.contains("copy-command-button"));
+  assert.ok(button.classList.contains("ui-button"));
+  assert.ok(button.classList.contains("ui-button--secondary"));
   assert.equal(button.title, command);
   assert.equal(button.attributes?.["aria-label"] || (button as any).getAttribute?.("aria-label"), label);
 });
@@ -320,7 +323,10 @@ test("createCopyResumeButton renders simple button when single option is passed"
   const container = createCopyResumeButton(options, "Resume");
 
   assert.equal(container.tagName, "button");
-  assert.equal(container.className, "button secondary copy-command-button");
+  assert.ok(container.classList.contains("button"));
+  assert.ok(container.classList.contains("copy-command-button"));
+  assert.ok(container.classList.contains("ui-button"));
+  assert.ok(container.classList.contains("ui-button--secondary"));
   assert.equal((container as HTMLButtonElement).title, "copilot --session-id=123");
   assert.ok(container.innerHTML.includes("Resume"));
 });
@@ -333,14 +339,18 @@ test("createCopyResumeButton renders dropdown when multiple options are passed",
   const container = createCopyResumeButton(options, "Resume");
 
   assert.equal(container.tagName, "div");
-  assert.equal(container.className, "custom-dropdown-container copy-command-dropdown-container");
+  assert.ok(container.classList.contains("custom-dropdown-container"));
+  assert.ok(container.classList.contains("copy-command-dropdown-container"));
+  assert.ok(container.classList.contains("ui-menu-root"));
 
   const trigger = container.querySelector(".custom-dropdown-trigger");
   assert.ok(trigger);
+  assert.ok(trigger.classList.contains("ui-menu-trigger"));
   assert.ok(trigger.innerHTML.includes("Resume"));
 
   const menu = container.querySelector(".custom-dropdown-menu");
   assert.ok(menu);
+  assert.ok(menu.classList.contains("ui-menu"));
 
   const items = menu.querySelectorAll(".custom-dropdown-item");
   assert.equal(items.length, 2);

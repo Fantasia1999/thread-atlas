@@ -169,7 +169,7 @@ function renderSessionHeader(options: {
 
   const pinToggleBtn = document.createElement("button");
   pinToggleBtn.type = "button";
-  pinToggleBtn.className = `button header-fav-btn pin-btn${isPinned ? " active" : ""}`;
+  pinToggleBtn.className = `button header-fav-btn ui-button ui-button--compact pin-btn${isPinned ? " active" : ""}`;
   pinToggleBtn.innerHTML = `📌 ${isPinned ? "Pinned" : "Pin"}`;
   pinToggleBtn.title = isPinned ? "Unpin from top" : "Pin to top";
   pinToggleBtn.addEventListener("click", () => {
@@ -178,7 +178,7 @@ function renderSessionHeader(options: {
 
   const favToggleBtn = document.createElement("button");
   favToggleBtn.type = "button";
-  favToggleBtn.className = `button header-fav-btn favorite-btn${isFavorited ? " active" : ""}`;
+  favToggleBtn.className = `button header-fav-btn ui-button ui-button--compact favorite-btn${isFavorited ? " active" : ""}`;
   favToggleBtn.innerHTML = `⭐ ${isFavorited ? "Favorited" : "Favorite"}`;
   favToggleBtn.title = isFavorited ? "Remove from Favorites" : "Add to Favorites";
   favToggleBtn.addEventListener("click", () => {
@@ -190,15 +190,15 @@ function renderSessionHeader(options: {
   if (isFavorited) {
     const editTagsBtn = document.createElement("button");
     editTagsBtn.type = "button";
-    editTagsBtn.className = "button header-fav-btn edit-tags-btn secondary";
+    editTagsBtn.className = "button header-fav-btn edit-tags-btn ui-button ui-button--secondary ui-button--compact";
     editTagsBtn.innerHTML = `🏷️ Tags`;
     editTagsBtn.title = "Edit tags and custom notes";
     editTagsBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       const panel = header.querySelector<HTMLElement>(".tags-edit-panel");
       if (panel) {
-        const isHidden = panel.style.display === "none";
-        panel.style.display = isHidden ? "block" : "none";
+        const isHidden = panel.classList.contains("hidden");
+        panel.classList.toggle("hidden", !isHidden);
         if (isHidden) {
           panel.querySelector<HTMLInputElement>(".tags-input")?.focus();
         }
@@ -230,25 +230,24 @@ function renderSessionHeader(options: {
     }
 
     const exportContainer = document.createElement("div");
-    exportContainer.className = "custom-dropdown-container";
-    exportContainer.style.width = "auto";
+    exportContainer.className = "custom-dropdown-container export-dropdown-container ui-menu-root";
 
     const exportBtn = document.createElement("button");
-    exportBtn.className = "button secondary custom-dropdown-trigger";
+    exportBtn.className = "button secondary custom-dropdown-trigger ui-button ui-button--secondary ui-menu-trigger";
     exportBtn.type = "button";
     exportBtn.innerHTML = `
       <span class="trigger-label">Export</span>
-      <span class="trigger-arrow" style="margin-left: 4px;">
+      <span class="trigger-arrow">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg>
       </span>
     `;
 
     const exportMenu = document.createElement("div");
-    exportMenu.className = "custom-dropdown-menu hidden";
+    exportMenu.className = "custom-dropdown-menu ui-menu hidden";
 
     const jsonBtn = document.createElement("button");
     jsonBtn.type = "button";
-    jsonBtn.className = "custom-dropdown-item";
+    jsonBtn.className = "custom-dropdown-item ui-menu-item";
     jsonBtn.textContent = "JSON";
     jsonBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -259,7 +258,7 @@ function renderSessionHeader(options: {
 
     const mdBtn = document.createElement("button");
     mdBtn.type = "button";
-    mdBtn.className = "custom-dropdown-item";
+    mdBtn.className = "custom-dropdown-item ui-menu-item";
     mdBtn.textContent = "MD";
     mdBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -306,30 +305,28 @@ function renderSessionHeader(options: {
     titleRow.append(actions);
   }
 
-  // Tags & Notes glassmorphic edit panel
   const tagsPanel = document.createElement("div");
-  tagsPanel.className = "tags-edit-panel card glassmorphic";
-  tagsPanel.style.display = "none";
+  tagsPanel.className = "tags-edit-panel ui-panel hidden";
   tagsPanel.innerHTML = `
     <div class="tags-panel-inner">
       <h3>🏷️ Edit Session Tags & Annotations</h3>
       <div class="tags-form-field">
         <label for="tags-input-field">Tags (comma separated)</label>
-        <input type="text" id="tags-input-field" class="text-input tags-input" placeholder="e.g. bugfix, auth, template" value="${escapeHtml(favMeta.tags.join(", "))}">
+        <input type="text" id="tags-input-field" class="text-input ui-input tags-input" placeholder="e.g. bugfix, auth, template" value="${escapeHtml(favMeta.tags.join(", "))}">
       </div>
       <div class="tags-form-field">
         <label for="notes-input-field">Private Notes / Annotations</label>
-        <textarea id="notes-input-field" class="text-input textarea-input notes-input" placeholder="Enter private summary, context or annotations here...">${escapeHtml(favMeta.notes)}</textarea>
+        <textarea id="notes-input-field" class="text-input ui-input ui-textarea textarea-input notes-input" placeholder="Enter private summary, context or annotations here...">${escapeHtml(favMeta.notes)}</textarea>
       </div>
       <div class="tags-panel-actions">
-        <button type="button" class="button btn-save-tags">Save Changes</button>
-        <button type="button" class="button link btn-cancel-tags">Cancel</button>
+        <button type="button" class="button btn-save-tags ui-button ui-button--primary">Save Changes</button>
+        <button type="button" class="button link btn-cancel-tags ui-button ui-button--ghost">Cancel</button>
       </div>
     </div>
   `;
 
   tagsPanel.querySelector(".btn-cancel-tags")?.addEventListener("click", () => {
-    tagsPanel.style.display = "none";
+    tagsPanel.classList.add("hidden");
   });
 
   tagsPanel.querySelector(".btn-save-tags")?.addEventListener("click", () => {
@@ -340,7 +337,7 @@ function renderSessionHeader(options: {
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
     options.onUpdateMetadata(descriptor.key, parsedTags, notesInput?.value || "");
-    tagsPanel.style.display = "none";
+    tagsPanel.classList.add("hidden");
   });
 
   main.append(titleRow, tagsPanel);
@@ -350,7 +347,7 @@ function renderSessionHeader(options: {
     const summaryWrapper = document.createElement("div");
     summaryWrapper.className = "header-bookmark-summary";
 
-    const tagPills = favMeta.tags.map((t) => `<span class="tag-pill">${escapeHtml(t)}</span>`).join("");
+    const tagPills = favMeta.tags.map((t) => `<span class="tag-pill ui-badge">${escapeHtml(t)}</span>`).join("");
     const notesContent = favMeta.notes.trim() ? `<span class="note-text">📝 ${escapeHtml(favMeta.notes)}</span>` : "";
 
     summaryWrapper.innerHTML = `
@@ -403,23 +400,20 @@ function renderSessionHeader(options: {
     // 5. CWD (Workspace)
     const cwdSpan = document.createElement("span");
     if (session.cwd) {
+      cwdSpan.className = "chat-meta-copyable";
       const dirName = session.cwd.split(/[\\/]/).filter(Boolean).at(-1) ?? session.cwd;
       cwdSpan.textContent = dirName;
       cwdSpan.title = `${session.cwd} (Double-click to copy full path)`;
-      cwdSpan.style.cursor = "pointer";
-      cwdSpan.style.userSelect = "none";
       
       cwdSpan.addEventListener("dblclick", async () => {
         try {
           await copyText(session.cwd!);
           const originalText = cwdSpan.textContent;
           cwdSpan.textContent = "Copied!";
-          cwdSpan.style.color = "var(--success)";
-          cwdSpan.style.fontWeight = "700";
+          cwdSpan.classList.add("copied");
           setTimeout(() => {
             cwdSpan.textContent = originalText;
-            cwdSpan.style.color = "";
-            cwdSpan.style.fontWeight = "";
+            cwdSpan.classList.remove("copied");
           }, 1200);
         } catch {
           // Fallback if clipboard API fails
@@ -446,9 +440,6 @@ function renderSessionHeader(options: {
   if (session) {
     const filterRow = document.createElement("div");
     filterRow.className = "chat-filter-row";
-    filterRow.style.display = "flex";
-    filterRow.style.alignItems = "center";
-    filterRow.style.gap = "12px";
 
     const parentThreadId = descriptor.metadata?.parentThreadId || session?.metadata?.parentThreadId;
     const hasHistory = options.previousKeys && options.previousKeys.length > 0;
@@ -456,9 +447,6 @@ function renderSessionHeader(options: {
     if (parentThreadId || hasHistory) {
       const backLink = document.createElement("a");
       backLink.className = "parent-session-backlink md-link";
-      backLink.style.fontSize = "12px";
-      backLink.style.fontWeight = "500";
-      backLink.style.whiteSpace = "nowrap";
 
       if (parentThreadId) {
         backLink.href = `session://${parentThreadId}`;
@@ -478,8 +466,6 @@ function renderSessionHeader(options: {
       const separator = document.createElement("span");
       separator.className = "parent-link-separator";
       separator.innerHTML = "|";
-      separator.style.opacity = "0.3";
-      separator.style.margin = "0";
 
       filterRow.append(backLink, separator);
     }
@@ -490,7 +476,7 @@ function renderSessionHeader(options: {
     for (const filter of FILTER_OPTIONS) {
       const chip = document.createElement("button");
       chip.type = "button";
-      chip.className = `filter-chip${filter.key === options.filter ? " active" : ""}`;
+      chip.className = `filter-chip ui-chip${filter.key === options.filter ? " active" : ""}`;
       chip.textContent = filter.label;
       chip.addEventListener("click", () => {
         options.onFilterChange(filter.key);
@@ -516,7 +502,7 @@ export function createCopyResumeButton(
     const button = document.createElement("button");
     let resetTimer = 0;
 
-    button.className = "button secondary copy-command-button icon-button";
+    button.className = "button secondary copy-command-button icon-button ui-button ui-button--secondary";
     button.type = "button";
     button.innerHTML = clipboardIcon();
 
@@ -527,7 +513,7 @@ export function createCopyResumeButton(
     button.addEventListener("click", async () => {
       window.clearTimeout(resetTimer);
       button.disabled = true;
-      button.dataset.state = "";
+      button.dataset.state = "loading";
       button.innerHTML = spinnerIcon();
 
       try {
@@ -541,7 +527,7 @@ export function createCopyResumeButton(
 
       resetTimer = window.setTimeout(() => {
         button.disabled = false;
-        button.dataset.state = "";
+        delete button.dataset.state;
         button.innerHTML = clipboardIcon();
       }, 1600);
     });
@@ -554,42 +540,32 @@ export function createCopyResumeButton(
     const button = document.createElement("button");
     let resetTimer = 0;
 
-    button.className = "button secondary copy-command-button";
+    button.className = "button secondary copy-command-button ui-button ui-button--secondary";
     button.type = "button";
-    button.style.display = "inline-flex";
-    button.style.alignItems = "center";
     
     const opt = commandOrOptions[0];
-    const defaultInner = `
-      <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px;">${clipboardIcon()}</span>
-      <span class="trigger-label">${label}</span>
-    `;
+    const defaultInner = renderCopyButtonContent(clipboardIcon(), label);
     button.innerHTML = defaultInner;
     button.title = opt.command;
 
     button.addEventListener("click", async () => {
       window.clearTimeout(resetTimer);
       button.disabled = true;
-      button.innerHTML = `
-        <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px;">${spinnerIcon()}</span>
-        <span class="trigger-label">Copying...</span>
-      `;
+      button.dataset.state = "loading";
+      button.innerHTML = renderCopyButtonContent(spinnerIcon(), "Copying...");
 
       try {
         await copyText(opt.command);
-        button.innerHTML = `
-          <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px; color: var(--success-color, #0070f3);">${successIcon()}</span>
-          <span class="trigger-label" style="color: var(--success-color, #0070f3);">Copied!</span>
-        `;
+        button.dataset.state = "success";
+        button.innerHTML = renderCopyButtonContent(successIcon(), "Copied!");
       } catch {
-        button.innerHTML = `
-          <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px; color: var(--error-color, #ee0000);">${errorIcon()}</span>
-          <span class="trigger-label" style="color: var(--error-color, #ee0000);">Error!</span>
-        `;
+        button.dataset.state = "error";
+        button.innerHTML = renderCopyButtonContent(errorIcon(), "Error!");
       }
 
       resetTimer = window.setTimeout(() => {
         button.disabled = false;
+        delete button.dataset.state;
         button.innerHTML = defaultInner;
       }, 1600);
     });
@@ -599,31 +575,24 @@ export function createCopyResumeButton(
 
   // Multiple options: act as a dropdown
   const container = document.createElement("div");
-  container.className = "custom-dropdown-container copy-command-dropdown-container";
-  container.style.width = "auto";
+  container.className = "custom-dropdown-container copy-command-dropdown-container ui-menu-root";
 
   const triggerBtn = document.createElement("button");
-  triggerBtn.className = "button secondary custom-dropdown-trigger copy-command-dropdown-trigger";
+  triggerBtn.className = "button secondary custom-dropdown-trigger copy-command-dropdown-trigger ui-button ui-button--secondary ui-menu-trigger";
   triggerBtn.type = "button";
   
-  const defaultInner = `
-    <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px;">${clipboardIcon()}</span>
-    <span class="trigger-label">${label}</span>
-    <span class="trigger-arrow" style="margin-left: 4px; display: inline-flex; align-items: center;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </span>
-  `;
+  const defaultInner = renderCopyButtonContent(clipboardIcon(), label, true);
   triggerBtn.innerHTML = defaultInner;
 
   const menu = document.createElement("div");
-  menu.className = "custom-dropdown-menu hidden";
+  menu.className = "custom-dropdown-menu ui-menu hidden";
 
   let resetTimer = 0;
 
   for (const opt of commandOrOptions) {
     const item = document.createElement("button");
     item.type = "button";
-    item.className = "custom-dropdown-item";
+    item.className = "custom-dropdown-item ui-menu-item";
     item.textContent = opt.label;
     item.title = opt.command;
 
@@ -634,26 +603,21 @@ export function createCopyResumeButton(
 
       window.clearTimeout(resetTimer);
       triggerBtn.disabled = true;
-      triggerBtn.innerHTML = `
-        <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px;">${spinnerIcon()}</span>
-        <span class="trigger-label">Copying...</span>
-      `;
+      triggerBtn.dataset.state = "loading";
+      triggerBtn.innerHTML = renderCopyButtonContent(spinnerIcon(), "Copying...", true);
 
       try {
         await copyText(opt.command);
-        triggerBtn.innerHTML = `
-          <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px; color: var(--success-color, #0070f3);">${successIcon()}</span>
-          <span class="trigger-label" style="color: var(--success-color, #0070f3);">Copied!</span>
-        `;
+        triggerBtn.dataset.state = "success";
+        triggerBtn.innerHTML = renderCopyButtonContent(successIcon(), "Copied!", true);
       } catch {
-        triggerBtn.innerHTML = `
-          <span class="trigger-icon" style="display: inline-flex; align-items: center; margin-right: 6px; color: var(--error-color, #ee0000);">${errorIcon()}</span>
-          <span class="trigger-label" style="color: var(--error-color, #ee0000);">Error!</span>
-        `;
+        triggerBtn.dataset.state = "error";
+        triggerBtn.innerHTML = renderCopyButtonContent(errorIcon(), "Error!", true);
       }
 
       resetTimer = window.setTimeout(() => {
         triggerBtn.disabled = false;
+        delete triggerBtn.dataset.state;
         triggerBtn.innerHTML = defaultInner;
       }, 1600);
     });
@@ -695,6 +659,18 @@ export function createCopyResumeButton(
   return container;
 }
 
+function renderCopyButtonContent(icon: string, label: string, showArrow = false): string {
+  return `
+    <span class="trigger-icon">${icon}</span>
+    <span class="trigger-label">${label}</span>
+    ${showArrow ? `
+      <span class="trigger-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </span>
+    ` : ""}
+  `;
+}
+
 function renderCommentaryGroup(
   block: { type: "commentary-group"; messages: Array<{ message: Message; index: number }> },
   options: {
@@ -703,7 +679,7 @@ function renderCommentaryGroup(
   }
 ): HTMLElement {
   const groupElement = document.createElement("article");
-  groupElement.className = "log-entry collapsed-commentary-group";
+  groupElement.className = "log-entry collapsed-commentary-group ui-panel";
 
   const trigger = document.createElement("div");
   trigger.className = "commentary-collapse-trigger";
@@ -814,7 +790,7 @@ function renderChatLayout(options: {
   timelineRail.className = "timeline-rail";
 
   const timelineToggle = document.createElement("button");
-  timelineToggle.className = "rail-button";
+  timelineToggle.className = "rail-button ui-icon-button";
   timelineToggle.type = "button";
   timelineToggle.title = options.timelineOpen ? "Collapse timeline" : "Open timeline";
   timelineToggle.setAttribute("aria-label", timelineToggle.title);
@@ -860,7 +836,7 @@ function renderChatLayout(options: {
   `;
 
   const timelinePin = document.createElement("button");
-  timelinePin.className = `panel-icon-button${options.timelinePinned ? " active" : ""}`;
+  timelinePin.className = `panel-icon-button ui-icon-button${options.timelinePinned ? " active" : ""}`;
   timelinePin.type = "button";
   timelinePin.title = options.timelinePinned ? "Unpin timeline" : "Pin timeline";
   timelinePin.setAttribute("aria-label", timelinePin.title);
@@ -971,14 +947,14 @@ function renderChatLayout(options: {
   scrollHub.className = "scroll-helper-hub";
 
   const btnTop = document.createElement("button");
-  btnTop.className = "scroll-btn scroll-btn-top";
+  btnTop.className = "scroll-btn scroll-btn-top ui-icon-button";
   btnTop.type = "button";
   btnTop.title = "Scroll to top";
   btnTop.setAttribute("aria-label", "Scroll to top");
   btnTop.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
 
   const btnBottom = document.createElement("button");
-  btnBottom.className = "scroll-btn scroll-btn-bottom";
+  btnBottom.className = "scroll-btn scroll-btn-bottom ui-icon-button";
   btnBottom.type = "button";
   btnBottom.title = "Scroll to bottom";
   btnBottom.setAttribute("aria-label", "Scroll to bottom");

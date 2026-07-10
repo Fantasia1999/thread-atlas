@@ -507,7 +507,7 @@ export class ThreadAtlasApp {
               messageElement.scrollIntoView({
                 block: "start"
               });
-              list.style.opacity = "1";
+              list.classList.add("ready");
               this.targetSubagentScrollId = undefined;
               return;
             }
@@ -522,7 +522,7 @@ export class ThreadAtlasApp {
       list.scrollTop = savedScrollTop;
       
       // Reveal the container synchronously - it is now perfectly scrolled!
-      list.style.opacity = "1";
+      list.classList.add("ready");
       
       console.log("[Scroll] Restored synchronously to:", savedScrollTop, "scrollHeight:", list.scrollHeight, "clientHeight:", list.clientHeight, "actual list scrollTop:", list.scrollTop);
 
@@ -541,7 +541,7 @@ export class ThreadAtlasApp {
         }, 150);
       });
     } else {
-      list.style.opacity = "1";
+      list.classList.add("ready");
     }
   }
 

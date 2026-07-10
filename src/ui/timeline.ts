@@ -7,7 +7,7 @@ export function renderTimelineButton(
   anchorId: string
 ): HTMLButtonElement {
   const button = document.createElement("button");
-  button.className = "timeline-item";
+  button.className = "timeline-item ui-panel";
   button.type = "button";
   button.dataset.target = anchorId;
 

@@ -151,6 +151,7 @@ test("renders subagent notification card in ChatView", () => {
   const statusPill = subagentEntry.querySelector(".completed");
   assert.ok(statusPill, "Should render completed status pill");
   assert.equal(statusPill.textContent, "completed");
+  assert.equal(statusPill.classList.contains("ui-badge"), true);
 
   const sessionLink = subagentEntry.querySelector(".subagent-session-link") as HTMLAnchorElement;
   assert.ok(sessionLink, "Should render session link");
@@ -491,4 +492,3 @@ test("parseClaudeSession parses subagent notifications and parent/child IDs corr
   assert.equal(subagentSession.metadata.parentThreadId, "parent-session-uuid");
   assert.equal(subagentSession.metadata.sessionId, "subagent-session-uuid");
 });
-

@@ -5,6 +5,7 @@
 @import "./styles/primitives.css" layer(primitives);
 @import "./styles/layout.css" layer(layout);
 @import "./styles/sidebar.css" layer(features);
+@import "./styles/session.css" layer(features);
 @import "./styles/chat.css" layer(features);
 @import "./styles/code.css" layer(features);
 @import "./styles/modals.css" layer(features);
