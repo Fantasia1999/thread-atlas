@@ -87,6 +87,20 @@ function collectScopes(store: SessionStore): Array<StateScope | undefined> {
   return scopes;
 }
 
+test("app shell composes shared control primitives", () => {
+  const store = new SessionStore();
+  const root = document.createElement("div");
+  new ThreadAtlasApp(root, store);
+
+  const topbar = root.querySelector(".topbar");
+  assert.ok(topbar);
+  const topbarButtons = topbar.querySelectorAll(".button");
+  assert.ok(topbarButtons.length >= 4);
+  assert.equal(topbarButtons.every((button) => button.classList.contains("ui-button")), true);
+  assert.equal(root.querySelector(".status-pill")?.classList.contains("ui-badge"), true);
+  assert.equal(root.querySelectorAll(".theme-toggle-button").every((button) => button.classList.contains("ui-chip")), true);
+});
+
 test("SessionStore subscriptions start with an all notification", () => {
   const scopes = collectScopes(new SessionStore());
 

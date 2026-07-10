@@ -156,8 +156,10 @@ async function main() {
   const args = process.argv.slice(2);
   let resKey = "";
   let zoomFactor = "";
+  let theme: "light" | "dark" | "" = "";
 
   const RESOLUTIONS: Record<string, { width: number; height: number; defaultZoom: number }> = {
+    "mobile": { width: 720, height: 960, defaultZoom: 1 },
     "960p": { width: 1440, height: 960, defaultZoom: 1.25 },
     "1080p": { width: 1920, height: 1080, defaultZoom: 1.25 },
     "2k": { width: 2560, height: 1440, defaultZoom: 1.75 },
@@ -174,6 +176,12 @@ async function main() {
       zoomFactor = arg.split("=")[1];
     } else if (arg === "-z" && i + 1 < args.length) {
       zoomFactor = args[++i];
+    } else if (arg.startsWith("--theme=")) {
+      const value = arg.slice("--theme=".length);
+      if (value !== "light" && value !== "dark") {
+        throw new Error(`Unsupported screenshot theme: ${value}`);
+      }
+      theme = value;
     } else {
       // Fallback for positional arguments
       const lowerArg = arg.toLowerCase();
@@ -262,6 +270,14 @@ async function main() {
 
   console.log("Navigating to http://localhost:3030...");
   await page.goto("http://localhost:3030", { waitUntil: "networkidle0" });
+
+  if (theme) {
+    console.log(`Applying ${theme} theme...`);
+    await page.evaluate((value) => {
+      localStorage.setItem("thread-atlas-theme", value);
+    }, theme);
+    await page.reload({ waitUntil: "networkidle0" });
+  }
   
   console.log(`Setting page zoom to ${zoomFactor}...`);
   await page.evaluate(`document.documentElement.style.zoom = '${zoomFactor}'`);

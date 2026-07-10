@@ -81,7 +81,7 @@ export class ThreadAtlasApp {
     actions.append(scanButton, importButton, sshButton, connectionsButton);
 
     this.statusNode = document.createElement("div");
-    this.statusNode.className = "status-pill";
+    this.statusNode.className = "status-pill ui-badge";
     this.statusNode.addEventListener("dblclick", async () => {
       const textToCopy = this.statusNode.getAttribute("data-path") || this.statusNode.textContent || "";
       if (!textToCopy) return;
@@ -693,7 +693,7 @@ export class ThreadAtlasApp {
 
   private makeButton(label: string, onClick: () => void | Promise<void>): HTMLButtonElement {
     const button = document.createElement("button");
-    button.className = "button";
+    button.className = "button ui-button";
     button.type = "button";
     button.textContent = label;
     button.addEventListener("click", () => {
@@ -714,7 +714,7 @@ export class ThreadAtlasApp {
   private makeThemeButton(label: string, theme: AppTheme): HTMLButtonElement {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `theme-toggle-button${this.theme === theme ? " active" : ""}`;
+    button.className = `theme-toggle-button ui-chip${this.theme === theme ? " active" : ""}`;
     button.textContent = label;
     button.addEventListener("click", () => {
       if (this.theme === theme) {

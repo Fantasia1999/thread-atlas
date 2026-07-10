@@ -71,15 +71,16 @@ def get_geometry(key, fallback_box, W, H, fallback_marker=None):
             x2 = min(W, x + w)
             y2 = min(H, y + h)
 
-            box = (x1, y1, x2, y2)
-            cx = x1 + (x2 - x1) // 2
-            cy = y1 + (y2 - y1) // 2
-            # Offset vertical centers for very tall panels to look nicer
-            if key == "sessionList":
-                cy = min(cy, 300)
-            elif key == "timeline":
-                cy = min(cy, 250)
-            return box, (cx, cy)
+            if x2 > x1 and y2 > y1:
+                box = (x1, y1, x2, y2)
+                cx = x1 + (x2 - x1) // 2
+                cy = y1 + (y2 - y1) // 2
+                # Offset vertical centers for very tall panels to look nicer
+                if key == "sessionList":
+                    cy = min(cy, 300)
+                elif key == "timeline":
+                    cy = min(cy, 250)
+                return box, (cx, cy)
 
     scale_x = W / 1920.0
     scale_y = H / 1080.0
