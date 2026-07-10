@@ -5,6 +5,18 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 const styleRoot = path.join(repoRoot, "src/styles");
+const expectedImports = [
+  "tokens.css",
+  "base.css",
+  "primitives.css",
+  "layout.css",
+  "sidebar.css",
+  "session.css",
+  "content.css",
+  "dialogs.css",
+  "vendor.css",
+  "utilities.css"
+];
 
 interface CssMetrics {
   lines: number;
@@ -71,12 +83,11 @@ function collectMetrics(): CssMetrics {
   };
 }
 
-test("style entry declares the approved foundation layers", () => {
+test("style entry imports only the approved module graph", () => {
   const entry = fs.readFileSync(path.join(repoRoot, "src/index.css"), "utf8");
+  const imports = [...entry.matchAll(/\.\/styles\/([\w-]+\.css)/g)].map((match) => match[1]);
+  assert.deepEqual(imports, expectedImports);
   assert.match(entry, /@layer tokens, base, primitives, layout, features, vendor, utilities;/);
-  assert.match(entry, /\.\/styles\/tokens\.css/);
-  assert.match(entry, /\.\/styles\/base\.css/);
-  assert.match(entry, /\.\/styles\/primitives\.css/);
 });
 
 test("style entry keeps every import before the layer order statement", () => {
@@ -88,10 +99,41 @@ test("style entry keeps every import before the layer order statement", () => {
   }
 });
 
-test("CSS complexity stays within the temporary migration ceiling", () => {
+test("CSS meets the final complexity budgets", () => {
   const metrics = collectMetrics();
-  assert.ok(metrics.lines <= 4700, JSON.stringify(metrics));
-  assert.ok(metrics.declarations <= 2800, JSON.stringify(metrics));
-  assert.ok(metrics.important <= 97, JSON.stringify(metrics));
-  assert.ok(metrics.transitionAll <= 34, JSON.stringify(metrics));
+  assert.ok(metrics.lines <= 2600, JSON.stringify(metrics));
+  assert.ok(metrics.declarations <= 1750, JSON.stringify(metrics));
+  assert.ok(metrics.important <= 16, JSON.stringify(metrics));
+  assert.equal(metrics.transitionAll, 0, JSON.stringify(metrics));
+});
+
+test("literal colors live only in tokens and vendor overrides", () => {
+  const offenders = readCssFiles()
+    .filter(({ name }) => name !== "tokens.css" && name !== "vendor.css")
+    .flatMap(({ name, css }) => stripComments(css).split("\n")
+      .map((line, index) => ({ name, line: index + 1, text: line.trim() }))
+      .filter(({ text }) => /#[0-9a-f]{3,8}\b|rgba?\(/i.test(text)));
+  assert.deepEqual(offenders, []);
+});
+
+test("legacy style modules and confirmed obsolete selectors are gone", () => {
+  for (const name of ["topbar.css", "chat.css", "code.css", "modals.css", "misc.css"]) {
+    assert.equal(fs.existsSync(path.join(styleRoot, name)), false, name);
+  }
+  const css = readCssFiles().map((file) => file.css).join("\n");
+  for (const selector of [".select-input", ".tag-filter-select", ".glassmorphic"]) {
+    assert.equal(css.includes(selector), false, selector);
+  }
+});
+
+test("important declarations are isolated to vendor overrides and hidden", () => {
+  const offenders = readCssFiles()
+    .filter(({ name }) => name !== "vendor.css" && name !== "utilities.css")
+    .filter(({ css }) => /!important\b/.test(css))
+    .map(({ name }) => name);
+  assert.deepEqual(offenders, []);
+
+  const utilities = fs.readFileSync(path.join(styleRoot, "utilities.css"), "utf8");
+  assert.equal((utilities.match(/!important\b/g) ?? []).length, 1);
+  assert.match(utilities, /\.hidden\s*{[^}]*display\s*:\s*none\s*!important;/s);
 });

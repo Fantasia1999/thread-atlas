@@ -1,117 +1,78 @@
 @import "katex/dist/katex.min.css";
-
-.hljs-comment,
-.hljs-quote {
+.hljs-comment, .hljs-quote {
   color: var(--text-muted);
   font-style: italic;
 }
-
-.hljs-keyword,
-.hljs-selector-tag,
-.hljs-literal,
-.hljs-name {
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-name {
   color: var(--syntax-keyword);
 }
-
-.hljs-string,
-.hljs-regexp,
-.hljs-symbol,
-.hljs-bullet {
+.hljs-string, .hljs-regexp, .hljs-symbol, .hljs-bullet {
   color: var(--syntax-string);
 }
-
 .hljs-number {
   color: var(--syntax-number);
 }
-
-.hljs-title,
-.hljs-title.function_,
-.hljs-function .hljs-title,
-.hljs-section {
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title, .hljs-section {
   color: var(--syntax-function);
 }
-
-.hljs-attr,
-.hljs-attribute,
-.hljs-selector-id,
-.hljs-selector-class {
+.hljs-attr, .hljs-attribute, .hljs-selector-id, .hljs-selector-class {
   color: var(--syntax-attribute);
 }
-
-.hljs-built_in,
-.hljs-builtin-name {
+.hljs-built_in, .hljs-builtin-name {
   color: var(--syntax-builtin);
 }
-
-.hljs-property,
-.hljs-type {
+.hljs-property, .hljs-type {
   color: var(--syntax-string);
 }
-
-.hljs-tag,
-.hljs-selector-pseudo {
+.hljs-tag, .hljs-selector-pseudo {
   color: var(--syntax-tag);
 }
-
 .hljs-operator {
   color: var(--syntax-operator);
 }
-
 .hljs-meta {
   color: var(--syntax-meta);
 }
-
 .hljs-emphasis {
   font-style: italic;
 }
-
-.md-code.language-diff .hljs-addition,
-.md-code.language-diff .hljs-deletion,
+.md-code.language-diff .hljs-addition, .md-code.language-diff .hljs-deletion,
 .md-code.language-diff .hljs-meta {
   display: block;
   margin-inline: -14px;
   padding-inline: 14px;
 }
-
 .md-code.language-diff .hljs-addition {
   background: var(--syntax-insert-bg);
 }
-
 .md-code.language-diff .hljs-deletion {
   background: var(--syntax-delete-bg);
 }
-
 .md-code.language-diff .hljs-meta {
   background: var(--syntax-meta-bg);
 }
-
 .md-math-block .katex-display {
   margin: 0;
 }
-
 .mermaid-lightbox {
   /* Overrides enhancement package inline stacking. */
   z-index: var(--z-lightbox) !important;
 }
-
 body:has(.mermaid-lightbox) .scroll-helper-hub {
   /* Prevents app controls from appearing above fullscreen vendor UI. */
   opacity: 0 !important;
   pointer-events: none !important;
 }
-
 .mermaid-lightbox-content {
   /* Overrides enhancement package fixed geometry. */
   width: 96% !important;
   height: 92% !important;
   border-radius: var(--radius-control) !important;
 }
-
 .mermaid-lightbox-diagram-wrapper {
   /* Restores a usable diagram viewport. */
   padding: 1.5rem !important;
 }
-
 .mermaid-lightbox-close {
   /* Overrides enhancement package close-control geometry. */
   top: 0.5rem !important;

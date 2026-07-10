@@ -2,20 +2,16 @@
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
   border-radius: var(--radius-full);
   background: var(--border-strong);
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
-
 .empty-state {
   display: flex;
   grid-row: 2;
@@ -33,12 +29,10 @@
   font-weight: 500;
   text-align: center;
 }
-
 .empty-large {
   min-height: 260px;
   margin: 20px;
 }
-
 .toast-container {
   position: fixed;
   right: var(--space-5);
@@ -48,7 +42,6 @@
   gap: 10px;
   pointer-events: none;
 }
-
 .toast {
   min-width: 220px;
   box-shadow: var(--shadow-float);
@@ -57,39 +50,32 @@
   transform: translateY(12px);
   transition: opacity var(--motion-normal), transform var(--motion-normal);
 }
-
 .toast.visible {
   opacity: 1;
   transform: translateY(0);
 }
-
 .toast.exiting {
   opacity: 0;
   transform: translateY(-12px);
 }
-
 .toast-icon {
   font-size: 12px;
   font-weight: 700;
 }
-
 .toast-message {
   max-width: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .hidden {
   /* State utility must override component display rules. */
   display: none !important;
 }
-
 @keyframes modal-fade {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
 @keyframes modal-rise {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
