@@ -2,7 +2,7 @@ import type { Session } from "../../shared/types.js";
 import { SessionStore, type StateScope, type StoreState } from "../store/sessionStore.js";
 import { createImportModal } from "./importModal.js";
 import { createSidebarView, type SidebarView } from "./sidebar.js";
-import { renderChatView } from "./chatView.js";
+import { renderChatHeader, renderChatView, type ChatViewOptions } from "./chatView.js";
 import type { MessageViewFilter } from "./messageFilter.js";
 import { createSshModal } from "./sshModal.js";
 import { createConnectionModal } from "./connectionModal.js";
@@ -41,6 +41,10 @@ export class ThreadAtlasApp {
   private timelineOpen = false;
   private viewportWidth = window.innerWidth;
   private targetSubagentScrollId: string | undefined = undefined;
+  private renderedMainMode: "unrendered" | "empty" | "loading" | "missing" | "session" = "unrendered";
+  private renderedDescriptorKey: string | undefined;
+  private renderedSession: Session | undefined;
+  private renderedMessageFilter: MessageViewFilter | undefined;
 
   constructor(
     private readonly root: HTMLElement,
@@ -166,7 +170,7 @@ export class ThreadAtlasApp {
           this.renderSidebarRegion(state);
         }
         if (timelineChanged) {
-          this.renderMainRegion(state);
+          this.syncTimelinePresentation();
         }
       }
     });
@@ -177,7 +181,10 @@ export class ThreadAtlasApp {
         return;
       }
       this.viewportWidth = nextWidth;
-      this.render(this.store.getState());
+      const state = this.store.getState();
+      this.renderShellState(state);
+      this.renderSidebarRegion(state);
+      this.syncTimelinePresentation();
     });
 
     let clickTimeout: any = null;
@@ -416,57 +423,101 @@ export class ThreadAtlasApp {
     const timelineOpen = timelinePinned || this.timelineOpen;
     const selectedDescriptor = this.store.getSelectedDescriptor();
     const selectedSession = this.store.getSelectedSession();
-    void cleanupMermaid();
-
-    this.mainMount.replaceChildren(
-      renderChatView({
-        descriptor: selectedDescriptor,
-        session: selectedSession,
-        loading: state.loadingSession,
-        messageFilter: this.messageFilter,
-        timelinePinned,
-        timelineOpen,
-        pinnedKeys: state.pinnedKeys,
-        favoriteKeys: state.favoriteKeys,
-        favoriteMetadata: state.favoriteMetadata,
-        onTogglePinSession: (key) => {
-          this.store.togglePin(key);
-        },
-        onToggleFavoriteSession: (key) => {
-          this.store.toggleFavorite(key);
-        },
-        onUpdateMetadata: (key, tags, notes) => {
-          this.store.updateFavoriteMetadata(key, { tags, notes });
-        },
-        onFilterChange: (filter) => {
-          this.messageFilter = filter;
-          localStorage.setItem(MESSAGE_FILTER_STORAGE_KEY, filter);
-          const nextState = this.store.getState();
-          this.renderShellState(nextState);
-          this.renderMainRegion(nextState);
-        },
-        onTimelineToggleOpen: () => {
-          this.toggleTimelineOpen();
-        },
-        onTimelineTogglePin: () => {
-          this.toggleTimelinePin();
-        },
-        onExport: (session, format) => {
-          if (format === "json") {
-            this.exportSession(session);
-          } else {
-            this.openExportMdModal(session);
-          }
-        },
-        onRenderComplete: () => {
-          setTimeout(() => this.restoreChatMessagesScroll(), 0);
-        },
-        previousKeys: state.previousKeys,
-        onGoBack: () => {
-          this.store.goBack();
+    const mainMode = !selectedDescriptor
+      ? "empty"
+      : selectedSession
+        ? "session"
+        : state.loadingSession
+          ? "loading"
+          : "missing";
+    const options: ChatViewOptions = {
+      descriptor: selectedDescriptor,
+      session: selectedSession,
+      loading: state.loadingSession,
+      messageFilter: this.messageFilter,
+      timelinePinned,
+      timelineOpen,
+      pinnedKeys: state.pinnedKeys,
+      favoriteKeys: state.favoriteKeys,
+      favoriteMetadata: state.favoriteMetadata,
+      onTogglePinSession: (key) => {
+        this.store.togglePin(key);
+      },
+      onToggleFavoriteSession: (key) => {
+        this.store.toggleFavorite(key);
+      },
+      onUpdateMetadata: (key, tags, notes) => {
+        this.store.updateFavoriteMetadata(key, { tags, notes });
+      },
+      onFilterChange: (filter) => {
+        this.messageFilter = filter;
+        localStorage.setItem(MESSAGE_FILTER_STORAGE_KEY, filter);
+        const nextState = this.store.getState();
+        this.renderShellState(nextState);
+        this.renderMainRegion(nextState);
+      },
+      onTimelineToggleOpen: () => {
+        this.toggleTimelineOpen();
+      },
+      onTimelineTogglePin: () => {
+        this.toggleTimelinePin();
+      },
+      onExport: (session, format) => {
+        if (format === "json") {
+          this.exportSession(session);
+        } else {
+          this.openExportMdModal(session);
         }
-      })
-    );
+      },
+      onRenderComplete: () => {
+        setTimeout(() => this.restoreChatMessagesScroll(), 0);
+      },
+      previousKeys: state.previousKeys,
+      onGoBack: () => {
+        this.store.goBack();
+      }
+    };
+
+    // Messages own expensive rendered DOM and transient state such as scroll position.
+    // Rebuild them only when their actual content identity changes.
+    const contentUnchanged = this.renderedMainMode === mainMode
+      && this.renderedDescriptorKey === selectedDescriptor?.key
+      && (mainMode !== "session" || (
+        this.renderedSession === selectedSession
+        && this.renderedMessageFilter === this.messageFilter
+      ));
+
+    if (contentUnchanged && this.refreshMainHeader(options)) {
+      this.syncTimelinePresentation();
+      return;
+    }
+
+    void cleanupMermaid();
+    this.mainMount.replaceChildren(renderChatView(options));
+    this.renderedMainMode = mainMode;
+    this.renderedDescriptorKey = selectedDescriptor?.key;
+    this.renderedSession = selectedSession;
+    this.renderedMessageFilter = this.messageFilter;
+  }
+
+  private refreshMainHeader(options: ChatViewOptions): boolean {
+    const mainPanel = this.mainMount.querySelector<HTMLElement>(".main-panel");
+    if (!mainPanel) {
+      return false;
+    }
+
+    const currentHeader = mainPanel.querySelector<HTMLElement>(".chat-header");
+    const nextHeader = renderChatHeader(options);
+    if (!nextHeader) {
+      return currentHeader === null;
+    }
+    if (!currentHeader) {
+      return false;
+    }
+
+    mainPanel.insertBefore(nextHeader, currentHeader);
+    currentHeader.remove();
+    return true;
   }
 
   private isSidebarPinned(): boolean {

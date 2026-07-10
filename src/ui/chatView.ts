@@ -13,7 +13,7 @@ import {
   formatDateTimeTitle
 } from "./utils.js";
 
-interface ChatViewOptions {
+export interface ChatViewOptions {
   descriptor?: SessionDescriptor;
   session?: Session;
   loading: boolean;
@@ -44,30 +44,15 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
     return container;
   }
 
-  const descriptor = options.descriptor;
   const session = options.session;
   const filteredMessages = session
     ? filterMessagesForView(session.messages, options.messageFilter)
     : [];
 
-  container.append(
-    renderSessionHeader({
-      descriptor,
-      session,
-      filteredCount: filteredMessages.length,
-      filter: options.messageFilter,
-      pinnedKeys: options.pinnedKeys,
-      favoriteKeys: options.favoriteKeys,
-      favoriteMetadata: options.favoriteMetadata,
-      onFilterChange: options.onFilterChange,
-      onExport: options.onExport,
-      onTogglePinSession: options.onTogglePinSession,
-      onToggleFavoriteSession: options.onToggleFavoriteSession,
-      onUpdateMetadata: options.onUpdateMetadata,
-      previousKeys: options.previousKeys,
-      onGoBack: options.onGoBack
-    })
-  );
+  const header = renderChatHeader(options, filteredMessages.length);
+  if (header) {
+    container.append(header);
+  }
 
   if (options.loading && !session) {
     container.append(createEmpty("Loading session..."));
@@ -94,6 +79,34 @@ export function renderChatView(options: ChatViewOptions): HTMLElement {
   );
 
   return container;
+}
+
+export function renderChatHeader(
+  options: ChatViewOptions,
+  filteredCount = options.session
+    ? filterMessagesForView(options.session.messages, options.messageFilter).length
+    : 0
+): HTMLElement | undefined {
+  if (!options.descriptor) {
+    return undefined;
+  }
+
+  return renderSessionHeader({
+    descriptor: options.descriptor,
+    session: options.session,
+    filteredCount,
+    filter: options.messageFilter,
+    pinnedKeys: options.pinnedKeys,
+    favoriteKeys: options.favoriteKeys,
+    favoriteMetadata: options.favoriteMetadata,
+    onFilterChange: options.onFilterChange,
+    onExport: options.onExport,
+    onTogglePinSession: options.onTogglePinSession,
+    onToggleFavoriteSession: options.onToggleFavoriteSession,
+    onUpdateMetadata: options.onUpdateMetadata,
+    previousKeys: options.previousKeys,
+    onGoBack: options.onGoBack
+  });
 }
 
 function renderSessionHeader(options: {

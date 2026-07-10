@@ -80,6 +80,14 @@ function createRenderedApp(store: SessionStore): HTMLElement {
 }
 
 async function createSelectedApp(): Promise<HTMLElement> {
+  return (await createSelectedAppContext()).root;
+}
+
+async function createSelectedAppContext(): Promise<{
+  root: HTMLElement;
+  store: SessionStore;
+  bundle: SessionBundle;
+}> {
   const bundle = createImportedBundle();
   const store = new SessionStore();
   store.importBundles([bundle]);
@@ -87,7 +95,7 @@ async function createSelectedApp(): Promise<HTMLElement> {
 
   const root = document.createElement("div");
   new ThreadAtlasApp(root, store);
-  return root;
+  return { root, store, bundle };
 }
 
 function collectScopes(store: SessionStore): Array<StateScope | undefined> {
@@ -224,15 +232,160 @@ test("search updates preserve copied status feedback until the latest status is 
 
 test("session selection replaces the rendered main child", async () => {
   const bundle = createImportedBundle();
+  const secondBundle: SessionBundle = {
+    ...createImportedBundle(),
+    key: "import::second-session.jsonl",
+    title: "Second imported session",
+    primaryPath: "second-session.jsonl",
+    files: [
+      {
+        path: "second-session.jsonl",
+        content: '{"type":"user","message":{"role":"user","content":"Second"}}'
+      }
+    ]
+  };
   const store = new SessionStore();
-  store.importBundles([bundle]);
+  store.importBundles([bundle, secondBundle]);
   const mainMount = createRenderedApp(store);
   const mainChild = mainMount.firstElementChild;
   assert.ok(mainChild);
 
-  await store.selectSession(bundle.key);
+  await store.selectSession(secondBundle.key);
 
   assert.notEqual(mainMount.firstElementChild, mainChild);
+});
+
+test("same-session metadata updates preserve messages and refresh the header", async () => {
+  const { root, store, bundle } = await createSelectedAppContext();
+  const messageList = root.querySelector(".chat-messages");
+  assert.ok(messageList);
+
+  store.togglePin(bundle.key);
+  assert.equal(root.querySelector(".chat-messages"), messageList);
+  const header = root.querySelector(".chat-header");
+  const pinButton = header?.querySelector(".pin-btn");
+  assert.equal(pinButton?.classList.contains("active"), true);
+  assert.equal(pinButton?.getAttribute("title"), "Unpin from top");
+
+  store.toggleFavorite(bundle.key);
+  assert.equal(root.querySelector(".chat-messages"), messageList);
+  const favoriteButton = root.querySelector(".chat-header")?.querySelector(".favorite-btn");
+  assert.equal(favoriteButton?.classList.contains("active"), true);
+  assert.equal(favoriteButton?.getAttribute("title"), "Remove from Favorites");
+
+  store.updateFavoriteMetadata(bundle.key, {
+    tags: ["stable"],
+    notes: "Keep the message list mounted."
+  });
+  assert.equal(root.querySelector(".chat-messages"), messageList);
+  assert.ok(root.querySelector(".header-bookmark-summary"));
+});
+
+test("same-session rescan preserves the rendered message list", async () => {
+  const { root, store } = await createSelectedAppContext();
+  const messageList = root.querySelector(".chat-messages");
+  assert.ok(messageList);
+
+  (store.getConnection() as any).fetch = async () => ({
+    ok: true,
+    json: async () => ({ ok: true, files: [] })
+  });
+  await store.refreshLocalScan();
+
+  assert.equal(root.querySelector(".chat-messages"), messageList);
+});
+
+test("updated session content replaces the rendered message list", async () => {
+  const { root, store, bundle } = await createSelectedAppContext();
+  const messageList = root.querySelector(".chat-messages");
+  assert.ok(messageList);
+
+  const updatedBundle: SessionBundle = {
+    ...bundle,
+    files: [
+      {
+        path: bundle.primaryPath,
+        content: '{"type":"user","message":{"role":"user","content":"Updated"}}'
+      }
+    ]
+  };
+  store.importBundles([updatedBundle]);
+
+  assert.notEqual(root.querySelector(".chat-messages"), messageList);
+});
+
+test("message filter changes replace the rendered message list", async () => {
+  const root = await createSelectedApp();
+  const messageList = root.querySelector(".chat-messages");
+  const filterButtons = root.querySelectorAll(".filter-chip") as HTMLElement[];
+  assert.ok(messageList);
+  assert.ok(filterButtons.length > 1);
+
+  (filterButtons[1] as any).click();
+
+  assert.notEqual(root.querySelector(".chat-messages"), messageList);
+});
+
+test("closing the timeline with Escape preserves the rendered message list", async () => {
+  Object.defineProperty(globalThis, "innerWidth", {
+    value: 1000,
+    writable: true,
+    configurable: true
+  });
+  localStorage.setItem("thread-atlas-timeline-pinned", "false");
+
+  const root = await createSelectedApp();
+  const messageList = root.querySelector(".chat-messages");
+  const timelineDock = root.querySelector(".timeline-dock") as HTMLElement | null;
+  const timelineToggle = timelineDock?.querySelector(".rail-button") as HTMLElement | null;
+  assert.ok(messageList);
+  assert.ok(timelineDock);
+  assert.ok(timelineToggle);
+
+  (timelineToggle as any).click();
+  assert.equal(timelineDock.classList.contains("open"), true);
+  (document as any).dispatchEvent({
+    type: "keydown",
+    key: "Escape",
+    preventDefault: () => {}
+  });
+
+  assert.equal(root.querySelector(".chat-messages"), messageList);
+  assert.equal(timelineDock.classList.contains("open"), false);
+});
+
+test("viewport width changes preserve the rendered message list", async (context) => {
+  const originalAddEventListener = globalThis.addEventListener;
+  let resizeListener: ((event: Event) => void) | undefined;
+  (globalThis as any).addEventListener = (type: string, listener: (event: Event) => void) => {
+    if (type === "resize") {
+      resizeListener = listener;
+    }
+  };
+  context.after(() => {
+    (globalThis as any).addEventListener = originalAddEventListener;
+  });
+
+  Object.defineProperty(globalThis, "innerWidth", {
+    value: 1000,
+    writable: true,
+    configurable: true
+  });
+  localStorage.setItem("thread-atlas-timeline-pinned", "true");
+
+  const root = await createSelectedApp();
+  const messageList = root.querySelector(".chat-messages");
+  const timelineDock = root.querySelector(".timeline-dock") as HTMLElement | null;
+  assert.ok(messageList);
+  assert.ok(timelineDock);
+  assert.ok(resizeListener);
+
+  globalThis.innerWidth = 1300;
+  resizeListener({ type: "resize" } as Event);
+
+  assert.equal(root.querySelector(".chat-messages"), messageList);
+  assert.equal(timelineDock.classList.contains("pinned"), true);
+  assert.equal(timelineDock.classList.contains("open"), true);
 });
 
 test("timeline hover does not redraw the message list", async () => {
