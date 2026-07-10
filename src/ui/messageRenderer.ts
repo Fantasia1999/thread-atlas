@@ -1,7 +1,8 @@
 import type { Message, Session, ToolCall } from "../../shared/types.js";
 import { renderMarkdown } from "./markdown.js";
 import { previewText } from "./timeline.js";
-import { ansiToHtml, escapeHtml, formatDateTimeLong, formatDisplayTime } from "./utils.js";
+import { clipboardIcon, errorIcon, successIcon } from "./icons.js";
+import { ansiToHtml, copyRichText, copyText, escapeHtml, formatDateTimeLong, formatDisplayTime } from "./utils.js";
 
 export function renderMessage(
   message: Message,
@@ -34,7 +35,7 @@ export function renderMessage(
     statusPill.className = `subagent-status-pill ui-badge ${notify.status}`;
     statusPill.textContent = notify.status;
     
-    cardHeader.append(badge, statusPill);
+    cardHeader.append(badge);
     entry.append(cardHeader);
 
     // Meta/Info Row
@@ -59,7 +60,9 @@ export function renderMessage(
       contentBox.className = "subagent-notification-content log-content markdown-theme";
       contentBox.append(renderMarkdown(notify.content));
       entry.append(contentBox);
+      cardHeader.append(createMessageCopyActions(notify.content, contentBox));
     }
+    cardHeader.append(statusPill);
     
     // Add timestamps
     const footer = document.createElement("div");
@@ -80,9 +83,11 @@ export function renderMessage(
 
   let displayHTML: DocumentFragment | null = null;
   let citationElement: HTMLElement | null = null;
+  let markdownSource = message.text;
 
   if (citationMatch) {
     const mainText = text.replace(citationRegex, "").trim();
+    markdownSource = mainText;
     if (mainText) {
       displayHTML = renderMarkdown(mainText);
     }
@@ -246,6 +251,7 @@ export function renderMessage(
       body.className = "log-content markdown-theme";
       body.append(displayHTML);
       contentWrapper.append(body);
+      header.append(createMessageCopyActions(markdownSource, body));
     }
 
     if (citationElement) {
@@ -279,6 +285,7 @@ export function renderMessage(
     body.className = "log-content markdown-theme";
     body.append(displayHTML);
     entry.append(body);
+    header.append(createMessageCopyActions(markdownSource, body));
   }
 
   if (citationElement) {
@@ -325,6 +332,54 @@ export function renderMessage(
   }
 
   return entry;
+}
+
+function createMessageCopyActions(markdownSource: string, content: HTMLElement): HTMLElement {
+  const actions = document.createElement("div");
+  actions.className = "message-copy-actions";
+  actions.setAttribute("role", "group");
+  actions.setAttribute("aria-label", "Copy message content");
+
+  actions.append(
+    createMessageCopyButton("MD", "Copy Markdown source", () => copyText(markdownSource)),
+    createMessageCopyButton("Rich", "Copy rendered rich text", () => copyRichText(content))
+  );
+  return actions;
+}
+
+function createMessageCopyButton(label: string, title: string, copy: () => Promise<void>): HTMLButtonElement {
+  const button = document.createElement("button");
+  let resetTimer = 0;
+  const defaultContent = `${clipboardIcon()}<span>${label}</span>`;
+
+  button.type = "button";
+  button.className = "message-copy-button ui-chip";
+  button.title = title;
+  button.setAttribute("aria-label", title);
+  button.innerHTML = defaultContent;
+
+  button.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    window.clearTimeout(resetTimer);
+    button.disabled = true;
+
+    try {
+      await copy();
+      button.dataset.state = "success";
+      button.innerHTML = `${successIcon()}<span>${label}</span>`;
+    } catch {
+      button.dataset.state = "error";
+      button.innerHTML = `${errorIcon()}<span>${label}</span>`;
+    }
+
+    resetTimer = window.setTimeout(() => {
+      button.disabled = false;
+      delete button.dataset.state;
+      button.innerHTML = defaultContent;
+    }, 1600);
+  });
+
+  return button;
 }
 
 function renderBackgroundTask(toolCall: ToolCall): HTMLElement {

@@ -86,6 +86,53 @@ export async function copyText(value: string): Promise<void> {
   }
 }
 
+export async function copyRichText(content: HTMLElement): Promise<void> {
+  // Selection + execCommand intentionally uses the browser's manual-copy serialization path.
+  const selection = window.getSelection?.();
+  const range = document.createRange?.();
+  if (selection && range && typeof document.execCommand === "function") {
+    const savedRanges: Range[] = [];
+    for (let index = 0; index < selection.rangeCount; index += 1) {
+      savedRanges.push(selection.getRangeAt(index).cloneRange());
+    }
+
+    try {
+      range.selectNodeContents(content);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      if (document.execCommand("copy")) {
+        return;
+      }
+    } catch {
+      // Fall through to the async clipboard API when native selection copy fails.
+    } finally {
+      selection.removeAllRanges();
+      for (const savedRange of savedRanges) {
+        selection.addRange(savedRange);
+      }
+    }
+  }
+
+  const html = content.innerHTML;
+  const plainText = content.innerText || content.textContent || "";
+  const ClipboardItemConstructor = globalThis.ClipboardItem;
+  if (navigator.clipboard?.write && typeof ClipboardItemConstructor === "function") {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItemConstructor({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([plainText], { type: "text/plain" })
+        })
+      ]);
+      return;
+    } catch {
+      // Some browsers expose ClipboardItem but reject HTML clipboard writes.
+    }
+  }
+
+  await copyText(plainText);
+}
+
 export function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")

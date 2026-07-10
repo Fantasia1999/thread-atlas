@@ -30,7 +30,7 @@
 }
 .chat-title-row, .chat-meta-row, .chat-title-container,
 .chat-header-badges, .chat-actions, .chat-filter-row, .filter-chip-row,
-.chat-fav-actions {
+.chat-fav-actions, .message-copy-actions {
   display: flex;
   align-items: center;
 }
@@ -105,11 +105,13 @@
   padding-inline: var(--space-2);
   font-size: 11px;
 }
-.copy-command-button[data-state="success"], .copy-command-dropdown-trigger[data-state="success"] {
+.copy-command-button[data-state="success"], .copy-command-dropdown-trigger[data-state="success"],
+.message-copy-button[data-state="success"] {
   border-color: var(--status-success);
   color: var(--status-success);
 }
-.copy-command-button[data-state="error"], .copy-command-dropdown-trigger[data-state="error"] {
+.copy-command-button[data-state="error"], .copy-command-dropdown-trigger[data-state="error"],
+.message-copy-button[data-state="error"] {
   border-color: var(--status-danger);
   color: var(--status-danger);
 }
@@ -290,6 +292,14 @@
   margin-bottom: 10px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border-default);
+}
+.message-copy-actions {
+  gap: var(--space-1);
+  margin-left: auto;
+}
+.message-copy-button svg {
+  width: 12px;
+  fill: currentColor;
 }
 .log-role-badge.user {
   --badge-color: var(--brand-opencode);
