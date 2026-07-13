@@ -127,6 +127,12 @@ test("navigation side panels use dedicated surface and divider tokens", () => {
   assert.match(session, /\.filter-chip\.active\s*{[^}]*background:\s*var\(--accent\)/s);
 });
 
+test("chat messages use a solid app surface instead of revealing the shell mesh", () => {
+  const session = fs.readFileSync(path.join(styleRoot, "session.css"), "utf8");
+
+  assert.match(session, /\.chat-messages\s*{[^}]*background:\s*var\(--bg-app\)/s);
+});
+
 test("legacy style modules and confirmed obsolete selectors are gone", () => {
   for (const name of ["topbar.css", "chat.css", "code.css", "modals.css", "misc.css"]) {
     assert.equal(fs.existsSync(path.join(styleRoot, name)), false, name);
