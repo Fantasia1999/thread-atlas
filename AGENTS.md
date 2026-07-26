@@ -34,7 +34,10 @@ If you change descriptor or bundle shapes, update `shared/types.ts` first and pr
 ## Supported Sources
 
 - Codex: scanned from `~/.codex/sessions`, usually `rollout-*.jsonl`
-- Claude Code: scanned from `~/.claude/projects`, usually `.jsonl`
+- Claude Code:
+  - scanned from `~/.claude/projects`, usually `.jsonl`
+  - archived history copies are scanned too: home-directory siblings whose name looks like a Claude home and that contain a `projects` directory (`server/claudeArchives.ts`), plus any roots listed in `ATLAS_CLAUDE_ROOTS`
+  - descriptors from an archived root carry `archiveLabel` so the UI can tell otherwise-identical sessions apart; the live root stays unlabeled
 - Gemini CLI: scanned from `~/.gemini/tmp`, usually `.json`
 - Antigravity:
   - local scan prefers `transcript_full.jsonl` under `~/.gemini/antigravity*/brain/<session-id>/.system_generated/logs/`

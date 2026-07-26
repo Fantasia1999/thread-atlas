@@ -44,6 +44,7 @@ const SEARCH_SYNTAX_HINT = [
   "  #tag         filter by favorite tag",
   "  is:starred   favorites only",
   "  source:codex, path:..., title:..., project:...",
+  "  archive:pc1   sessions from an archived history root",
   "  before:2026-07-01, after:2026-07-01",
   "  :hidden, :hide, :unhide-all manage hidden workspaces"
 ].join("\n");
@@ -627,6 +628,14 @@ function renderSessionList(
         pathRow.append(workspaceEl);
       }
 
+      if (descriptor.archiveLabel) {
+        const archiveBadgeEl = document.createElement("span");
+        archiveBadgeEl.className = "archive-badge ui-badge";
+        archiveBadgeEl.title = `Archived history root: ${descriptor.archiveLabel}`;
+        archiveBadgeEl.textContent = descriptor.archiveLabel;
+        pathRow.append(archiveBadgeEl);
+      }
+
       if (descriptor.origin === "remote" && descriptor.connectionLabel) {
         const connectionBadgeEl = document.createElement("span");
         connectionBadgeEl.className = "connection-badge ui-badge";
@@ -841,6 +850,14 @@ function renderSessionList(
           getCurrentOptions().onHideProject(wsFullPath);
         });
         pathRow.append(workspaceEl);
+      }
+
+      if (descriptor.archiveLabel) {
+        const archiveBadgeEl = document.createElement("span");
+        archiveBadgeEl.className = "archive-badge ui-badge";
+        archiveBadgeEl.title = `Archived history root: ${descriptor.archiveLabel}`;
+        archiveBadgeEl.textContent = descriptor.archiveLabel;
+        pathRow.append(archiveBadgeEl);
       }
 
       if (descriptor.origin === "remote" && descriptor.connectionLabel) {

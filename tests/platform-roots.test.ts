@@ -11,7 +11,9 @@ test("resolveLocalScanRoots maps dot-directories under the home on Linux", () =>
   });
 
   assert.equal(roots.codexSessions, "/home/alice/.codex/sessions");
-  assert.equal(roots.claudeProjects, "/home/alice/.claude/projects");
+  assert.deepEqual(roots.claudeProjects, [
+    { projectsPath: "/home/alice/.claude/projects" }
+  ]);
   assert.equal(roots.geminiTmp, "/home/alice/.gemini/tmp");
   assert.equal(roots.copilotSessionState, "/home/alice/.copilot/session-state");
   assert.equal(roots.openCodeDb, "/home/alice/.local/share/opencode/opencode.db");

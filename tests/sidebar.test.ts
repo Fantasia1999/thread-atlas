@@ -842,3 +842,45 @@ test("sidebar highlights matching search terms in titles and paths", () => {
   assert.ok(plainTitle);
   assert.equal(plainTitle.querySelectorAll(".search-highlight").length, 0);
 });
+
+test("sidebar badges sessions restored from an archived history root", () => {
+  const descriptors = [
+    {
+      key: "file::/home/u/.claude/projects/demo/live.jsonl",
+      source: "claude",
+      title: "Live session",
+      primaryPath: "/home/u/.claude/projects/demo/live.jsonl",
+      relatedPaths: [],
+      transport: "local-scan" as const,
+      origin: "local" as const,
+      fileCount: 1,
+      size: 100,
+      mtimeMs: 2000,
+      metadata: {}
+    },
+    {
+      key: "file::/home/u/claude-backup-pc1/projects/demo/archived.jsonl",
+      source: "claude",
+      title: "Archived session",
+      primaryPath: "/home/u/claude-backup-pc1/projects/demo/archived.jsonl",
+      relatedPaths: [],
+      transport: "local-scan" as const,
+      origin: "local" as const,
+      fileCount: 1,
+      size: 100,
+      mtimeMs: 1000,
+      metadata: {},
+      archiveLabel: "claude-backup-pc1"
+    }
+  ] as SessionDescriptor[];
+
+  const sidebar = renderSidebar(createSidebarOptions({ descriptors }));
+  const badges = sidebar.querySelectorAll(".archive-badge");
+
+  assert.equal(badges.length, 1);
+  assert.equal(badges[0].textContent, "claude-backup-pc1");
+  assert.ok(badges[0].classList.contains("ui-badge"));
+
+  // Rows are keyed per file, so both sessions render even with identical names.
+  assert.equal(sidebar.querySelectorAll(".session-title").length, 2);
+});

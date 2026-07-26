@@ -301,7 +301,8 @@
 .source-badge.copilot {
   --badge-color: var(--brand-copilot);
 }
-.connection-badge {
+.connection-badge,
+.archive-badge {
   --badge-color: var(--text-link);
   max-width: 160px;
   flex-shrink: 0;
@@ -310,6 +311,10 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   text-overflow: ellipsis;
+}
+.archive-badge {
+  --badge-color: var(--text-muted);
+  font-style: italic;
 }
 .session-item-actions {
   gap: var(--space-1);

@@ -87,6 +87,9 @@
   color: var(--text-link);
   font-weight: 600;
 }
+.chat-meta-archive {
+  font-style: italic;
+}
 .chat-meta-copyable {
   cursor: copy;
   user-select: none;

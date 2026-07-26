@@ -62,7 +62,7 @@ test("backend source registry preserves path inference priority", () => {
 test("backend source registry exposes adapters and current scan roots", () => {
   const roots = {
     codexSessions: "/home/example/.codex/sessions",
-    claudeProjects: "/home/example/.claude/projects",
+    claudeProjects: [{ projectsPath: "/home/example/.claude/projects" }],
     geminiTmp: "/home/example/.gemini/tmp",
     antigravityRoots: [
       "/home/example/.gemini/antigravity",
@@ -80,12 +80,12 @@ test("backend source registry exposes adapters and current scan roots", () => {
       SERVER_SOURCE_ADAPTERS.map((adapter) => [adapter.id, adapter.scanRoots(roots)])
     ),
     {
-      antigravity: roots.antigravityRoots,
-      codex: [roots.codexSessions],
-      claude: [roots.claudeProjects],
-      opencode: [roots.openCodeDb],
-      copilot: [roots.copilotSessionState],
-      gemini: [roots.geminiTmp]
+      antigravity: roots.antigravityRoots.map((path) => ({ path })),
+      codex: [{ path: roots.codexSessions }],
+      claude: [{ path: roots.claudeProjects[0].projectsPath, archiveLabel: undefined }],
+      opencode: [{ path: roots.openCodeDb }],
+      copilot: [{ path: roots.copilotSessionState }],
+      gemini: [{ path: roots.geminiTmp }]
     }
   );
 });

@@ -25,7 +25,8 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 - **Powerful Sidebar Search**:
   - Debounced-as-you-type filtering with **inline match highlighting** in titles and paths.
   - Multi-term AND matching across title, path, workspace, source, connection, favorite notes, and tags.
-  - Query syntax: `-term` exclusion, `#tag` and `is:starred` filters, field filters (`source:`, `path:`, `title:`, `project:`), and `before:` / `after:` date filters.
+  - Query syntax: `-term` exclusion, `#tag` and `is:starred` filters, field filters (`source:`, `path:`, `title:`, `project:`, `archive:`), and `before:` / `after:` date filters.
+- **Archived Claude Histories**: Browses backup copies of `.claude` (e.g. `~/claude-backup-pc1`) alongside the live one, with each archived session badged by the root it came from.
 - **State Persistence**: Remembers your preferred sidebar source filters and chat message filter selections across page reloads using `localStorage`.
 - **Browser-Side Import**: Direct file imports parsed in-browser; imported logs are never uploaded to the backend.
 - **Secure SSH Syncing**: Discovers and mirrors remote sessions into `data/remote/<user>@<host>/...` via password or private key SSH authentication.
@@ -51,6 +52,42 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 - `~/.copilot/session-state`
 - `~/.local/share/opencode/opencode.db` (Linux/macOS; Windows uses `%LOCALAPPDATA%\opencode\opencode.db`, and `XDG_DATA_HOME` is honored when set)
 - `data/remote/` for previously synced remote files
+
+### Archived Claude history directories
+
+If you keep backups of `.claude` — for example a copy restored from another
+machine — ThreadAtlas scans them alongside the live directory.
+
+Archives sitting next to `~/.claude` are found automatically. A directory
+qualifies when its name starts with `claude` (an optional leading dot, and any
+suffix separated by `-`, `_`, `.`, or a space) **and** it contains a `projects`
+directory:
+
+```
+~/.claude/projects              # live history, sessions stay unlabeled
+~/claude-backup-pc1/projects    # archive, sessions badged "claude-backup-pc1"
+~/.claude.old/projects          # archive, sessions badged ".claude.old"
+```
+
+Archives kept anywhere else are listed in `ATLAS_CLAUDE_ROOTS`, separated by the
+platform path delimiter (`:` on Linux/macOS, `;` on Windows so drive letters stay
+intact). Each entry may point at the history home or directly at its `projects`
+directory, and the home directory name becomes the badge:
+
+```bash
+# Linux / macOS
+ATLAS_CLAUDE_ROOTS="/mnt/backups/pc1-claude:/media/usb/laptop-claude" npm start
+```
+
+```cmd
+:: Windows
+set ATLAS_CLAUDE_ROOTS=D:\backups\claude-pc1;E:\claude-pc2
+npm start
+```
+
+Archived sessions parse exactly like live ones and are keyed by absolute path, so
+identical session files from different machines never collide. Filter to one
+archive from the sidebar search with `archive:pc1`.
 
 ### Remote scan roots
 

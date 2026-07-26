@@ -31,6 +31,11 @@ export interface SessionDescriptor {
   connectionId?: string;
   connectionLabel?: string;
   connectionDetail?: string;
+  /**
+   * Name of the archived history root this session was scanned from (e.g.
+   * `claude-backup-pc1`). Unset for sessions from the live history directory.
+   */
+  archiveLabel?: string;
 }
 
 export interface SessionBundle extends SessionDescriptor {

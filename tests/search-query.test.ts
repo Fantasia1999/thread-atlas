@@ -127,3 +127,23 @@ test("SessionStore getVisibleDescriptors applies the enhanced query syntax", () 
   store.setSearch("");
   assert.equal(store.getVisibleDescriptors().length, 3);
 });
+
+test("archive: filter and plain terms match the archived history root label", () => {
+  const live = makeDescriptor({ key: "file::/live.jsonl", title: "Auth work" });
+  const archived = makeDescriptor({
+    key: "file::/pc1.jsonl",
+    title: "Auth work",
+    archiveLabel: "claude-backup-pc1"
+  });
+
+  assert.equal(descriptorMatchesSearch(archived, parseSearchQuery("archive:pc1"), emptyContext), true);
+  assert.equal(descriptorMatchesSearch(live, parseSearchQuery("archive:pc1"), emptyContext), false);
+
+  // The label also participates in plain-term search.
+  assert.equal(descriptorMatchesSearch(archived, parseSearchQuery("backup-pc1"), emptyContext), true);
+  assert.equal(descriptorMatchesSearch(live, parseSearchQuery("backup-pc1"), emptyContext), false);
+
+  // Negation can exclude an archive from the results.
+  assert.equal(descriptorMatchesSearch(archived, parseSearchQuery("auth -backup-pc1"), emptyContext), false);
+  assert.equal(descriptorMatchesSearch(live, parseSearchQuery("auth -backup-pc1"), emptyContext), true);
+});

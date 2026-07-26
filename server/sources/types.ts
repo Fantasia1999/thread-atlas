@@ -7,9 +7,16 @@ export interface ScanContext {
   remoteFiles: readonly string[];
 }
 
+/** A directory to scan, plus the archive label its sessions should carry. */
+export interface ScanRoot {
+  path: string;
+  /** Set when the root is an archived history copy rather than the live one. */
+  archiveLabel?: string;
+}
+
 export interface ServerSourceAdapter {
   id: SessionSource;
-  scanRoots(roots: LocalScanRoots): string[];
+  scanRoots(roots: LocalScanRoots): ScanRoot[];
   matchPath(absolutePath: string): boolean;
   scan?(context: ScanContext): Promise<SessionDescriptor[]>;
   loadBundle?(key: string): Promise<SessionBundle | undefined>;

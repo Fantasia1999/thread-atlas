@@ -390,6 +390,15 @@ function renderSessionHeader(options: {
     descriptor.origin === "remote" ? `remote-${descriptor.transport}` : descriptor.transport;
   meta.append(transportSpan);
 
+  // 3a. Archived history root (which backup copy this session came from)
+  if (descriptor.archiveLabel) {
+    const archiveSpan = document.createElement("span");
+    archiveSpan.className = "chat-meta-archive";
+    archiveSpan.textContent = descriptor.archiveLabel;
+    archiveSpan.title = `Archived history root: ${descriptor.archiveLabel}`;
+    meta.append(archiveSpan);
+  }
+
   // 3b. Connection name (which machine this session came from)
   if (descriptor.connectionLabel) {
     const connectionSpan = document.createElement("span");

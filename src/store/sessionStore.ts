@@ -644,9 +644,10 @@ export function getWorkspaceFullPath(descriptor: SessionDescriptor): string {
     return rawWorkspace.trim();
   }
 
-  // Claude inference from path
+  // Claude inference from path, including archived history roots such as
+  // `claude-backup-pc1/projects/...`.
   const pathStr = descriptor.primaryPath || "";
-  const claudeMatch = pathStr.match(/[\\/]\.claude[\\/]projects[\\/]([^\\/]+)/i);
+  const claudeMatch = pathStr.match(/[\\/]\.?claude(?:[-_. ][^\\/]*)?[\\/]projects[\\/]([^\\/]+)/i);
   if (claudeMatch && claudeMatch[1]) {
     const rawFolder = claudeMatch[1];
     if (rawFolder.startsWith("-")) {

@@ -12,6 +12,7 @@ import type { SessionDescriptor } from "../../shared/types.js";
  * - `path:foo`:         match against the primary path
  * - `title:foo`:        match against the session title
  * - `project:foo`:      match against the workspace path (aliases `workspace:`, `cwd:`)
+ * - `archive:pc1`:      match against the archived history root label
  * - `before:` / `after:` with a `Date.parse`-able value: filter by file mtime
  *
  * Unknown `field:value` tokens degrade to plain terms so paths like `c:/work`
@@ -26,6 +27,7 @@ export interface ParsedSearchQuery {
   pathTerms: string[];
   titleTerms: string[];
   projectTerms: string[];
+  archiveTerms: string[];
   beforeMs?: number;
   afterMs?: number;
 }
@@ -39,7 +41,8 @@ export function parseSearchQuery(search: string): ParsedSearchQuery {
     sourceTerms: [],
     pathTerms: [],
     titleTerms: [],
-    projectTerms: []
+    projectTerms: [],
+    archiveTerms: []
   };
 
   const raw = search.trim().toLowerCase();
@@ -77,6 +80,10 @@ export function parseSearchQuery(search: string): ParsedSearchQuery {
       }
       if (field === "project" || field === "workspace" || field === "cwd") {
         query.projectTerms.push(value);
+        continue;
+      }
+      if (field === "archive") {
+        query.archiveTerms.push(value);
         continue;
       }
       if (field === "before" || field === "after") {
@@ -138,7 +145,11 @@ export function descriptorMatchesSearch(
   const path = descriptor.primaryPath.toLowerCase();
   const source = descriptor.source.toLowerCase();
   const workspace = context.workspacePath.toLowerCase();
+  const archive = descriptor.archiveLabel?.toLowerCase() ?? "";
 
+  if (!query.archiveTerms.every((term) => archive.includes(term))) {
+    return false;
+  }
   if (!query.sourceTerms.every((term) => source.includes(term))) {
     return false;
   }
@@ -159,7 +170,7 @@ export function descriptorMatchesSearch(
   const notes = context.meta?.notes?.toLowerCase() ?? "";
   const tagsText = context.meta?.tags?.join(" ").toLowerCase() ?? "";
   const connection = descriptor.connectionLabel?.toLowerCase() ?? "";
-  const haystack = `${title}\n${path}\n${workspace}\n${source}\n${connection}\n${notes}\n${tagsText}`;
+  const haystack = `${title}\n${path}\n${workspace}\n${source}\n${connection}\n${archive}\n${notes}\n${tagsText}`;
 
   if (!query.terms.every((term) => haystack.includes(term))) {
     return false;

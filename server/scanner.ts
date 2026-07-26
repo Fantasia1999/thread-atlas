@@ -6,7 +6,8 @@ import type {
   SessionDescriptor,
   SessionSource
 } from "../shared/types.js";
-import { resolveLocalScanRoots } from "./platformRoots.js";
+import { isWithinPathRoot } from "../shared/pathUtils.js";
+import { resolveScanRootsWithArchives } from "./claudeArchives.js";
 import {
   collectFiles,
   exists,
@@ -24,7 +25,7 @@ const REMOTE_SYNC_ROOT = path.resolve(process.cwd(), "data", "remote");
 const FILE_KEY_PREFIX = "file::";
 
 export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
-  const roots = resolveLocalScanRoots();
+  const roots = await resolveScanRootsWithArchives();
   const remoteFiles = (await exists(REMOTE_SYNC_ROOT))
     ? await collectFiles(REMOTE_SYNC_ROOT, 0)
     : [];
@@ -38,9 +39,19 @@ export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
     ...SERVER_SOURCE_ADAPTERS.flatMap((adapter) =>
       adapter.scan
         ? []
-        : adapter.scanRoots(roots).map((root) => scanDefaultFileTree(root, adapter.id))
+        : adapter.scanRoots(roots).map((root) =>
+            scanDefaultFileTree({
+              root: root.path,
+              source: adapter.id,
+              archiveLabel: root.archiveLabel
+            })
+          )
     ),
-    scanDefaultFileTree(REMOTE_SYNC_ROOT, undefined, "remote", remoteFiles),
+    scanDefaultFileTree({
+      root: REMOTE_SYNC_ROOT,
+      origin: "remote",
+      precollectedFiles: remoteFiles
+    }),
     ...SERVER_SOURCE_ADAPTERS.flatMap((adapter) =>
       adapter.scan ? [adapter.scan(context)] : []
     )
@@ -67,10 +78,19 @@ export async function loadLocalSessionBundle(key: string): Promise<SessionBundle
   }
 
   const absolutePath = key.slice(FILE_KEY_PREFIX.length);
+
+  // An archived history root can live anywhere (an external drive, a shared
+  // mount), so resolve it from the configured roots rather than the path shape.
+  const roots = await resolveScanRootsWithArchives();
+  const claudeRoot = roots.claudeProjects.find((root) =>
+    isWithinPathRoot(absolutePath, root.projectsPath)
+  );
+
   return await loadDefaultFileBundle(
     absolutePath,
-    inferSourceFromPath(absolutePath),
-    inferDescriptorOrigin(absolutePath, REMOTE_SYNC_ROOT)
+    claudeRoot ? "claude" : inferSourceFromPath(absolutePath),
+    inferDescriptorOrigin(absolutePath, REMOTE_SYNC_ROOT),
+    claudeRoot?.label
   );
 }
 

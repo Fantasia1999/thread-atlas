@@ -1,4 +1,4 @@
-import { normalizePathForMatch } from "../../shared/pathUtils.js";
+import { isClaudeProjectsPath, normalizePathForMatch } from "../../shared/pathUtils.js";
 import {
   isAntigravityConversationPath,
   isAntigravityTranscriptPath
@@ -8,14 +8,14 @@ import type { ServerSourceAdapter } from "./types.js";
 
 export const antigravityFileSource: ServerSourceAdapter = {
   id: "antigravity",
-  scanRoots: (roots) => [...roots.antigravityRoots],
+  scanRoots: (roots) => roots.antigravityRoots.map((root) => ({ path: root })),
   matchPath: (absolutePath) =>
     isAntigravityConversationPath(absolutePath) || isAntigravityTranscriptPath(absolutePath)
 };
 
 export const codexFileSource: ServerSourceAdapter = {
   id: "codex",
-  scanRoots: (roots) => [roots.codexSessions],
+  scanRoots: (roots) => [{ path: roots.codexSessions }],
   matchPath: (absolutePath) => {
     const normalized = normalizePathForMatch(absolutePath);
     return normalized.includes("/.codex/") || normalized.includes("/rollout-");
@@ -24,26 +24,33 @@ export const codexFileSource: ServerSourceAdapter = {
 
 export const claudeFileSource: ServerSourceAdapter = {
   id: "claude",
-  scanRoots: (roots) => [roots.claudeProjects],
+  scanRoots: (roots) =>
+    roots.claudeProjects.map((root) => ({
+      path: root.projectsPath,
+      archiveLabel: root.label
+    })),
+  // Archived history copies such as `claude-backup-pc1/projects/...` carry no
+  // `.claude` segment, so match those by their `<claude-home>/projects` shape.
   matchPath: (absolutePath) =>
-    normalizePathForMatch(absolutePath).includes("/.claude/")
+    normalizePathForMatch(absolutePath).includes("/.claude/") ||
+    isClaudeProjectsPath(absolutePath)
 };
 
 export const opencodeFileSource: ServerSourceAdapter = {
   id: "opencode",
-  scanRoots: (roots) => [roots.openCodeDb],
+  scanRoots: (roots) => [{ path: roots.openCodeDb }],
   matchPath: (absolutePath) => normalizePathForMatch(absolutePath).includes("/opencode")
 };
 
 export const copilotFileSource: ServerSourceAdapter = {
   id: "copilot",
-  scanRoots: (roots) => [roots.copilotSessionState],
+  scanRoots: (roots) => [{ path: roots.copilotSessionState }],
   matchPath: (absolutePath) => normalizePathForMatch(absolutePath).includes("/.copilot/")
 };
 
 export const geminiFileSource: ServerSourceAdapter = {
   id: "gemini",
-  scanRoots: (roots) => [roots.geminiTmp],
+  scanRoots: (roots) => [{ path: roots.geminiTmp }],
   matchPath: (absolutePath) => normalizePathForMatch(absolutePath).includes("/.gemini/")
 };
 

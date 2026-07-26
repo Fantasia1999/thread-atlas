@@ -28,12 +28,21 @@ export const MAX_FILES_PER_SOURCE = 120;
 
 export type DescriptorOrigin = "local" | "remote";
 
+export interface ScanFileTreeOptions {
+  root: string;
+  source?: SessionSource;
+  origin?: DescriptorOrigin;
+  precollectedFiles?: readonly string[];
+  /** Marks descriptors as coming from an archived history root. */
+  archiveLabel?: string;
+}
+
 export async function scanDefaultFileTree(
-  root: string,
-  source?: SessionSource,
-  origin: DescriptorOrigin = "local",
-  precollectedFiles?: readonly string[]
+  options: ScanFileTreeOptions
 ): Promise<SessionDescriptor[]> {
+  const { root, source, precollectedFiles, archiveLabel } = options;
+  const origin: DescriptorOrigin = options.origin ?? "local";
+
   if (!precollectedFiles && !(await exists(root))) {
     return [];
   }
@@ -70,7 +79,7 @@ export async function scanDefaultFileTree(
         inferredSource === "codex" || inferredSource === "claude"
           ? await readTextFileIfPossible(absolutePath)
           : undefined;
-      return buildFileDescriptor(absolutePath, inferredSource, origin, stats, content);
+      return buildFileDescriptor(absolutePath, inferredSource, origin, stats, content, archiveLabel);
     })
   );
 
@@ -124,7 +133,7 @@ export async function scanDefaultFileTree(
               inferredSource === "codex" || inferredSource === "claude"
                 ? await readTextFileIfPossible(absolutePath)
                 : undefined;
-            return buildFileDescriptor(absolutePath, inferredSource, origin, stats, content);
+            return buildFileDescriptor(absolutePath, inferredSource, origin, stats, content, archiveLabel);
           })
         );
         loadedDescriptors.push(...extraDescriptors);
@@ -138,7 +147,8 @@ export async function scanDefaultFileTree(
 export async function loadDefaultFileBundle(
   absolutePath: string,
   source: SessionSource,
-  origin: DescriptorOrigin
+  origin: DescriptorOrigin,
+  archiveLabel?: string
 ): Promise<SessionBundle> {
   const [content, stats] = await Promise.all([
     fs.readFile(absolutePath, "utf8"),
@@ -146,7 +156,7 @@ export async function loadDefaultFileBundle(
   ]);
 
   return {
-    ...buildFileDescriptor(absolutePath, source, origin, stats, content),
+    ...buildFileDescriptor(absolutePath, source, origin, stats, content, archiveLabel),
     files: [
       {
         path: absolutePath,
@@ -213,7 +223,8 @@ export function buildFileDescriptor(
     size: number;
     mtimeMs: number;
   },
-  content?: string
+  content?: string,
+  archiveLabel?: string
 ): SessionDescriptor {
   if (source === "antigravity") {
     return buildAntigravityDescriptor(absolutePath, origin, stats, content);
@@ -280,7 +291,8 @@ export function buildFileDescriptor(
     fileCount: 1,
     size: stats.size,
     mtimeMs: stats.mtimeMs,
-    metadata
+    metadata,
+    archiveLabel
   };
 }
 
