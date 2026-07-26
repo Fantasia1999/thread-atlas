@@ -10,80 +10,62 @@ export interface ResolveRootsOptions {
 }
 
 /**
- * One Claude history location. Users can keep several: the live `~/.claude`
- * plus archived copies restored from other machines.
+ * One directory (or file, for OpenCode) that a source is scanned from. Every
+ * source resolves to a list so users can browse several histories at once: the
+ * live one plus archived copies restored from other machines.
  */
-export interface ClaudeHistoryRoot {
-  /** Absolute path to the `projects` directory holding session JSONL files. */
-  projectsPath: string;
+export interface ScanRootEntry {
+  path: string;
   /**
-   * Display label for an archived root, taken from its home directory name
-   * (e.g. `claude-backup-pc1`). Undefined for the live `~/.claude` root so
-   * ordinary sessions stay unlabeled.
+   * Badge label for a non-default root, taken from its directory name (e.g.
+   * `claude-backup-pc1`). Undefined for the platform default roots so ordinary
+   * sessions stay unlabeled.
    */
   label?: string;
 }
 
 export interface LocalScanRoots {
-  codexSessions: string;
-  claudeProjects: ClaudeHistoryRoot[];
-  geminiTmp: string;
-  antigravityRoots: string[];
+  codexSessions: ScanRootEntry[];
+  claudeProjects: ScanRootEntry[];
+  geminiTmp: ScanRootEntry[];
+  antigravityRoots: ScanRootEntry[];
   antigravityCliHistory: string;
-  copilotSessionState: string;
-  openCodeDb: string;
+  copilotSessionState: ScanRootEntry[];
+  openCodeDb: ScanRootEntry[];
 }
 
 export const CLAUDE_ROOTS_ENV_VAR = "ATLAS_CLAUDE_ROOTS";
 
+/** Root list fields of `LocalScanRoots`, in sidebar source order. */
+export const SCAN_ROOT_FIELDS = [
+  "codexSessions",
+  "claudeProjects",
+  "geminiTmp",
+  "antigravityRoots",
+  "copilotSessionState",
+  "openCodeDb"
+] as const;
+
+export type ScanRootField = (typeof SCAN_ROOT_FIELDS)[number];
+
 /**
- * Merges Claude history roots, keeping the first entry for any duplicate
- * `projects` path so the unlabeled live root always wins over a discovered or
- * configured duplicate of itself.
+ * Merges root lists, keeping the first entry for any duplicate path so a
+ * platform default always wins over a discovered or configured duplicate of
+ * itself.
  */
-export function mergeClaudeHistoryRoots(
-  ...groups: ReadonlyArray<readonly ClaudeHistoryRoot[]>
-): ClaudeHistoryRoot[] {
-  const merged = new Map<string, ClaudeHistoryRoot>();
+export function mergeScanRoots(
+  ...groups: ReadonlyArray<readonly ScanRootEntry[]>
+): ScanRootEntry[] {
+  const merged = new Map<string, ScanRootEntry>();
   for (const group of groups) {
     for (const root of group) {
-      const key = normalizePathForMatch(root.projectsPath).replace(/\/+$/, "");
+      const key = normalizePathForMatch(root.path).replace(/\/+$/, "");
       if (!merged.has(key)) {
         merged.set(key, root);
       }
     }
   }
   return [...merged.values()];
-}
-
-/**
- * Reads extra Claude history roots from `ATLAS_CLAUDE_ROOTS`. Entries are
- * separated by the platform path delimiter (`:` on POSIX, `;` on Windows so
- * drive letters stay intact) and may point either at a history home or directly
- * at its `projects` directory.
- */
-function resolveConfiguredClaudeRoots(
-  p: path.PlatformPath,
-  env: NodeJS.ProcessEnv
-): ClaudeHistoryRoot[] {
-  const raw = env[CLAUDE_ROOTS_ENV_VAR]?.trim();
-  if (!raw) {
-    return [];
-  }
-
-  return raw
-    .split(p === path.win32 ? ";" : ":")
-    .map((entry) => entry.trim().replace(/[\\/]+$/, ""))
-    .filter(Boolean)
-    .map((entry) => {
-      const base = basenameFromAnyPath(entry);
-      const pointsAtProjects = base.toLowerCase() === "projects";
-      const homePath = pointsAtProjects ? p.dirname(entry) : entry;
-      return {
-        projectsPath: pointsAtProjects ? entry : p.join(entry, "projects"),
-        label: basenameFromAnyPath(homePath) || homePath
-      };
-    });
 }
 
 function resolveContext(options: ResolveRootsOptions = {}) {
@@ -120,31 +102,61 @@ function resolveOpenCodeDataDir(
 }
 
 /**
+ * Reads extra Claude history roots from `ATLAS_CLAUDE_ROOTS`. Entries are
+ * separated by the platform path delimiter (`:` on POSIX, `;` on Windows so
+ * drive letters stay intact) and may point either at a history home or directly
+ * at its `projects` directory.
+ */
+function resolveConfiguredClaudeRoots(
+  p: path.PlatformPath,
+  env: NodeJS.ProcessEnv
+): ScanRootEntry[] {
+  const raw = env[CLAUDE_ROOTS_ENV_VAR]?.trim();
+  if (!raw) {
+    return [];
+  }
+
+  return raw
+    .split(p === path.win32 ? ";" : ":")
+    .map((entry) => entry.trim().replace(/[\\/]+$/, ""))
+    .filter(Boolean)
+    .map((entry) => {
+      const base = basenameFromAnyPath(entry);
+      const pointsAtProjects = base.toLowerCase() === "projects";
+      const homePath = pointsAtProjects ? p.dirname(entry) : entry;
+      return {
+        path: pointsAtProjects ? entry : p.join(entry, "projects"),
+        label: basenameFromAnyPath(homePath) || homePath
+      };
+    });
+}
+
+/**
  * Centralizes per-OS local scan roots so scanning works on Linux, macOS, and
  * Windows. Dot-directories (.codex, .claude, .gemini, .copilot) live under the
  * user home on every platform; OpenCode follows XDG / platform data conventions.
  *
- * Claude resolves to a list: the live `~/.claude` plus any roots configured
- * through `ATLAS_CLAUDE_ROOTS`. Archived copies sitting next to `~/.claude` are
- * added separately by `discoverClaudeHistoryRoots`, which needs disk access.
+ * These are the built-in defaults only. Archived Claude copies found on disk and
+ * roots the user configured in the UI are layered on by
+ * `resolveEffectiveScanRoots`.
  */
 export function resolveLocalScanRoots(options: ResolveRootsOptions = {}): LocalScanRoots {
   const { platform, home, env } = resolveContext(options);
   const p = platform === "win32" ? path.win32 : path.posix;
 
   return {
-    codexSessions: p.join(home, ".codex", "sessions"),
-    claudeProjects: mergeClaudeHistoryRoots(
-      [{ projectsPath: p.join(home, ".claude", "projects") }],
+    codexSessions: [{ path: p.join(home, ".codex", "sessions") }],
+    claudeProjects: mergeScanRoots(
+      [{ path: p.join(home, ".claude", "projects") }],
       resolveConfiguredClaudeRoots(p, env)
     ),
-    geminiTmp: p.join(home, ".gemini", "tmp"),
+    geminiTmp: [{ path: p.join(home, ".gemini", "tmp") }],
     antigravityRoots: [
-      p.join(home, ".gemini", "antigravity"),
-      p.join(home, ".gemini", "antigravity-cli")
+      { path: p.join(home, ".gemini", "antigravity") },
+      { path: p.join(home, ".gemini", "antigravity-cli") }
     ],
     antigravityCliHistory: p.join(home, ".gemini", "antigravity-cli", "history.jsonl"),
-    copilotSessionState: p.join(home, ".copilot", "session-state"),
-    openCodeDb: p.join(resolveOpenCodeDataDir(platform, home, env), "opencode.db")
+    copilotSessionState: [{ path: p.join(home, ".copilot", "session-state") }],
+    openCodeDb: [{ path: p.join(resolveOpenCodeDataDir(platform, home, env), "opencode.db") }]
   };
 }

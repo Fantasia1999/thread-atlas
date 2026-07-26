@@ -5,8 +5,18 @@ import path from "node:path";
 import zlib from "node:zlib";
 
 import { resolveAgentConfig } from "./agentConfig.js";
-import { resolveLocalScanRoots } from "./platformRoots.js";
+import { SCAN_ROOT_FIELDS } from "./platformRoots.js";
+import { browseDirectory, inspectScanRootCandidate } from "./pathBrowser.js";
 import { loadLocalSessionBundle, scanLocalSessions } from "./scanner.js";
+import { describeScanRoots, resolveEffectiveScanRoots } from "./scanRoots.js";
+import {
+  isConfigurableSource,
+  readScanRootsConfig,
+  writeScanRootsConfig,
+  CONFIGURABLE_SOURCES,
+  type CustomScanRoot,
+  type ScanRootsConfig
+} from "./scanConfig.js";
 import {
   connectRemoteAgent,
   disconnectRemoteAgent,
@@ -34,7 +44,7 @@ app.use("/api", createTokenGuard(config.token));
 app.get(
   "/api/agent/info",
   handleJsonRoute(500, async () => {
-    const roots = resolveLocalScanRoots();
+    const roots = await resolveEffectiveScanRoots();
     return {
       ok: true,
       info: {
@@ -44,10 +54,59 @@ app.get(
         arch: process.arch,
         nodeVersion: process.version,
         tokenRequired: config.tokenRequired,
-        capabilities: ["local-scan", "session-bundle", "ssh-sync", "ssh-scan"],
+        capabilities: [
+          "local-scan",
+          "session-bundle",
+          "ssh-sync",
+          "ssh-scan",
+          "scan-roots-config",
+          "path-browser"
+        ],
         roots
       }
     };
+  })
+);
+
+app.get(
+  "/api/local/roots",
+  handleJsonRoute(500, async () => {
+    const [roots, config] = await Promise.all([describeScanRoots(), readScanRootsConfig()]);
+    return {
+      ok: true,
+      roots,
+      config,
+      sources: CONFIGURABLE_SOURCES,
+      home: os.homedir(),
+      separator: path.sep
+    };
+  })
+);
+
+app.put(
+  "/api/local/roots",
+  handleJsonRoute(400, async (request) => {
+    const saved = await writeScanRootsConfig(readScanRootsPayload(request.body));
+    const roots = await describeScanRoots({ config: saved });
+    return { ok: true, config: saved, roots };
+  })
+);
+
+app.post(
+  "/api/local/roots/inspect",
+  handleJsonRoute(400, async (request) => {
+    const body = asRecord(request.body, "Missing request body.");
+    const targetPath = readRequiredString(body, "path", "A path is required.");
+    const source = isConfigurableSource(body.source) ? body.source : undefined;
+    return { ok: true, result: await inspectScanRootCandidate(targetPath, source) };
+  })
+);
+
+app.get(
+  "/api/local/browse",
+  handleJsonRoute(400, async (request) => {
+    const requested = typeof request.query.path === "string" ? request.query.path : "";
+    return { ok: true, listing: await browseDirectory(requested) };
   })
 );
 
@@ -170,9 +229,13 @@ async function isPathAllowed(filePath: string, sessionKey?: string): Promise<boo
     }
 
     try {
-      const roots = resolveLocalScanRoots();
-      if (roots.openCodeDb) {
-        allowedBases.push(path.dirname(roots.openCodeDb));
+      // Every configured root counts as an allowed base, so files inside roots
+      // the user added in the UI stay previewable.
+      const roots = await resolveEffectiveScanRoots();
+      for (const field of SCAN_ROOT_FIELDS) {
+        for (const root of roots[field]) {
+          allowedBases.push(field === "openCodeDb" ? path.dirname(root.path) : root.path);
+        }
       }
     } catch {
       // ignore
@@ -341,6 +404,42 @@ function readRequiredQueryString(request: Request, key: string): string {
   }
 
   return value;
+}
+
+function readScanRootsPayload(value: unknown): ScanRootsConfig {
+  const record = asRecord(value, "Missing scan root configuration.");
+  const customRoots: CustomScanRoot[] = [];
+
+  if (Array.isArray(record.customRoots)) {
+    for (const entry of record.customRoots) {
+      const candidate = asRecord(entry, "Invalid scan root entry.");
+      const rootPath = String(candidate.path ?? "").trim();
+      if (!rootPath) {
+        throw new HttpError(400, "Each scan root needs a path.");
+      }
+      if (!isConfigurableSource(candidate.source)) {
+        throw new HttpError(400, `Unsupported source: ${String(candidate.source)}`);
+      }
+      if (!path.isAbsolute(rootPath)) {
+        throw new HttpError(400, `Scan root must be an absolute path: ${rootPath}`);
+      }
+
+      const label = String(candidate.label ?? "").trim();
+      customRoots.push({
+        id: String(candidate.id ?? "").trim() || `root-${customRoots.length + 1}`,
+        source: candidate.source,
+        path: rootPath,
+        label: label || undefined,
+        enabled: candidate.enabled !== false
+      });
+    }
+  }
+
+  const disabledDefaults = Array.isArray(record.disabledDefaults)
+    ? record.disabledDefaults.map((entry) => String(entry ?? "").trim()).filter(Boolean)
+    : [];
+
+  return { version: 1, customRoots, disabledDefaults };
 }
 
 function readCredentials(value: unknown): SshCredentials {

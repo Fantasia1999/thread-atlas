@@ -61,16 +61,16 @@ test("backend source registry preserves path inference priority", () => {
 
 test("backend source registry exposes adapters and current scan roots", () => {
   const roots = {
-    codexSessions: "/home/example/.codex/sessions",
-    claudeProjects: [{ projectsPath: "/home/example/.claude/projects" }],
-    geminiTmp: "/home/example/.gemini/tmp",
+    codexSessions: [{ path: "/home/example/.codex/sessions" }],
+    claudeProjects: [{ path: "/home/example/.claude/projects" }],
+    geminiTmp: [{ path: "/home/example/.gemini/tmp" }],
     antigravityRoots: [
-      "/home/example/.gemini/antigravity",
-      "/home/example/.gemini/antigravity-cli"
+      { path: "/home/example/.gemini/antigravity" },
+      { path: "/home/example/.gemini/antigravity-cli" }
     ],
     antigravityCliHistory: "/home/example/.gemini/antigravity-cli/history.jsonl",
-    copilotSessionState: "/home/example/.copilot/session-state",
-    openCodeDb: "/home/example/.local/share/opencode/opencode.db"
+    copilotSessionState: [{ path: "/home/example/.copilot/session-state" }],
+    openCodeDb: [{ path: "/home/example/.local/share/opencode/opencode.db" }]
   };
 
   assert.equal(getServerAdapter("codex")?.id, "codex");
@@ -80,12 +80,15 @@ test("backend source registry exposes adapters and current scan roots", () => {
       SERVER_SOURCE_ADAPTERS.map((adapter) => [adapter.id, adapter.scanRoots(roots)])
     ),
     {
-      antigravity: roots.antigravityRoots.map((path) => ({ path })),
-      codex: [{ path: roots.codexSessions }],
-      claude: [{ path: roots.claudeProjects[0].projectsPath, archiveLabel: undefined }],
-      opencode: [{ path: roots.openCodeDb }],
-      copilot: [{ path: roots.copilotSessionState }],
-      gemini: [{ path: roots.geminiTmp }]
+      antigravity: roots.antigravityRoots.map((root) => ({
+        path: root.path,
+        archiveLabel: undefined
+      })),
+      codex: [{ path: roots.codexSessions[0].path, archiveLabel: undefined }],
+      claude: [{ path: roots.claudeProjects[0].path, archiveLabel: undefined }],
+      opencode: [{ path: roots.openCodeDb[0].path, archiveLabel: undefined }],
+      copilot: [{ path: roots.copilotSessionState[0].path, archiveLabel: undefined }],
+      gemini: [{ path: roots.geminiTmp[0].path, archiveLabel: undefined }]
     }
   );
 });

@@ -49,7 +49,8 @@ async function loadAntigravityHistoryMap(): Promise<Map<string, string>> {
 async function scanAntigravitySessions(
   roots: readonly string[],
   origin: DescriptorOrigin,
-  precollectedFiles?: readonly string[]
+  precollectedFiles?: readonly string[],
+  archiveLabel?: string
 ): Promise<SessionDescriptor[]> {
   const files = precollectedFiles ?? (await Promise.all(
     roots.map(async (root) => {
@@ -122,7 +123,8 @@ async function scanAntigravitySessions(
         "antigravity",
         origin,
         stats,
-        content
+        content,
+        archiveLabel
       );
 
       const sessionId = antigravitySessionIdFromPath(absolutePath);
@@ -151,11 +153,21 @@ function preferAntigravityPath(candidate: string, current: string): boolean {
 export const antigravitySource: ServerSourceAdapter = {
   ...antigravityFileSource,
   scan: async (context) => {
-    const [localDescriptors, remoteDescriptors] = await Promise.all([
-      scanAntigravitySessions(context.roots.antigravityRoots, "local"),
+    // Unlabeled roots are the product defaults (`antigravity` and
+    // `antigravity-cli`) and are scanned together so a session present in both
+    // still dedupes to one descriptor. Labeled roots are separate histories, so
+    // each is scanned on its own and keeps its own copy of a shared session.
+    const defaultRoots = context.roots.antigravityRoots.filter((root) => !root.label);
+    const labeledRoots = context.roots.antigravityRoots.filter((root) => root.label);
+
+    const groups = await Promise.all([
+      scanAntigravitySessions(defaultRoots.map((root) => root.path), "local"),
+      ...labeledRoots.map((root) =>
+        scanAntigravitySessions([root.path], "local", undefined, root.label)
+      ),
       scanAntigravitySessions([context.remoteRoot], "remote", context.remoteFiles)
     ]);
-    return [...localDescriptors, ...remoteDescriptors];
+    return groups.flat();
   },
   loadBundle: async (key) => {
     if (!key.startsWith(FILE_KEY_PREFIX)) {

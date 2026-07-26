@@ -4,17 +4,13 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import {
-  discoverClaudeHistoryRoots,
-  resolveScanRootsWithArchives
-} from "../server/claudeArchives.ts";
-import {
-  mergeClaudeHistoryRoots,
-  resolveLocalScanRoots
-} from "../server/platformRoots.ts";
+import { discoverClaudeHistoryRoots } from "../server/claudeArchives.ts";
+import { resolveEffectiveScanRoots } from "../server/scanRoots.ts";
+import { mergeScanRoots, resolveLocalScanRoots } from "../server/platformRoots.ts";
 import { scanDefaultFileTree } from "../server/sources/fsScan.ts";
 import { SERVER_SOURCE_ADAPTERS } from "../server/sources/registry.ts";
 import { isClaudeHistoryDirName, isClaudeProjectsPath } from "../shared/pathUtils.ts";
+import { emptyScanRootsConfig } from "../server/scanConfig.ts";
 
 async function makeHome(): Promise<string> {
   return await fs.mkdtemp(path.join(os.tmpdir(), "atlas-claude-archives-"));
@@ -69,9 +65,9 @@ test("ATLAS_CLAUDE_ROOTS adds labeled roots and accepts both home and projects p
   });
 
   assert.deepEqual(roots.claudeProjects, [
-    { projectsPath: "/home/alice/.claude/projects" },
-    { projectsPath: "/mnt/backup/pc1-claude/projects", label: "pc1-claude" },
-    { projectsPath: "/mnt/backup/pc2/projects", label: "pc2" }
+    { path: "/home/alice/.claude/projects" },
+    { path: "/mnt/backup/pc1-claude/projects", label: "pc1-claude" },
+    { path: "/mnt/backup/pc2/projects", label: "pc2" }
   ]);
 });
 
@@ -83,24 +79,24 @@ test("ATLAS_CLAUDE_ROOTS splits on semicolons so Windows drive letters survive",
   });
 
   assert.deepEqual(roots.claudeProjects, [
-    { projectsPath: "C:\\Users\\alice\\.claude\\projects" },
-    { projectsPath: "D:\\backups\\claude-pc1\\projects", label: "claude-pc1" },
-    { projectsPath: "E:\\claude-pc2\\projects", label: "claude-pc2" }
+    { path: "C:\\Users\\alice\\.claude\\projects" },
+    { path: "D:\\backups\\claude-pc1\\projects", label: "claude-pc1" },
+    { path: "E:\\claude-pc2\\projects", label: "claude-pc2" }
   ]);
 });
 
 test("mergeClaudeHistoryRoots keeps the first entry for duplicate projects paths", () => {
-  const merged = mergeClaudeHistoryRoots(
-    [{ projectsPath: "/home/a/.claude/projects" }],
+  const merged = mergeScanRoots(
+    [{ path: "/home/a/.claude/projects" }],
     [
-      { projectsPath: "/home/a/.claude/projects", label: ".claude" },
-      { projectsPath: "/home/a/claude-backup-pc1/projects", label: "claude-backup-pc1" }
+      { path: "/home/a/.claude/projects", label: ".claude" },
+      { path: "/home/a/claude-backup-pc1/projects", label: "claude-backup-pc1" }
     ]
   );
 
   assert.deepEqual(merged, [
-    { projectsPath: "/home/a/.claude/projects" },
-    { projectsPath: "/home/a/claude-backup-pc1/projects", label: "claude-backup-pc1" }
+    { path: "/home/a/.claude/projects" },
+    { path: "/home/a/claude-backup-pc1/projects", label: "claude-backup-pc1" }
   ]);
 });
 
@@ -120,7 +116,7 @@ test("discoverClaudeHistoryRoots finds archive copies next to the live .claude",
 
     assert.deepEqual(labels, [".claude", "claude-backup-pc1", "claude-backup-pc2"]);
     for (const root of discovered) {
-      assert.equal(root.projectsPath, path.join(home, root.label!, "projects"));
+      assert.equal(root.path, path.join(home, root.label!, "projects"));
     }
   } finally {
     await fs.rm(home, { recursive: true, force: true });
@@ -134,15 +130,15 @@ test("discoverClaudeHistoryRoots returns nothing when the home is unreadable", a
   assert.deepEqual(discovered, []);
 });
 
-test("resolveScanRootsWithArchives keeps the live root unlabeled and first", async () => {
+test("resolveEffectiveScanRoots keeps the live root unlabeled and first", async () => {
   const home = await makeHome();
   try {
     await fs.mkdir(path.join(home, ".claude", "projects"), { recursive: true });
     await fs.mkdir(path.join(home, "claude-backup-pc1", "projects"), { recursive: true });
 
-    const roots = await resolveScanRootsWithArchives({ platform: "linux", home, env: {} });
+    const roots = await resolveEffectiveScanRoots({ platform: "linux", home, env: {}, config: emptyScanRootsConfig() });
 
-    assert.equal(roots.claudeProjects[0].projectsPath, path.join(home, ".claude", "projects"));
+    assert.equal(roots.claudeProjects[0].path, path.join(home, ".claude", "projects"));
     assert.equal(roots.claudeProjects[0].label, undefined);
     assert.deepEqual(
       roots.claudeProjects.slice(1).map((root) => root.label),
@@ -161,7 +157,7 @@ test("scanning an archived root tags descriptors with the archive label", async 
     await writeSession(liveProjects, "demo", "live-session.jsonl", "Live machine question");
     await writeSession(archiveProjects, "demo", "archived-session.jsonl", "Backup machine question");
 
-    const roots = await resolveScanRootsWithArchives({ platform: "linux", home, env: {} });
+    const roots = await resolveEffectiveScanRoots({ platform: "linux", home, env: {}, config: emptyScanRootsConfig() });
     const claudeAdapter = SERVER_SOURCE_ADAPTERS.find((adapter) => adapter.id === "claude");
     assert.ok(claudeAdapter);
 

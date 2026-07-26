@@ -10,16 +10,18 @@ test("resolveLocalScanRoots maps dot-directories under the home on Linux", () =>
     env: {}
   });
 
-  assert.equal(roots.codexSessions, "/home/alice/.codex/sessions");
-  assert.deepEqual(roots.claudeProjects, [
-    { projectsPath: "/home/alice/.claude/projects" }
+  assert.deepEqual(roots.codexSessions, [{ path: "/home/alice/.codex/sessions" }]);
+  assert.deepEqual(roots.claudeProjects, [{ path: "/home/alice/.claude/projects" }]);
+  assert.deepEqual(roots.geminiTmp, [{ path: "/home/alice/.gemini/tmp" }]);
+  assert.deepEqual(roots.copilotSessionState, [
+    { path: "/home/alice/.copilot/session-state" }
   ]);
-  assert.equal(roots.geminiTmp, "/home/alice/.gemini/tmp");
-  assert.equal(roots.copilotSessionState, "/home/alice/.copilot/session-state");
-  assert.equal(roots.openCodeDb, "/home/alice/.local/share/opencode/opencode.db");
+  assert.deepEqual(roots.openCodeDb, [
+    { path: "/home/alice/.local/share/opencode/opencode.db" }
+  ]);
   assert.deepEqual(roots.antigravityRoots, [
-    "/home/alice/.gemini/antigravity",
-    "/home/alice/.gemini/antigravity-cli"
+    { path: "/home/alice/.gemini/antigravity" },
+    { path: "/home/alice/.gemini/antigravity-cli" }
   ]);
   assert.equal(
     roots.antigravityCliHistory,
@@ -34,7 +36,7 @@ test("resolveLocalScanRoots honors XDG_DATA_HOME for OpenCode on any platform", 
     env: { XDG_DATA_HOME: "/custom/data" }
   });
 
-  assert.equal(roots.openCodeDb, "/custom/data/opencode/opencode.db");
+  assert.deepEqual(roots.openCodeDb, [{ path: "/custom/data/opencode/opencode.db" }]);
 });
 
 test("resolveLocalScanRoots uses LOCALAPPDATA for OpenCode on Windows", () => {
@@ -44,11 +46,12 @@ test("resolveLocalScanRoots uses LOCALAPPDATA for OpenCode on Windows", () => {
     env: { LOCALAPPDATA: "C:\\Users\\alice\\AppData\\Local" }
   });
 
-  assert.equal(
-    roots.openCodeDb,
-    "C:\\Users\\alice\\AppData\\Local\\opencode\\opencode.db"
-  );
-  assert.equal(roots.codexSessions, "C:\\Users\\alice\\.codex\\sessions");
+  assert.deepEqual(roots.openCodeDb, [
+    { path: "C:\\Users\\alice\\AppData\\Local\\opencode\\opencode.db" }
+  ]);
+  assert.deepEqual(roots.codexSessions, [
+    { path: "C:\\Users\\alice\\.codex\\sessions" }
+  ]);
 });
 
 test("resolveLocalScanRoots falls back to AppData Local when no env on Windows", () => {
@@ -58,10 +61,9 @@ test("resolveLocalScanRoots falls back to AppData Local when no env on Windows",
     env: {}
   });
 
-  assert.equal(
-    roots.openCodeDb,
-    "C:\\Users\\bob\\AppData\\Local\\opencode\\opencode.db"
-  );
+  assert.deepEqual(roots.openCodeDb, [
+    { path: "C:\\Users\\bob\\AppData\\Local\\opencode\\opencode.db" }
+  ]);
 });
 
 test("resolveLocalScanRoots prefers APPDATA when LOCALAPPDATA is absent on Windows", () => {
@@ -71,8 +73,7 @@ test("resolveLocalScanRoots prefers APPDATA when LOCALAPPDATA is absent on Windo
     env: { APPDATA: "C:\\Users\\carol\\AppData\\Roaming" }
   });
 
-  assert.equal(
-    roots.openCodeDb,
-    "C:\\Users\\carol\\AppData\\Roaming\\opencode\\opencode.db"
-  );
+  assert.deepEqual(roots.openCodeDb, [
+    { path: "C:\\Users\\carol\\AppData\\Roaming\\opencode\\opencode.db" }
+  ]);
 });

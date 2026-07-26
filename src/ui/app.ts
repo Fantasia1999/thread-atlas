@@ -7,6 +7,8 @@ import type { MessageViewFilter } from "./messageFilter.js";
 import { createSshModal } from "./sshModal.js";
 import { createConnectionModal } from "./connectionModal.js";
 import { createExportMdModal } from "./exportMdModal.js";
+import { createScanRootsModal } from "./scanRootsModal.js";
+import { ScanRootsClient } from "../store/scanRootsClient.js";
 import { createFilePreviewModal, parseFileLink, isSupportedPreview } from "./filePreviewModal.js";
 import { showToast, copyText } from "./utils.js";
 import { cleanupMermaid } from "./mermaidRender.js";
@@ -82,7 +84,10 @@ export class ThreadAtlasApp {
     const connectionsButton = this.makeButton("Connections", () => {
       this.openConnectionModal();
     });
-    actions.append(scanButton, importButton, sshButton, connectionsButton);
+    const scanPathsButton = this.makeButton("Scan paths", () => {
+      this.openScanRootsModal();
+    });
+    actions.append(scanButton, scanPathsButton, importButton, sshButton, connectionsButton);
 
     this.statusNode = document.createElement("div");
     this.statusNode.className = "status-pill ui-badge";
@@ -714,6 +719,18 @@ export class ThreadAtlasApp {
         authHeaders: this.store.getConnection().authHeaders(),
         onClose,
         onSynced: async () => {
+          await this.store.refreshLocalScan();
+        }
+      })
+    );
+  }
+
+  private openScanRootsModal(): void {
+    this.pushModal((onClose) =>
+      createScanRootsModal({
+        client: new ScanRootsClient(this.store.getConnection()),
+        onClose,
+        onSaved: async () => {
           await this.store.refreshLocalScan();
         }
       })

@@ -59,7 +59,8 @@ async function scanOpenCodeDatabasesInRemoteMirror(
 
 async function scanOpenCodeDatabase(
   dbPath: string,
-  origin: DescriptorOrigin
+  origin: DescriptorOrigin,
+  archiveLabel?: string
 ): Promise<SessionDescriptor[]> {
   if (!(await exists(dbPath))) {
     return [];
@@ -74,7 +75,9 @@ async function scanOpenCodeDatabase(
        limit ${MAX_OPENCODE_SESSIONS};`
     );
 
-    return sessions.map((session) => buildOpenCodeDescriptor(session, dbPath, origin));
+    return sessions.map((session) =>
+      buildOpenCodeDescriptor(session, dbPath, origin, 0, archiveLabel)
+    );
   } catch {
     return [];
   }
@@ -138,9 +141,11 @@ function buildOpenCodeDescriptor(
   session: OpenCodeSessionRow,
   dbPath: string,
   origin: DescriptorOrigin,
-  size = 0
+  size = 0,
+  archiveLabel?: string
 ): SessionDescriptor {
   return {
+    archiveLabel,
     key: `${OPENCODE_KEY_PREFIX}${dbPath}::${session.id}`,
     source: "opencode",
     title: session.title || session.id,
@@ -177,11 +182,13 @@ async function querySqlite<T>(
 export const opencodeSource: ServerSourceAdapter = {
   ...opencodeFileSource,
   scan: async (context) => {
-    const [localDescriptors, remoteDescriptors] = await Promise.all([
-      scanOpenCodeDatabase(context.roots.openCodeDb, "local"),
+    const groups = await Promise.all([
+      ...context.roots.openCodeDb.map((root) =>
+        scanOpenCodeDatabase(root.path, "local", root.label)
+      ),
       scanOpenCodeDatabasesInRemoteMirror(context.remoteFiles)
     ]);
-    return [...localDescriptors, ...remoteDescriptors];
+    return groups.flat();
   },
   loadBundle: async (key) => {
     if (!key.startsWith(OPENCODE_KEY_PREFIX)) {

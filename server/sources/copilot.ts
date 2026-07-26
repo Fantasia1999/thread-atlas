@@ -46,7 +46,8 @@ async function scanCopilotSessionDirectoriesInRemoteMirror(
 
 async function scanCopilotSessionDirectories(
   root: string,
-  origin: DescriptorOrigin
+  origin: DescriptorOrigin,
+  archiveLabel?: string
 ): Promise<SessionDescriptor[]> {
   if (!(await exists(root))) {
     return [];
@@ -77,9 +78,9 @@ async function scanCopilotSessionDirectories(
     sortedDirs.map((sessionDir) => buildCopilotDescriptor(sessionDir, origin))
   );
 
-  return descriptors.filter(
-    (descriptor): descriptor is SessionDescriptor => descriptor !== null
-  );
+  return descriptors
+    .filter((descriptor): descriptor is SessionDescriptor => descriptor !== null)
+    .map((descriptor) => (archiveLabel ? { ...descriptor, archiveLabel } : descriptor));
 }
 
 async function loadCopilotBundle(sessionDir: string): Promise<SessionBundle> {
@@ -225,11 +226,13 @@ function inferCopilotMtimeMs(
 export const copilotSource: ServerSourceAdapter = {
   ...copilotFileSource,
   scan: async (context) => {
-    const [localDescriptors, remoteDescriptors] = await Promise.all([
-      scanCopilotSessionDirectories(context.roots.copilotSessionState, "local"),
+    const groups = await Promise.all([
+      ...context.roots.copilotSessionState.map((root) =>
+        scanCopilotSessionDirectories(root.path, "local", root.label)
+      ),
       scanCopilotSessionDirectoriesInRemoteMirror(context.remoteFiles)
     ]);
-    return [...localDescriptors, ...remoteDescriptors];
+    return groups.flat();
   },
   loadBundle: async (key) => {
     if (!key.startsWith(COPILOT_DIR_KEY_PREFIX)) {

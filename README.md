@@ -53,6 +53,33 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 - `~/.local/share/opencode/opencode.db` (Linux/macOS; Windows uses `%LOCALAPPDATA%\opencode\opencode.db`, and `XDG_DATA_HOME` is honored when set)
 - `data/remote/` for previously synced remote files
 
+### Configuring scan paths in the UI
+
+Click **Scan paths** in the top bar to manage where each source is scanned from,
+without touching config files or environment variables.
+
+Each source (Codex, Claude, Gemini, Antigravity, Copilot, OpenCode) lists the
+paths it scans:
+
+- **built-in** — the platform default for that source
+- **found** — an archived Claude history discovered next to your home directory
+- **custom** — a path you added
+
+For each path you can:
+
+- **Add** one with a folder browser (or paste an absolute path). Before you save,
+  the agent checks the path and reports how many session files it holds and which
+  source it looks like, so a wrong folder is obvious immediately. OpenCode asks
+  for an `opencode.db` file; every other source asks for a directory.
+- **Give it a badge label** so sessions from that path are distinguishable in the
+  sidebar. It defaults to the directory name — and for a generic container like
+  `.../pc2-codex/sessions`, to the parent (`pc2-codex`).
+- **Switch it off** without deleting it, including the built-in defaults.
+
+Saving writes `data/scan-roots.json` and immediately rescans. The file is
+tolerant: unknown sources, blank paths and duplicates are dropped on read, and a
+corrupted file falls back to defaults rather than breaking scanning.
+
 ### Archived Claude history directories
 
 If you keep backups of `.claude` — for example a copy restored from another
@@ -110,6 +137,9 @@ archive from the sidebar search with `archive:pc1`.
 
 - `GET /api/local/scan` returns session descriptors only
 - `GET /api/local/session?key=...` returns one raw session bundle
+- `GET /api/local/roots` returns the configured scan roots; `PUT` saves them
+- `POST /api/local/roots/inspect` checks a candidate path before it is saved
+- `GET /api/local/browse?path=...` lists directory entries for the path picker
 - Antigravity is the one decode exception: the backend may unwrap `.pb` into a generated `#chat.jsonl` bundle
 - Frontend parsers normalize raw bundle content into one `Session` model
 - Imported browser files stay in the browser store and are not uploaded to the backend

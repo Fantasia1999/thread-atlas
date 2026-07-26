@@ -2,8 +2,9 @@ import http from "node:http";
 import { URL } from "node:url";
 
 import { resolveAgentConfig } from "./agentConfig.js";
-import { resolveLocalScanRoots } from "./platformRoots.js";
+import { browseDirectory } from "./pathBrowser.js";
 import { loadLocalSessionBundle, scanLocalSessions } from "./scanner.js";
+import { describeScanRoots, resolveEffectiveScanRoots } from "./scanRoots.js";
 
 const AGENT_NAME = "thread-atlas-agent";
 const AGENT_VERSION = "0.1.0";
@@ -64,10 +65,28 @@ async function handleRequest(
         arch: process.arch,
         nodeVersion: process.version,
         tokenRequired: config.tokenRequired,
-        capabilities: ["local-scan", "session-bundle"],
-        roots: resolveLocalScanRoots()
+        capabilities: ["local-scan", "session-bundle", "path-browser"],
+        roots: await resolveEffectiveScanRoots()
       }
     });
+    return;
+  }
+
+  if (url.pathname === "/api/local/roots") {
+    sendJson(response, 200, { ok: true, roots: await describeScanRoots() });
+    return;
+  }
+
+  if (url.pathname === "/api/local/browse") {
+    try {
+      const listing = await browseDirectory(url.searchParams.get("path") ?? "");
+      sendJson(response, 200, { ok: true, listing });
+    } catch (error) {
+      sendJson(response, 400, {
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to browse directory."
+      });
+    }
     return;
   }
 

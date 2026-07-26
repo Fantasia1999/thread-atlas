@@ -7,7 +7,9 @@ import type {
   SessionSource
 } from "../shared/types.js";
 import { isWithinPathRoot } from "../shared/pathUtils.js";
-import { resolveScanRootsWithArchives } from "./claudeArchives.js";
+import { SCAN_ROOT_FIELDS } from "./platformRoots.js";
+import { resolveEffectiveScanRoots } from "./scanRoots.js";
+import { CONFIGURABLE_SOURCES } from "./scanConfig.js";
 import {
   collectFiles,
   exists,
@@ -25,7 +27,7 @@ const REMOTE_SYNC_ROOT = path.resolve(process.cwd(), "data", "remote");
 const FILE_KEY_PREFIX = "file::";
 
 export async function scanLocalSessions(): Promise<SessionDescriptor[]> {
-  const roots = await resolveScanRootsWithArchives();
+  const roots = await resolveEffectiveScanRoots();
   const remoteFiles = (await exists(REMOTE_SYNC_ROOT))
     ? await collectFiles(REMOTE_SYNC_ROOT, 0)
     : [];
@@ -79,19 +81,46 @@ export async function loadLocalSessionBundle(key: string): Promise<SessionBundle
 
   const absolutePath = key.slice(FILE_KEY_PREFIX.length);
 
-  // An archived history root can live anywhere (an external drive, a shared
-  // mount), so resolve it from the configured roots rather than the path shape.
-  const roots = await resolveScanRootsWithArchives();
-  const claudeRoot = roots.claudeProjects.find((root) =>
-    isWithinPathRoot(absolutePath, root.projectsPath)
-  );
+  // A configured root can live anywhere (an external drive, a shared mount) and
+  // need not follow the product's directory naming, so resolve the owning root
+  // from the effective configuration rather than from the path shape.
+  const owner = await findOwningScanRoot(absolutePath);
 
   return await loadDefaultFileBundle(
     absolutePath,
-    claudeRoot ? "claude" : inferSourceFromPath(absolutePath),
+    owner?.source ?? inferSourceFromPath(absolutePath),
     inferDescriptorOrigin(absolutePath, REMOTE_SYNC_ROOT),
-    claudeRoot?.label
+    owner?.label
   );
+}
+
+/**
+ * Maps a session file back to the configured scan root it belongs to, so its
+ * source and archive label survive a bundle load. The longest matching root
+ * wins, which keeps nested roots (a root inside another root) unambiguous.
+ */
+async function findOwningScanRoot(
+  absolutePath: string
+): Promise<{ source: SessionSource; label?: string } | undefined> {
+  const roots = await resolveEffectiveScanRoots();
+
+  let best: { source: SessionSource; label?: string; length: number } | undefined;
+  for (const field of SCAN_ROOT_FIELDS) {
+    const source = CONFIGURABLE_SOURCES.find((entry) => entry.field === field)?.source;
+    if (!source) {
+      continue;
+    }
+    for (const root of roots[field]) {
+      if (!isWithinPathRoot(absolutePath, root.path)) {
+        continue;
+      }
+      if (!best || root.path.length > best.length) {
+        best = { source, label: root.label, length: root.path.length };
+      }
+    }
+  }
+
+  return best ? { source: best.source, label: best.label } : undefined;
 }
 
 export function inferSourceFromPath(absolutePath: string): SessionSource {

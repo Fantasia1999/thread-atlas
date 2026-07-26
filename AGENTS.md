@@ -23,6 +23,8 @@ More specific guidance lives in `server/AGENTS.md` and `src/AGENTS.md`.
 
 - `GET /api/local/scan` returns `SessionDescriptor[]` only. It must not inline file contents.
 - `GET /api/local/session?key=...` returns one `SessionBundle` with raw file contents.
+- `GET`/`PUT /api/local/roots` read and write user-configured scan roots, persisted to `data/scan-roots.json`.
+- `POST /api/local/roots/inspect` validates a candidate root; `GET /api/local/browse` lists directory entries for the picker and must never return file contents.
 - Antigravity `.pb` is the one exception to "raw file contents":
   the backend may unwrap encrypted protobuf into a generated `#chat.jsonl` bundle so the frontend can keep using the normal parser contract.
 - Frontend parsers own normalization from `SessionBundle` to `Session`.
@@ -85,6 +87,8 @@ Imported browser files can still be source-detected from content and path hints 
 
 - Source detection lives in `src/parsers/detect.ts`. If you add a new source or new heuristics, keep them tolerant and order-sensitive.
 - Scanner heuristics live in `server/scanner.ts`. They are intentionally shallow and capped rather than exhaustive.
+- Scan roots resolve in layers: `server/platformRoots.ts` holds the per-OS defaults (every source is a `ScanRootEntry[]`), `server/claudeArchives.ts` discovers archived Claude copies, `server/scanConfig.ts` persists user roots, and `server/scanRoots.ts` composes all three. Add new configurable sources to `CONFIGURABLE_SOURCES`.
+- `data/scan-roots.json` is user data, not a cache. Keep reads tolerant so a hand-edited or corrupted file degrades to defaults instead of failing a scan.
 - Antigravity protobuf decode lives in `server/antigravity.ts`.
   - Keep the bundled descriptor snapshot in `server/antigravityDescriptors.ts`.
   - Prefer bundled descriptors first.
