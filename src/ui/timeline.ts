@@ -1,5 +1,8 @@
 import type { Message } from "../../shared/types.js";
+import { previewText } from "../../shared/parserUtils.js";
 import { escapeHtml, formatDateTimeLong, formatDisplayTime } from "./utils.js";
+
+export { previewText };
 
 export function renderTimelineButton(
   message: Message,
@@ -25,14 +28,6 @@ export function renderTimelineButton(
   `;
 
   return button;
-}
-
-export function previewText(text: string, length = 120): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (normalized.length <= length) {
-    return normalized;
-  }
-  return `${normalized.slice(0, length - 1)}...`;
 }
 
 export function buildAnchorId(message: Message, index: number): string {

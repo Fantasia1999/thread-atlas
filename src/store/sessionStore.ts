@@ -191,10 +191,14 @@ export class SessionStore {
     }
     cleanQuery = cleanQuery.trim().replace(/\s+/g, " ");
 
+    const hasHiddenProjects = this.state.hiddenProjects.size > 0;
+
     const filtered = this.state.descriptors.filter((descriptor) => {
-      const workspacePath = getWorkspaceFullPath(descriptor);
-      if (workspacePath && this.state.hiddenProjects.has(workspacePath)) {
-        return false;
+      if (hasHiddenProjects) {
+        const workspacePath = getWorkspaceFullPath(descriptor);
+        if (workspacePath && this.state.hiddenProjects.has(workspacePath)) {
+          return false;
+        }
       }
 
       if (this.state.sourceFilter !== "all" && descriptor.source !== this.state.sourceFilter) {
@@ -430,21 +434,25 @@ export class SessionStore {
         }
       }
 
+      let descriptorTitleChanged = false;
       const nextDescriptors = this.state.descriptors.map((desc) => {
         if (desc.key === key && desc.title !== session.title && session.title) {
+          descriptorTitleChanged = true;
           return { ...desc, title: session.title };
         }
         return desc;
       });
 
-      try {
-        const payload: CachedDescriptorsPayload = {
-          version: CACHED_DESCRIPTORS_VERSION,
-          descriptors: nextDescriptors.slice(0, 300)
-        };
-        localStorage.setItem(CACHED_DESCRIPTORS_KEY, JSON.stringify(payload));
-      } catch {
-        // Ignore storage errors
+      if (descriptorTitleChanged) {
+        try {
+          const payload: CachedDescriptorsPayload = {
+            version: CACHED_DESCRIPTORS_VERSION,
+            descriptors: nextDescriptors.slice(0, 300)
+          };
+          localStorage.setItem(CACHED_DESCRIPTORS_KEY, JSON.stringify(payload));
+        } catch {
+          // Ignore storage errors
+        }
       }
 
       this.updateState({
@@ -595,8 +603,10 @@ export class SessionStore {
       ...partial
     };
 
+    // Build one defensive snapshot per update instead of one per listener.
+    const snapshot = this.getState();
     for (const listener of this.listeners) {
-      listener(this.getState(), scope);
+      listener(snapshot, scope);
     }
   }
 }

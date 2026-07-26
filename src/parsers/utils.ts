@@ -88,14 +88,18 @@ export function addToolCall(
 }
 
 export function sortMessages(messages: Message[]): Message[] {
-  return [...messages].sort((left, right) => {
-    const leftTime = left.createdAt ? Date.parse(left.createdAt) : 0;
-    const rightTime = right.createdAt ? Date.parse(right.createdAt) : 0;
-    if (leftTime !== rightTime) {
-      return leftTime - rightTime;
-    }
-    return left.id.localeCompare(right.id);
-  });
+  return messages
+    .map((message) => ({
+      message,
+      time: message.createdAt ? Date.parse(message.createdAt) : 0
+    }))
+    .sort((left, right) => {
+      if (left.time !== right.time) {
+        return left.time - right.time;
+      }
+      return left.message.id.localeCompare(right.message.id);
+    })
+    .map((entry) => entry.message);
 }
 export function extractCommonMetadata(value: Record<string, unknown>): Record<string, MetadataValue> {
   const metadata: Record<string, MetadataValue> = {};

@@ -672,6 +672,7 @@ function groupImages(fragment: DocumentFragment): void {
 
 function renderInline(text: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
+  let hasImageElements = false;
   const tokenPattern =
     /((?:\!?)\[([^\]]*)\]\(((?:https?|file):\/\/[^\s)]+|[^\s)]+)\)|`([^`]+)`|(?<![\\\w])\$(?![\s$])([^$\n]*?\S)(?<!\\)\$(?!\w)|\*\*((?:[^*]|`[^`]+`|\*(?!\*))+?)\*\*|(?<![\\/.\w])__([^_]+)__(?![\w\\/]|[.][A-Za-z0-9])|\*((?:[^*]|`[^`]+`)+?)\*|(?<![\\/.\w])_([^_\s](?:[^_]*[^_\s])?)_(?![\w\\/]|[.][A-Za-z0-9])|(<image\s+name=["']?\[?([^\"'\]>]+)\]?["']?\s+path=["']?([^\"'>]*)["']?\s*\/?>)|(<\/image>))/g;
   let cursor = 0;
@@ -695,6 +696,7 @@ function renderInline(text: string): DocumentFragment {
           showImageModal(imgSrc, imgAlt);
         });
         fragment.append(img);
+        hasImageElements = true;
       } else {
         const link = document.createElement("a");
         link.className = "md-link";
@@ -724,6 +726,7 @@ function renderInline(text: string): DocumentFragment {
       span.className = "image-attachment-badge";
       span.textContent = `📷 ${match[11] || "Image Attachment"}`;
       fragment.append(span);
+      hasImageElements = true;
     } else if (match[13]) {
       // Ignore closing </image> tag
     }
@@ -735,7 +738,9 @@ function renderInline(text: string): DocumentFragment {
     fragment.append(document.createTextNode(text.slice(cursor)));
   }
 
-  groupImages(fragment);
+  if (hasImageElements) {
+    groupImages(fragment);
+  }
 
   return fragment;
 }

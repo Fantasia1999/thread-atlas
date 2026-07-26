@@ -7,10 +7,24 @@ export function safeJsonParse<T>(value: string): T | null {
 }
 
 export function parseJsonLines(text: string): unknown[] {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => safeJsonParse(line))
-    .filter((entry): entry is unknown => entry !== null);
+  const entries: unknown[] = [];
+  const length = text.length;
+  let start = 0;
+
+  while (start < length) {
+    let end = text.indexOf("\n", start);
+    if (end === -1) {
+      end = length;
+    }
+    const line = text.slice(start, end).trim();
+    if (line) {
+      const entry = safeJsonParse(line);
+      if (entry !== null) {
+        entries.push(entry);
+      }
+    }
+    start = end + 1;
+  }
+
+  return entries;
 }

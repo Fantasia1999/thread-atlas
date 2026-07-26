@@ -284,14 +284,22 @@ export function buildFileDescriptor(
   };
 }
 
+const MAX_DESCRIPTOR_READ_BYTES = 5242880;
+
 export async function readTextFileIfPossible(
   absolutePath: string
 ): Promise<string | undefined> {
   try {
     const handle = await fs.open(absolutePath, "r");
     try {
-      const buffer = Buffer.alloc(5242880);
-      const { bytesRead } = await handle.read(buffer, 0, 5242880, 0);
+      const { size } = await handle.stat();
+      const readLength = Math.min(size, MAX_DESCRIPTOR_READ_BYTES);
+      if (readLength === 0) {
+        return "";
+      }
+      // allocUnsafe is safe here: only the bytes actually read are decoded.
+      const buffer = Buffer.allocUnsafe(readLength);
+      const { bytesRead } = await handle.read(buffer, 0, readLength, 0);
       return buffer.toString("utf8", 0, bytesRead);
     } finally {
       await handle.close();

@@ -133,7 +133,12 @@ export async function copyRichText(content: HTMLElement): Promise<void> {
   await copyText(plainText);
 }
 
+const HTML_ESCAPE_PATTERN = /[&<>]/;
+
 export function escapeHtml(value: string): string {
+  if (!HTML_ESCAPE_PATTERN.test(value)) {
+    return value;
+  }
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -255,12 +260,13 @@ export function ansiToHtml(text: string): string {
   return html;
 }
 
+const ANSI_STANDARD_COLORS = [
+  "#000000", "#cd0000", "#00cd00", "#cdcd00", "#0000ee", "#cd00cd", "#00cdcd", "#e5e5e5",
+  "#7f7f7f", "#ff0000", "#00ff00", "#ffff00", "#5c5cff", "#ff00ff", "#00ffff", "#ffffff"
+];
+
 function convert256Color(num: number): string | null {
-  const standardColors = [
-    "#000000", "#cd0000", "#00cd00", "#cdcd00", "#0000ee", "#cd00cd", "#00cdcd", "#e5e5e5",
-    "#7f7f7f", "#ff0000", "#00ff00", "#ffff00", "#5c5cff", "#ff00ff", "#00ffff", "#ffffff"
-  ];
-  if (num < 16) return standardColors[num];
+  if (num < 16) return ANSI_STANDARD_COLORS[num];
 
   if (num >= 16 && num <= 231) {
     const index = num - 16;

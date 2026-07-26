@@ -91,8 +91,33 @@ export function toIsoTimestamp(input: unknown): string | undefined {
   return undefined;
 }
 
+const WHITESPACE_RUN = /\s+/g;
+
 export function previewText(text: string, length = 120): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
+  // Incremental whitespace normalization: stop as soon as the preview budget
+  // is exceeded instead of normalizing the entire (possibly huge) input.
+  let normalized = "";
+  let pendingSpace = false;
+  let cursor = 0;
+
+  while (cursor < text.length && normalized.length <= length) {
+    WHITESPACE_RUN.lastIndex = cursor;
+    const match = WHITESPACE_RUN.exec(text);
+    if (match && match.index === cursor) {
+      pendingSpace = normalized.length > 0;
+      cursor = WHITESPACE_RUN.lastIndex;
+      continue;
+    }
+
+    const segmentEnd = match ? match.index : text.length;
+    if (pendingSpace) {
+      normalized += " ";
+      pendingSpace = false;
+    }
+    normalized += text.slice(cursor, Math.min(segmentEnd, cursor + length + 2 - normalized.length));
+    cursor = segmentEnd;
+  }
+
   if (normalized.length <= length) {
     return normalized;
   }
@@ -121,10 +146,18 @@ export function formatCodeFence(value: unknown): string {
     return "";
   }
 
-  const longestBacktickRun = Array.from(text.matchAll(/`+/g)).reduce(
-    (max, match) => Math.max(max, match[0].length),
-    0
-  );
+  let longestBacktickRun = 0;
+  let currentRun = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text.charCodeAt(index) === 96) {
+      currentRun += 1;
+      if (currentRun > longestBacktickRun) {
+        longestBacktickRun = currentRun;
+      }
+    } else {
+      currentRun = 0;
+    }
+  }
   const fence = "`".repeat(Math.max(3, longestBacktickRun + 1));
 
   return `${fence}\n${text}\n${fence}`;
