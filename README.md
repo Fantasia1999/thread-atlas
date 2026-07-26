@@ -150,6 +150,8 @@ archive from the sidebar search with `archive:pc1`.
 ### Requirements
 
 - Node.js with npm
+- Python 3 with Pillow (`pip install -r requirements.txt`) — only needed to
+  regenerate the annotated screenshot via `npm run screenshot`
 
 ### Install
 
@@ -258,6 +260,10 @@ npm run build
 npm run test
 ```
 
+`npm run test` runs the TypeScript suite (`npm run test:ts`) and the Python tests
+covering the annotation script (`npm run test:py`). The Python step skips itself
+with a notice when Python 3 or Pillow is unavailable.
+
 ### Take a screenshot
 
 To regenerate the application screenshot stored in `docs/screenshot.png` using a headless browser, run:
@@ -265,6 +271,19 @@ To regenerate the application screenshot stored in `docs/screenshot.png` using a
 ```bash
 npm run screenshot
 ```
+
+The committed screenshots are captured at `4k`, so use that resolution when
+refreshing them:
+
+```bash
+npm run screenshot -- 4k
+```
+
+The session list in the screenshot is synthetic: `scripts/capture-screenshot.ts`
+intercepts `/api/local/scan` and `/api/local/session` and serves its own mock
+sessions, so no real local paths ever reach `docs/`. Capturing the plain
+screenshot needs only Node; producing `docs/screenshot_annotated.png` also needs
+Python 3 with Pillow.
 
 By default, the script captures at `960p` (1440x960) with `125%` zoom. You can specify a custom resolution and page zoom factor as parameters (supporting `960p`, `1080p`, `2k`, and `4k` resolutions).
 

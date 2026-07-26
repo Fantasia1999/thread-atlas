@@ -1,0 +1,3 @@
+# Python dependencies for the screenshot annotation step (scripts/annotate.py).
+# Only needed to regenerate docs/screenshot_annotated.png via `npm run screenshot`.
+pillow>=10.0.0

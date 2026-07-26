@@ -96,9 +96,16 @@ Imported browser files can still be source-detected from content and path hints 
 - SSH discovery and sync live in `server/ssh.ts`. Preserve the rule that sync downloads files first and lets local scan treat them like any other local source.
 - Dev mode depends on Vite proxying `/api` to `http://localhost:3030`; production build relies on the Express server serving `dist/`.
 
+## Screenshots
+
+- `npm run screenshot -- 4k` regenerates `docs/screenshot.png` and, through `scripts/annotate.py`, `docs/screenshot_annotated.png`. The committed images are 4k; omitting the resolution captures 960p and silently downgrades them.
+- Screenshot sessions are mocked inside `scripts/capture-screenshot.ts` (`mockDescriptors` / `getMockBundle`) and injected by intercepting `/api/local/scan` and `/api/local/session`. Keep it that way so no real local paths reach `docs/`.
+- When you add or remove a labeled UI control, update both the position collector in `scripts/capture-screenshot.ts` and the `features` list in `scripts/annotate.py`, then regenerate.
+- Annotation needs Python 3 with Pillow (`pip install -r requirements.txt`).
+
 ## Verification
 
-- `npm run test` to verify all parser, store, markdown and UI tests pass
+- `npm run test` to verify all parser, store, markdown and UI tests pass (TypeScript via `test:ts`, annotation script via `test:py`)
 - `npm run typecheck`
 - `npm run build`
 - Manual pass through:

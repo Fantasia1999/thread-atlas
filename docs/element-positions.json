@@ -1,39 +1,45 @@
 {
   "themeToggle": {
-    "x": 2497,
+    "x": 2202,
     "y": 25,
-    "w": 274,
+    "w": 275,
     "h": 79,
     "selector": ".theme-toggle"
   },
   "rescanBtn": {
-    "x": 2786,
+    "x": 2491,
     "y": 27,
-    "w": 258,
+    "w": 267,
+    "h": 75
+  },
+  "scanPathsBtn": {
+    "x": 2773,
+    "y": 27,
+    "w": 244,
     "h": 75
   },
   "importBtn": {
-    "x": 3059,
+    "x": 3032,
     "y": 27,
-    "w": 237,
+    "w": 249,
     "h": 75
   },
   "sshBtn": {
-    "x": 3311,
+    "x": 3296,
     "y": 27,
-    "w": 209,
+    "w": 215,
     "h": 75
   },
   "connectionsBtn": {
-    "x": 3535,
+    "x": 3525,
     "y": 27,
-    "w": 255,
+    "w": 265,
     "h": 75
   },
   "pathDisplay": {
-    "x": 330,
+    "x": 377,
     "y": 32,
-    "w": 2127,
+    "w": 1784,
     "h": 65,
     "selector": ".status-pill"
   },
@@ -73,44 +79,44 @@
     "selector": ".sidebar .panel-header .panel-icon-button"
   },
   "sessionPin": {
-    "x": 2263,
+    "x": 2242,
     "y": 166,
-    "w": 126,
+    "w": 128,
     "h": 65,
     "selector": ".chat-fav-actions .pin-btn"
   },
   "sessionFavorite": {
-    "x": 2409,
+    "x": 2390,
     "y": 166,
-    "w": 189,
+    "w": 197,
     "h": 65,
     "selector": ".chat-fav-actions .favorite-btn"
   },
   "resumeBtn": {
-    "x": 2618,
+    "x": 2607,
     "y": 166,
-    "w": 193,
+    "w": 199,
     "h": 65,
     "selector": ".chat-actions .copy-command-dropdown-trigger, .chat-actions .copy-command-button"
   },
   "exportBtn": {
-    "x": 2826,
+    "x": 2821,
     "y": 166,
-    "w": 164,
+    "w": 169,
     "h": 65,
     "selector": ".export-dropdown-container .ui-menu-trigger"
   },
   "filterTabs": {
-    "x": 2398,
-    "y": 253,
-    "w": 592,
+    "x": 2335,
+    "y": 323,
+    "w": 655,
     "h": 64,
     "selector": ".filter-chip-row"
   },
   "toolRows": [
     {
       "x": 902,
-      "y": 1338,
+      "y": 1407,
       "w": 2036,
       "h": 89,
       "text": "view_file · completedinput/workspace/markdown-view",

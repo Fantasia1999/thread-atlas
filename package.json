@@ -16,7 +16,9 @@
     "agent": "node --max-old-space-size=256 dist/agent/atlas-agent.mjs",
     "start": "npm run build && node --max-old-space-size=256 dist/server/server/index.js",
     "desktop": "node scripts/desktop.mjs",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "npm run test:ts && npm run test:py",
+    "test:ts": "node --import tsx --test tests/*.test.ts",
+    "test:py": "node scripts/run-python-tests.mjs",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "preview": "vite preview",
     "screenshot": "tsx scripts/capture-screenshot.ts"

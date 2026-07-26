@@ -113,9 +113,15 @@ features = [
         "label": "Rescan local sessions"
     },
     {
-        "key": "importBtn",
+        "key": "scanPathsBtn",
         "fallback_box": (1712, 11, 1808, 41),
         "fallback_marker": (1760, 26),
+        "label": "Configure scan paths per source"
+    },
+    {
+        "key": "importBtn",
+        "fallback_box": (1814, 11, 1910, 41),
+        "fallback_marker": (1862, 26),
         "label": "Import files (browser-side)"
     },
     {

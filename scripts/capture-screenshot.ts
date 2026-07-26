@@ -353,6 +353,7 @@ async function main() {
         return {
           themeToggle: getRect(".theme-toggle"),
           rescanBtn: getBtnByText("Rescan local"),
+          scanPathsBtn: getBtnByText("Scan paths"),
           importBtn: getBtnByText("Import files"),
           sshBtn: getBtnByText("SSH sync"),
           connectionsBtn: getBtnByText("Connections"),
@@ -399,7 +400,18 @@ async function main() {
   });
   const annotationExit = await new Promise<number | null>((resolve) => annotateProcess.on("exit", resolve));
   if (annotationExit !== 0) {
-    throw new Error(`Screenshot annotation failed with exit code ${annotationExit}.`);
+    // The plain screenshot and positions are already written at this point, so
+    // say plainly what is and is not up to date, and how to finish the job.
+    throw new Error(
+      [
+        `Screenshot annotation failed with exit code ${annotationExit}.`,
+        "docs/screenshot.png and docs/element-positions.json were updated, but",
+        "docs/screenshot_annotated.png is unchanged.",
+        "The annotation step needs Python 3 with Pillow:",
+        "  pip install -r requirements.txt",
+        "Then rerun this command, or just: python3 scripts/annotate.py"
+      ].join("\n")
+    );
   }
 
   console.log("All done!");

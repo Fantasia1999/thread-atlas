@@ -3,5 +3,6 @@ dist
 .vite
 .idea/
 .worktrees/
+__pycache__/
 data/*
 !data/.gitkeep
