@@ -734,3 +734,65 @@ test("renderSidebar groups and nests subagents under main agent sessions", () =>
   const sidebarSearch = renderSidebar(optionsSearch);
   assert.ok(!sidebarSearch.querySelector(".session-children-container"));
 });
+
+test("sidebar search debounces typing and commits clears and Enter immediately", async () => {
+  const searchCalls: string[] = [];
+  const view = createSidebarView(createSidebarOptions({
+    onSearch: (value) => {
+      searchCalls.push(value);
+    }
+  }));
+  const input = view.element.querySelector("input") as HTMLInputElement;
+  assert.ok(input);
+
+  // Typing does not commit on every keystroke.
+  input.value = "se";
+  input.dispatchEvent("input");
+  input.value = "sess";
+  input.dispatchEvent("input");
+  assert.deepEqual(searchCalls, []);
+
+  // After the debounce delay only the latest value is committed, once.
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.deepEqual(searchCalls, ["sess"]);
+
+  // Enter flushes a pending value immediately and the timer does not re-fire.
+  input.value = "session one";
+  input.dispatchEvent("input");
+  input.dispatchEvent("keydown", { key: "Enter" });
+  assert.deepEqual(searchCalls, ["sess", "session one"]);
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.deepEqual(searchCalls, ["sess", "session one"]);
+
+  // Clearing the input commits instantly and cancels any pending value.
+  input.value = "abc";
+  input.dispatchEvent("input");
+  input.value = "";
+  input.dispatchEvent("input");
+  assert.deepEqual(searchCalls, ["sess", "session one", ""]);
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.deepEqual(searchCalls, ["sess", "session one", ""]);
+});
+
+test("sidebar update does not clobber a pending debounced search input", async () => {
+  const searchCalls: string[] = [];
+  const onSearch = (value: string) => {
+    searchCalls.push(value);
+  };
+  const view = createSidebarView(createSidebarOptions({ onSearch }));
+  const input = view.element.querySelector("input") as HTMLInputElement;
+
+  input.value = "typing";
+  input.dispatchEvent("input");
+
+  // An async re-render (e.g. scan progress) arrives with the stale store value.
+  view.update(createSidebarOptions({ onSearch, search: "" }));
+  assert.equal(input.value, "typing");
+
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.deepEqual(searchCalls, ["typing"]);
+
+  // Once nothing is pending, external updates sync the input again.
+  view.update(createSidebarOptions({ onSearch, search: "other" }));
+  assert.equal(input.value, "other");
+});

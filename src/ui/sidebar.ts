@@ -34,6 +34,8 @@ export interface SidebarView {
   update(options: SidebarOptions): void;
 }
 
+const SEARCH_DEBOUNCE_MS = 150;
+
 export function renderSidebar(options: SidebarOptions): HTMLElement {
   return createSidebarView(options).element;
 }
@@ -194,8 +196,43 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
   search.className = "text-input ui-input";
   search.type = "search";
   search.placeholder = "Search title or path";
+
+  let searchDebounceTimer: number | undefined;
+  let searchDebouncePending = false;
+
+  const cancelPendingSearch = () => {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = undefined;
+    }
+    searchDebouncePending = false;
+  };
+
+  // Commits a search value immediately, superseding any pending debounced input.
+  const applySearch = (value: string) => {
+    cancelPendingSearch();
+    if (search.value !== value) {
+      search.value = value;
+    }
+    currentOptions.onSearch(value);
+  };
+
   search.addEventListener("input", () => {
-    currentOptions.onSearch(search.value);
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = undefined;
+    }
+    // Clearing should feel instant; only debounce while the user is typing.
+    if (!search.value) {
+      applySearch("");
+      return;
+    }
+    searchDebouncePending = true;
+    searchDebounceTimer = window.setTimeout(() => {
+      searchDebounceTimer = undefined;
+      searchDebouncePending = false;
+      currentOptions.onSearch(search.value);
+    }, SEARCH_DEBOUNCE_MS);
   });
   search.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -208,14 +245,17 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
             const wsPath = getWorkspaceFullPath(currentDesc);
             if (wsPath) {
               currentOptions.onHideProject(wsPath);
-              currentOptions.onSearch("");
+              applySearch("");
             }
           }
         }
       } else if (val === ":unhide-all") {
         event.preventDefault();
         currentOptions.onClearHiddenProjects();
-        currentOptions.onSearch("");
+        applySearch("");
+      } else if (searchDebouncePending) {
+        // Enter applies the in-flight search without waiting for the debounce.
+        applySearch(search.value);
       }
     }
   });
@@ -297,10 +337,10 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
             .replace(/\bis:favorite\b/gi, "")
             .trim()
             .replace(/\s+/g, " ");
-          currentOptions.onSearch(nextSearch);
+          applySearch(nextSearch);
         } else {
           const nextSearch = (searchValue ? searchValue + " " : "") + "is:starred";
-          currentOptions.onSearch(nextSearch.trim());
+          applySearch(nextSearch.trim());
         }
       });
       chipsContainer.append(allFavChip);
@@ -352,7 +392,7 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
             nextSearch = (nextSearch ? nextSearch + " " : "") + `#${selectedTag}`;
           }
 
-          currentOptions.onSearch(nextSearch.trim());
+          applySearch(nextSearch.trim());
         }
       });
       tagSelect.element.classList.add("tag-filter-dropdown");
@@ -377,7 +417,9 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
     pinButton.setAttribute("aria-label", pinButton.title);
 
     countBadge.textContent = String(nextOptions.descriptors.length);
-    if (search.value !== nextOptions.search) {
+    // While a debounced search is pending, the store lags behind the input;
+    // syncing here would overwrite what the user is still typing.
+    if (!searchDebouncePending && search.value !== nextOptions.search) {
       search.value = nextOptions.search;
     }
     filter.updateSelectedValue(nextOptions.sourceFilter);
