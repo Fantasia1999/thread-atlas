@@ -232,6 +232,12 @@
   color: var(--text-muted);
   font-size: 11px;
 }
+.search-highlight {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text-primary);
+  font-weight: 700;
+}
 .session-workspace {
   max-width: 90px;
   flex-shrink: 0;

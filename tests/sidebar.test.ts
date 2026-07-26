@@ -91,7 +91,8 @@ test("createSidebarView keeps controls stable while updating sidebar content", (
   assert.equal(root.classList.contains("pinned"), true);
   assert.equal(search.value, "Session");
   assert.equal(count.textContent, "2");
-  assert.ok(list.innerHTML.includes("Session 2"));
+  const rowTitles = list.querySelectorAll(".session-title").map((el: any) => el.textContent);
+  assert.ok(rowTitles.includes("Session 2"));
 
   const filterTrigger = filter.querySelector(".custom-dropdown-trigger");
   assert.ok(filterTrigger?.innerHTML.includes("Gemini"));
@@ -795,4 +796,49 @@ test("sidebar update does not clobber a pending debounced search input", async (
   // Once nothing is pending, external updates sync the input again.
   view.update(createSidebarOptions({ onSearch, search: "other" }));
   assert.equal(input.value, "other");
+});
+
+test("sidebar highlights matching search terms in titles and paths", () => {
+  const view = createSidebarView(createSidebarOptions({
+    search: "session path:jsonl",
+    descriptors: [
+      {
+        key: "file::/path/to/session.jsonl",
+        source: "claude",
+        title: "Session One",
+        primaryPath: "/path/to/session.jsonl",
+        relatedPaths: [],
+        transport: "local-scan" as const,
+        origin: "local" as const,
+        fileCount: 1,
+        size: 100,
+        mtimeMs: Date.now(),
+        metadata: {}
+      }
+    ] as SessionDescriptor[]
+  }));
+
+  const list = view.element.querySelector(".session-list");
+  assert.ok(list);
+
+  const title = list.querySelector(".session-title");
+  assert.ok(title);
+  const titleMarks = title.querySelectorAll(".search-highlight");
+  assert.equal(titleMarks.length, 1);
+  assert.equal(titleMarks[0].textContent, "Session");
+  assert.equal(title.textContent, "Session One");
+
+  // Path highlights both the plain term and the path: field filter.
+  const path = list.querySelector(".session-path");
+  assert.ok(path);
+  const pathMarks = path.querySelectorAll(".search-highlight");
+  assert.ok(pathMarks.length >= 1);
+  assert.equal(path.textContent, "/path/to/session.jsonl");
+  assert.ok(pathMarks.some((mark: any) => mark.textContent.includes("session") || mark.textContent.includes("jsonl")));
+
+  // Without a search query nothing is wrapped in highlight marks.
+  const plainView = createSidebarView(createSidebarOptions());
+  const plainTitle = plainView.element.querySelector(".session-title");
+  assert.ok(plainTitle);
+  assert.equal(plainTitle.querySelectorAll(".search-highlight").length, 0);
 });

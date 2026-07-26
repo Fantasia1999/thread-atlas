@@ -22,6 +22,10 @@ It currently supports `codex`, `claude`, `opencode`, `gemini`, `antigravity`, an
 - **Smart Workspaces & Navigation**:
   - Displays primary **session workspace / CWD** next to the session path in the sidebar for quick context identification.
   - Jump-to-timeline navigation with instant scroll alignment.
+- **Powerful Sidebar Search**:
+  - Debounced-as-you-type filtering with **inline match highlighting** in titles and paths.
+  - Multi-term AND matching across title, path, workspace, source, connection, favorite notes, and tags.
+  - Query syntax: `-term` exclusion, `#tag` and `is:starred` filters, field filters (`source:`, `path:`, `title:`, `project:`), and `before:` / `after:` date filters.
 - **State Persistence**: Remembers your preferred sidebar source filters and chat message filter selections across page reloads using `localStorage`.
 - **Browser-Side Import**: Direct file imports parsed in-browser; imported logs are never uploaded to the backend.
 - **Secure SSH Syncing**: Discovers and mirrors remote sessions into `data/remote/<user>@<host>/...` via password or private key SSH authentication.

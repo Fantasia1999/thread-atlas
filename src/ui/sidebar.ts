@@ -2,6 +2,7 @@ import type { SessionDescriptor, SessionSource } from "../../shared/types.js";
 import { getSourceLabel } from "../sources/registry.js";
 import { escapeHtml, formatLocalDateTime, formatLocalDateTimeLong } from "./utils.js";
 import { getWorkspaceFullPath, getWorkspaceLabel } from "../store/sessionStore.js";
+import { parseSearchQuery } from "../store/searchQuery.js";
 
 interface SidebarOptions {
   descriptors: SessionDescriptor[];
@@ -35,6 +36,76 @@ export interface SidebarView {
 }
 
 const SEARCH_DEBOUNCE_MS = 150;
+
+const SEARCH_SYNTAX_HINT = [
+  "Search syntax:",
+  "  foo bar      all terms must match (title, path, workspace, notes, tags...)",
+  "  -term        exclude sessions matching term",
+  "  #tag         filter by favorite tag",
+  "  is:starred   favorites only",
+  "  source:codex, path:..., title:..., project:...",
+  "  before:2026-07-01, after:2026-07-01",
+  "  :hidden, :hide, :unhide-all manage hidden workspaces"
+].join("\n");
+
+function buildHighlightedFragment(text: string, terms: string[]): DocumentFragment | null {
+  if (!text || terms.length === 0) {
+    return null;
+  }
+
+  const lower = text.toLowerCase();
+  const ranges: Array<[number, number]> = [];
+  for (const term of terms) {
+    if (!term) {
+      continue;
+    }
+    let index = lower.indexOf(term);
+    while (index !== -1) {
+      ranges.push([index, index + term.length]);
+      index = lower.indexOf(term, index + term.length);
+    }
+  }
+  if (ranges.length === 0) {
+    return null;
+  }
+
+  ranges.sort((left, right) => left[0] - right[0] || left[1] - right[1]);
+  const merged: Array<[number, number]> = [];
+  for (const range of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && range[0] <= last[1]) {
+      last[1] = Math.max(last[1], range[1]);
+    } else {
+      merged.push([range[0], range[1]]);
+    }
+  }
+
+  const fragment = document.createDocumentFragment();
+  let cursor = 0;
+  for (const [start, end] of merged) {
+    if (start > cursor) {
+      fragment.append(document.createTextNode(text.slice(cursor, start)));
+    }
+    const mark = document.createElement("mark");
+    mark.className = "search-highlight";
+    mark.textContent = text.slice(start, end);
+    fragment.append(mark);
+    cursor = end;
+  }
+  if (cursor < text.length) {
+    fragment.append(document.createTextNode(text.slice(cursor)));
+  }
+  return fragment;
+}
+
+function setHighlightedText(element: HTMLElement, text: string, terms: string[]): void {
+  const highlighted = buildHighlightedFragment(text, terms);
+  if (highlighted) {
+    element.append(highlighted);
+  } else {
+    element.textContent = text;
+  }
+}
 
 export function renderSidebar(options: SidebarOptions): HTMLElement {
   return createSidebarView(options).element;
@@ -195,7 +266,8 @@ export function createSidebarView(options: SidebarOptions): SidebarView {
   const search = document.createElement("input");
   search.className = "text-input ui-input";
   search.type = "search";
-  search.placeholder = "Search title or path";
+  search.placeholder = "Search (term, -term, source:, #tag...)";
+  search.title = SEARCH_SYNTAX_HINT;
 
   let searchDebounceTimer: number | undefined;
   let searchDebouncePending = false;
@@ -486,6 +558,10 @@ function renderSessionList(
     let hasRenderedPinnedHeader = false;
     let hasRenderedNormalHeader = false;
 
+    const parsedQuery = parseSearchQuery(options.search);
+    const titleHighlightTerms = [...parsedQuery.terms, ...parsedQuery.titleTerms];
+    const pathHighlightTerms = [...parsedQuery.terms, ...parsedQuery.pathTerms];
+
     const renderSingleDescriptor = (descriptor: SessionDescriptor) => {
       const isPinned = options.pinnedKeys.has(descriptor.key);
       const isFavorited = options.favoriteKeys.has(descriptor.key);
@@ -533,11 +609,11 @@ function renderSessionList(
 
       const titleEl = document.createElement("strong");
       titleEl.className = "session-title";
-      titleEl.textContent = descriptor.title;
+      setHighlightedText(titleEl, descriptor.title, titleHighlightTerms);
 
       const pathRow = document.createElement("div");
       pathRow.className = "session-path-row";
-      
+
       if (workspaceLabel) {
         const workspaceEl = document.createElement("span");
         workspaceEl.className = "session-workspace";
@@ -561,7 +637,7 @@ function renderSessionList(
 
       const pathEl = document.createElement("p");
       pathEl.className = "session-path";
-      pathEl.textContent = descriptor.primaryPath;
+      setHighlightedText(pathEl, descriptor.primaryPath, pathHighlightTerms);
       pathRow.append(pathEl);
 
       button.append(titleEl, pathRow);

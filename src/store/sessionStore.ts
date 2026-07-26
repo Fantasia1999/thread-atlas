@@ -6,6 +6,7 @@ import type {
   SessionSource
 } from "../../shared/types.js";
 import { compareDescriptors } from "../../shared/descriptors.js";
+import { descriptorMatchesSearch, parseSearchQuery } from "./searchQuery.js";
 import { ConnectionManager, type ScanTarget } from "./connection.js";
 
 export interface StoreState {
@@ -171,73 +172,29 @@ export class SessionStore {
   }
 
   getVisibleDescriptors(): SessionDescriptor[] {
-    const query = this.state.search.trim().toLowerCase();
-
-    // Parse special filters
-    const showOnlyStarred = query.includes("is:starred") || query.includes("is:favorite");
-    
-    let cleanQuery = query
-      .replace(/\bis:starred\b/gi, "")
-      .replace(/\bis:favorite\b/gi, "")
-      .trim();
-
-    // Extract tags like "#tag1" or "#tag2"
-    const tagMatches = cleanQuery.match(/#\S+/g) || [];
-    const targetTags = tagMatches.map(t => t.slice(1).toLowerCase());
-
-    // Strip out the tags from the text search query
-    for (const match of tagMatches) {
-      cleanQuery = cleanQuery.replace(match, "");
-    }
-    cleanQuery = cleanQuery.trim().replace(/\s+/g, " ");
-
+    const query = parseSearchQuery(this.state.search);
     const hasHiddenProjects = this.state.hiddenProjects.size > 0;
+    const needsWorkspacePath =
+      hasHiddenProjects ||
+      query.projectTerms.length > 0 ||
+      query.terms.length > 0 ||
+      query.negatedTerms.length > 0;
 
     const filtered = this.state.descriptors.filter((descriptor) => {
-      if (hasHiddenProjects) {
-        const workspacePath = getWorkspaceFullPath(descriptor);
-        if (workspacePath && this.state.hiddenProjects.has(workspacePath)) {
-          return false;
-        }
+      const workspacePath = needsWorkspacePath ? getWorkspaceFullPath(descriptor) : "";
+      if (hasHiddenProjects && workspacePath && this.state.hiddenProjects.has(workspacePath)) {
+        return false;
       }
 
       if (this.state.sourceFilter !== "all" && descriptor.source !== this.state.sourceFilter) {
         return false;
       }
 
-      // Check favorites-only filter
-      if (showOnlyStarred && !this.state.favoriteKeys.has(descriptor.key)) {
-        return false;
-      }
-
-      // Check hashtag filters
-      if (targetTags.length > 0) {
-        const meta = this.state.favoriteMetadata.get(descriptor.key);
-        if (!meta) {
-          return false;
-        }
-        const sessionTags = meta.tags.map(t => t.toLowerCase());
-        const hasAllTags = targetTags.every(t => sessionTags.includes(t));
-        if (!hasAllTags) {
-          return false;
-        }
-      }
-
-      if (!cleanQuery) {
-        return true;
-      }
-
-      // Fetch metadata to match notes and tags in plain text search
-      const meta = this.state.favoriteMetadata.get(descriptor.key);
-      const notesMatch = meta?.notes?.toLowerCase().includes(cleanQuery) || false;
-      const tagsMatch = meta?.tags?.some(t => t.toLowerCase().includes(cleanQuery)) || false;
-
-      return (
-        descriptor.title.toLowerCase().includes(cleanQuery) ||
-        descriptor.primaryPath.toLowerCase().includes(cleanQuery) ||
-        notesMatch ||
-        tagsMatch
-      );
+      return descriptorMatchesSearch(descriptor, query, {
+        workspacePath,
+        isFavorite: this.state.favoriteKeys.has(descriptor.key),
+        meta: this.state.favoriteMetadata.get(descriptor.key)
+      });
     });
 
     // Pinned sorting logic
