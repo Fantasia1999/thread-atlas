@@ -343,14 +343,17 @@ Copilot remote sync discovers session directories and downloads `events.jsonl` p
 
 ## Architecture
 
-- `server/`: Express backend for local scan, bundle loading, SSH workflows, and static serving of `dist/`
-- `src/parsers/`: source detection and tolerant adapters
-- `src/store/`: in-memory application state
+- `server/`: Express backend for local scan, bundle loading, scan-path configuration, SSH workflows, remote agent proxying, and static serving of `dist/`
+  - the same code also builds a standalone agent (`dist/agent/atlas-agent.mjs`) for deployment to a remote host
+- `shared/`: types and helpers used by both sides — `SessionDescriptor`, `SessionBundle`, `Session`, JSONL parsing, path utilities
+- `src/parsers/` and `src/sources/`: source detection, tolerant adapters, and the registry that orders them
+- `src/store/`: in-memory application state, connection routing, search query parsing, and the scan-roots client
 - `src/ui/`: framework-free DOM UI
 
 ## Notes
 
 - The backend discovers files and returns raw bundles; semantic parsing stays in the frontend.
+- Scan roots are user-configurable per source from the UI and persist to `data/scan-roots.json`; the only other thing written to disk is the SSH mirror under `data/remote/`.
 - Antigravity is the one transport exception: scan-backed `.pb` files are decoded server-side into generated chat JSONL before parsing.
 - Copilot sessions are discovered as directories rooted at `events.jsonl`, with optional sibling metadata files bundled when available.
 - SSH scan returns Copilot sessions as directory selections, while sync still downloads files into the local mirror before the normal scanner picks them up.

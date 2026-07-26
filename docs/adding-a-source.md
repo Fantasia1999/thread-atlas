@@ -42,11 +42,14 @@ Add the source to `sidebarSourceOrder` in `src/ui/sidebar.ts` at its intended fi
 
 Skip this step for an import-only source. To support local scan, implement the `ServerSourceAdapter` contract in `server/sources/types.ts`:
 
-- If the source needs a new product-default root, add it to `LocalScanRoots` and `resolveLocalScanRoots(...)` in `server/platformRoots.ts`, preserving the existing platform and environment-override conventions.
-- For an ordinary filesystem source, add an adapter to `server/sources/fileSources.ts`. Define `scanRoots(...)` and `matchPath(...)`, then register it in `FILE_SOURCE_ADAPTERS`.
-- For a source with custom discovery or bundle loading, first register its file adapter as above. Then create `server/sources/<source>.ts`, reuse or extend the file adapter, implement `scan(...)` and/or `loadBundle(...)`, and add it to `specialAdapters` in `server/sources/registry.ts`. The special adapter replaces the same-id file adapter without changing its registry position.
+- If the source needs a new product-default root, add a field to `LocalScanRoots` and fill it in `resolveLocalScanRoots(...)` in `server/platformRoots.ts`, preserving the existing platform and environment-override conventions. Every root field is a `ScanRootEntry[]` (`{ path, label? }`), never a bare string — a source can hold several histories at once. Add the new field name to `SCAN_ROOT_FIELDS`.
+- To let users configure the root in the UI, add an entry to `CONFIGURABLE_SOURCES` in `server/scanConfig.ts` with its root field, a one-line hint, and whether it points at a directory or a single file. Everything else — persistence, the picker, enable/disable, badge labels — is then automatic.
+- For an ordinary filesystem source, add an adapter to `server/sources/fileSources.ts`. Define `scanRoots(...)` and `matchPath(...)`, then register it in `FILE_SOURCE_ADAPTERS`. `scanRoots(...)` returns `ScanRoot[]` (`{ path, archiveLabel? }`); use the `toScanRoots(...)` helper to map root entries onto it so archive labels survive.
+- For a source with custom discovery or bundle loading, first register its file adapter as above. Then create `server/sources/<source>.ts`, reuse or extend the file adapter, implement `scan(...)` and/or `loadBundle(...)`, and add it to `specialAdapters` in `server/sources/registry.ts`. The special adapter replaces the same-id file adapter without changing its registry position. A custom `scan(...)` receives every root for its source, so iterate the list and thread each root's label into the descriptors it produces.
 
-`server/scanner.ts` runs registered default roots through `scanDefaultFileTree(...)`, invokes special `scan(...)` methods, and asks adapters with `loadBundle(...)` to claim a key before using the default raw-text bundle loader.
+`server/scanner.ts` resolves the effective roots (defaults + discovered archives + user config), runs plain file roots through `scanDefaultFileTree({ root, source, archiveLabel })`, invokes special `scan(...)` methods, and asks adapters with `loadBundle(...)` to claim a key before using the default raw-text bundle loader.
+
+Set `archiveLabel` on descriptors that come from a non-default root. It is what the sidebar badges so sessions restored from another machine stay distinguishable, and it is what the `archive:` search filter matches.
 
 Backend path matching is also first-match ordered. `SERVER_SOURCE_ADAPTERS` currently follows `antigravity → codex → claude → opencode → copilot → gemini`, derived from `FILE_SOURCE_ADAPTERS`. Preserve that priority unless a tested behavior change is intentional.
 
@@ -59,6 +62,7 @@ Cover each new boundary:
 - Parser: add a representative successful bundle test and a malformed or partial bundle test that returns a readable fallback session.
 - Detection: extend `tests/source-registry.test.ts` with the registry position, a positive detection case, an overlapping-heuristic priority case, explicit-source bypass, and the existing generic fallback expectations.
 - Scanning: test any new root resolution in `tests/platform-roots.test.ts`, then test `scanRoots(...)`, `matchPath(...)` on POSIX and Windows-style paths, unknown-path behavior, and actual descriptor/bundle routing. Add a focused test alongside `tests/scanner-mtime-slice.test.ts` or the existing source-specific server tests when custom `scan(...)` or `loadBundle(...)` behavior is involved.
+- Configurable roots: if you added a `CONFIGURABLE_SOURCES` entry, extend `tests/scan-roots-config.test.ts` so a user-added root reaches the scanner and its `archiveLabel` lands on the resulting descriptors.
 - Resume command and label: when present, test the registered label, default command, unsafe command, and `null` behavior for the wrong source or missing metadata.
 
 Run the phase boundary checks:
