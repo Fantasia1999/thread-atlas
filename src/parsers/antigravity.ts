@@ -10,8 +10,7 @@ import {
   stringifyValue,
   toIsoTimestamp
 } from "./utils.js";
-import { extractAntigravityPreviewTitle, extractUserRequest } from "../../shared/extractors/antigravity.js";
-export { extractAntigravityPreviewTitle } from "../../shared/extractors/antigravity.js";
+import { extractUserRequest } from "../../shared/extractors/antigravity.js";
 
 export function parseAntigravitySession(bundle: SessionBundle): Session {
   const file = bundle.files[0];

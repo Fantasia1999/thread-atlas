@@ -9,8 +9,7 @@ import {
   copyText,
   escapeHtml,
   formatDateTime,
-  formatDateTimeLong,
-  formatDateTimeTitle
+  formatDateTimeLong
 } from "./utils.js";
 
 export interface ChatViewOptions {

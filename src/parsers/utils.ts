@@ -101,25 +101,6 @@ export function sortMessages(messages: Message[]): Message[] {
     })
     .map((entry) => entry.message);
 }
-export function extractCommonMetadata(value: Record<string, unknown>): Record<string, MetadataValue> {
-  const metadata: Record<string, MetadataValue> = {};
-  const keys = ["cwd", "directory", "model", "modelID", "providerID", "cli_version", "sessionId"];
-
-  for (const key of keys) {
-    const candidate = value[key];
-    if (
-      typeof candidate === "string" ||
-      typeof candidate === "number" ||
-      typeof candidate === "boolean" ||
-      candidate === null
-    ) {
-      metadata[key] = candidate;
-    }
-  }
-
-  return metadata;
-}
-
 function cryptoRandomId(): string {
   return `session-${Math.random().toString(36).slice(2, 10)}`;
 }

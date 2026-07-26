@@ -104,21 +104,6 @@ export function parseSearchQuery(search: string): ParsedSearchQuery {
   return query;
 }
 
-export function hasActiveFilters(query: ParsedSearchQuery): boolean {
-  return (
-    query.showOnlyStarred ||
-    query.tags.length > 0 ||
-    query.terms.length > 0 ||
-    query.negatedTerms.length > 0 ||
-    query.sourceTerms.length > 0 ||
-    query.pathTerms.length > 0 ||
-    query.titleTerms.length > 0 ||
-    query.projectTerms.length > 0 ||
-    query.beforeMs !== undefined ||
-    query.afterMs !== undefined
-  );
-}
-
 export function descriptorMatchesSearch(
   descriptor: SessionDescriptor,
   query: ParsedSearchQuery,

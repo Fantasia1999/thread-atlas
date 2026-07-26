@@ -199,7 +199,6 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
   overlay.append(card);
 
   // States
-  let activeTab: "saved" | "configure" | "results" = "saved";
   let activeAuthMode: "password" | "privateKey" = "password";
   let files: RemoteSessionEntry[] = [];
   const selected = new Set<string>();
@@ -208,7 +207,6 @@ export function createSshModal(options: SshModalOptions): HTMLElement {
 
   // Functions
   function switchTab(tab: "saved" | "configure" | "results") {
-    activeTab = tab;
     tabHeader.querySelectorAll(".tab-btn").forEach((btn) => {
       const isTarget = btn.getAttribute("data-tab") === tab;
       btn.classList.toggle("active", isTarget);

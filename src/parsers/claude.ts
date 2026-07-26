@@ -4,16 +4,12 @@ import {
   basenameTitle,
   buildFallbackSession,
   buildSession,
-  collectText,
-  formatCodeFence,
   normalizeRole,
   parseJsonLines,
   previewText,
-  stringifyValue,
   toIsoTimestamp
 } from "./utils.js";
-import { extractClaudeCwd, extractClaudePreviewTitle, parseClaudeContent, extractClaudeParentThreadId, extractClaudeSessionId } from "../../shared/extractors/claude.js";
-export { extractClaudeCwd, extractClaudePreviewTitle } from "../../shared/extractors/claude.js";
+import { parseClaudeContent, extractClaudeParentThreadId, extractClaudeSessionId } from "../../shared/extractors/claude.js";
 
 interface ClaudeQueueOperation {
   operation: string;

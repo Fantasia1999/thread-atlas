@@ -574,8 +574,6 @@ export class ThreadAtlasApp {
       
       // Reveal the container synchronously - it is now perfectly scrolled!
       list.classList.add("ready");
-      
-      console.log("[Scroll] Restored synchronously to:", savedScrollTop, "scrollHeight:", list.scrollHeight, "clientHeight:", list.clientHeight, "actual list scrollTop:", list.scrollTop);
 
       let scrollTimeout: number | undefined;
       list.addEventListener("scroll", () => {

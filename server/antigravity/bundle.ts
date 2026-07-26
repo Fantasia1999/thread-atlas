@@ -298,7 +298,6 @@ export async function loadAntigravityTranscriptBundle(
 
   // Sort all records (excluding session_meta) by step index or timestamp
   if (records.length > 1) {
-    const metaRecord = records[0];
     const otherRecords = records.slice(1);
     otherRecords.sort((a: any, b: any) => {
       const idxA = typeof a.step_index === "number" ? a.step_index : -1;

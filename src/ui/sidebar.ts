@@ -1044,22 +1044,6 @@ function starIconMini(): string {
   `;
 }
 
-function caretRightIcon(): string {
-  return `
-    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-      <path d="M5.72 13.47a.75.75 0 0 1 0-1.06L9.66 8.5 5.72 4.59a.75.75 0 1 1 1.06-1.06l4.47 4.47a.75.75 0 0 1 0 1.06l-4.47 4.47a.75.75 0 0 1-1.06 0Z"/>
-    </svg>
-  `;
-}
-
-function caretDownIcon(): string {
-  return `
-    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-      <path d="M3.47 5.72a.75.75 0 0 1 1.06 0L8 9.19l3.47-3.47a.75.75 0 1 1 1.06 1.06l-4 4a.75.75 0 0 1-1.06 0l-4-4a.75.75 0 0 1 0-1.06Z"/>
-    </svg>
-  `;
-}
-
 interface DropdownItem {
   value: string;
   label: string;

@@ -11,8 +11,7 @@ import {
   stringifyValue,
   toIsoTimestamp
 } from "./utils.js";
-import { cleanCodexPrompt, extractCodexCwd, extractCodexParentThreadId, extractCodexPreviewTitle, extractCodexSessionId, normalizeThreadName } from "../../shared/extractors/codex.js";
-export { cleanCodexPrompt, extractCodexCwd, extractCodexParentThreadId, extractCodexPreviewTitle, extractCodexSessionId } from "../../shared/extractors/codex.js";
+import { cleanCodexPrompt, normalizeThreadName } from "../../shared/extractors/codex.js";
 
 const DUPLICATE_MESSAGE_WINDOW_MS = 2_000;
 const CODEX_TITLE_PREVIEW_LENGTH = 80;

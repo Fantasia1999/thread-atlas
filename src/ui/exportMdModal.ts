@@ -137,7 +137,7 @@ export function createExportMdModal(options: ExportMdModalOptions): HTMLElement 
       return;
     }
 
-    filtered.forEach((message, index) => {
+    filtered.forEach((message) => {
       const originalIndex = session.messages.findIndex((m) => m.id === message.id);
       const isChecked = checkedIds.has(message.id);
 

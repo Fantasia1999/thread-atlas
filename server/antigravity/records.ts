@@ -106,38 +106,6 @@ export function extractText(stepType: string, payload: unknown): string | undefi
   return undefined;
 }
 
-export function extractArtifactUris(stepType: string, payload: unknown): string[] {
-  if (stepType !== "CORTEX_STEP_TYPE_NOTIFY_USER" || !isRecord(payload)) {
-    return [];
-  }
-
-  return Array.isArray(payload.reviewAbsoluteUris)
-    ? payload.reviewAbsoluteUris.filter((uri): uri is string => typeof uri === "string")
-    : [];
-}
-
-export function inferRole(stepType: string): string {
-  const mapping: Record<string, string> = {
-    CORTEX_STEP_TYPE_USER_INPUT: "user",
-    CORTEX_STEP_TYPE_PLANNER_RESPONSE: "assistant",
-    CORTEX_STEP_TYPE_NOTIFY_USER: "assistant",
-    CORTEX_STEP_TYPE_EPHEMERAL_MESSAGE: "system",
-    CORTEX_STEP_TYPE_ERROR_MESSAGE: "system",
-    CORTEX_STEP_TYPE_RUN_COMMAND: "tool",
-    CORTEX_STEP_TYPE_VIEW_FILE: "tool",
-    CORTEX_STEP_TYPE_LIST_DIRECTORY: "tool",
-    CORTEX_STEP_TYPE_GREP_SEARCH: "tool",
-    CORTEX_STEP_TYPE_CODE_ACTION: "tool",
-    CORTEX_STEP_TYPE_COMMAND_STATUS: "tool",
-    CORTEX_STEP_TYPE_KNOWLEDGE_ARTIFACTS: "system",
-    CORTEX_STEP_TYPE_CONVERSATION_HISTORY: "system",
-    CORTEX_STEP_TYPE_CHECKPOINT: "system",
-    CORTEX_STEP_TYPE_TASK_BOUNDARY: "system"
-  };
-
-  return mapping[stepType] ?? "system";
-}
-
 export function compactSummaryText(value: unknown, maxLength = 120): string | undefined {
   if (typeof value !== "string") {
     return undefined;
